@@ -1,0 +1,36 @@
+{
+  "retrieved": "2026-11-11",
+  "registries": [
+    {
+      "name": "button",
+      "url": "https://grasscn.dev/r/button.json",
+      "sha256": "b2e39cbcbe5a38628ba52aea114184135d5aa7b1a68404b8aac8df63e4f3a296"
+    },
+    {
+      "name": "card",
+      "url": "https://grasscn.dev/r/card.json",
+      "sha256": "5e28813a5027e2c8b8a4aebe9bb4c5ae6c7eb4296a4b6020d07a983397ff8ff6"
+    },
+    {
+      "name": "tabs",
+      "url": "https://grasscn.dev/r/tabs.json",
+      "sha256": "1fe15db99be7fd08790b39e8aa6ce87fc5010b546cb0b2b90c77b902629b033a"
+    },
+    {
+      "name": "progress",
+      "url": "https://grasscn.dev/r/progress.json",
+      "sha256": "f0b6028d869c72ced219ad7676fb4ff2bdf63b20ccf25a9e77a9005e20d09aa9"
+    },
+    {
+      "name": "dialog",
+      "url": "https://grasscn.dev/r/dialog.json",
+      "sha256": "8697bcec5b9281cd3210ffb35d887def29b88e33cfd8990e0f1d8bc1a7af73b0"
+    },
+    {
+      "name": "hud",
+      "url": "https://grasscn.dev/r/hud.json",
+      "sha256": "110c7fb4e3b283eae436fa556ff1b67b840057330fffd7ed7d2118ad428ca24b"
+    }
+  ],
+  "adaptation": "utils imports use ../../lib/utils; button/tab/card/dialog text uses DOM and Fusion Pixel instead of bitmap/Canvas glyphs; textures, sound and Base UI interactions retained."
+}

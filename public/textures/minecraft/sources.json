@@ -1,0 +1,178 @@
+{
+  "version": "1.21.4",
+  "base": "https://raw.githubusercontent.com/InventivetalentDev/minecraft-assets/1.21.4/assets/minecraft/textures/",
+  "textures": {
+    "oak_log": "block/oak_log.png",
+    "oak_planks": "block/oak_planks.png",
+    "stick": "item/stick.png",
+    "short_grass": "block/short_grass.png",
+    "wheat_seeds": "item/wheat_seeds.png",
+    "wheat": "item/wheat.png",
+    "cobblestone": "block/cobblestone.png",
+    "coal": "item/coal.png",
+    "raw_iron": "item/raw_iron.png",
+    "iron_ingot": "item/iron_ingot.png",
+    "raw_gold": "item/raw_gold.png",
+    "gold_ingot": "item/gold_ingot.png",
+    "redstone": "item/redstone.png",
+    "lapis_lazuli": "item/lapis_lazuli.png",
+    "diamond": "item/diamond.png",
+    "emerald": "item/emerald.png",
+    "obsidian": "block/obsidian.png",
+    "sand": "block/sand.png",
+    "glass": "block/glass.png",
+    "sugar_cane": "item/sugar_cane.png",
+    "paper": "item/paper.png",
+    "book": "item/book.png",
+    "leather": "item/leather.png",
+    "white_wool": "block/white_wool.png",
+    "string": "item/string.png",
+    "bone": "item/bone.png",
+    "torch": "block/torch.png",
+    "ender_pearl": "item/ender_pearl.png",
+    "blaze_rod": "item/blaze_rod.png",
+    "blaze_powder": "item/blaze_powder.png",
+    "ender_eye": "item/ender_eye.png",
+    "apple": "item/apple.png",
+    "bread": "item/bread.png",
+    "cod": "item/cod.png",
+    "cooked_cod": "item/cooked_cod.png",
+    "beef": "item/beef.png",
+    "cooked_beef": "item/cooked_beef.png",
+    "rotten_flesh": "item/rotten_flesh.png",
+    "crafting_table": "block/crafting_table_front.png",
+    "furnace": "block/furnace_front.png",
+    "wooden_pickaxe": "item/wooden_pickaxe.png",
+    "stone_pickaxe": "item/stone_pickaxe.png",
+    "iron_pickaxe": "item/iron_pickaxe.png",
+    "diamond_pickaxe": "item/diamond_pickaxe.png",
+    "stone_axe": "item/stone_axe.png",
+    "iron_axe": "item/iron_axe.png",
+    "fishing_rod": "item/fishing_rod.png",
+    "bucket": "item/bucket.png",
+    "map": "item/map.png",
+    "compass_00": "item/compass_00.png",
+    "enchanting_table": "block/enchanting_table_top.png",
+    "wooden_sword": "item/wooden_sword.png",
+    "stone_sword": "item/stone_sword.png",
+    "iron_sword": "item/iron_sword.png",
+    "diamond_sword": "item/diamond_sword.png",
+    "leather_chestplate": "item/leather_chestplate.png",
+    "iron_chestplate": "item/iron_chestplate.png",
+    "diamond_chestplate": "item/diamond_chestplate.png",
+    "shield": "entity/shield_base_nopattern.png",
+    "lily_pad": "block/lily_pad.png",
+    "stone": "block/stone.png",
+    "coal_ore": "block/coal_ore.png",
+    "snow": "block/snow.png",
+    "bell": "block/bell_side.png",
+    "nether_bricks": "block/nether_bricks.png",
+    "end_portal_frame_top": "block/end_portal_frame_top.png",
+    "barrel_side": "block/barrel_side.png",
+    "composter_side": "block/composter_side.png",
+    "smithing_table_front": "block/smithing_table_front.png",
+    "bookshelf": "block/bookshelf.png",
+    "iron_block": "block/iron_block.png",
+    "charcoal": "item/charcoal.png",
+    "porkchop": "item/porkchop.png",
+    "cooked_porkchop": "item/cooked_porkchop.png",
+    "mutton": "item/mutton.png",
+    "cooked_mutton": "item/cooked_mutton.png",
+    "dirt": "block/dirt.png",
+    "dragon_egg": "block/dragon_egg.png",
+    "cooked_chicken": "item/cooked_chicken.png",
+    "white_bed": "entity/bed/white.png"
+  },
+  "portraits": {
+    "pig": {
+      "source": "entity/pig/pig.png",
+      "crop": [
+        16,
+        16,
+        24,
+        24
+      ]
+    },
+    "cow": {
+      "source": "entity/cow/cow.png",
+      "crop": [
+        6,
+        6,
+        14,
+        14
+      ]
+    },
+    "sheep": {
+      "source": "entity/sheep/sheep.png",
+      "crop": [
+        6,
+        6,
+        12,
+        12
+      ]
+    },
+    "zombie": {
+      "source": "entity/zombie/zombie.png",
+      "crop": [
+        8,
+        8,
+        16,
+        16
+      ]
+    },
+    "skeleton": {
+      "source": "entity/skeleton/skeleton.png",
+      "crop": [
+        8,
+        8,
+        16,
+        16
+      ]
+    },
+    "spider": {
+      "source": "entity/spider/spider.png",
+      "crop": [
+        32,
+        4,
+        40,
+        12
+      ]
+    },
+    "witch": {
+      "source": "entity/witch.png",
+      "crop": [
+        8,
+        8,
+        16,
+        18
+      ]
+    },
+    "shade": {
+      "source": "entity/enderman/enderman.png",
+      "crop": [
+        8,
+        8,
+        16,
+        16
+      ]
+    },
+    "blaze": {
+      "source": "entity/blaze.png",
+      "crop": [
+        8,
+        8,
+        16,
+        16
+      ]
+    },
+    "dragon": {
+      "source": "entity/enderdragon/dragon.png",
+      "crop": [
+        176,
+        44,
+        192,
+        60
+      ]
+    }
+  }
+}
