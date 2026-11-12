@@ -121,7 +121,7 @@ function Achievements() {
               {entries.map(({ title, icon, hint, done }) => (
                 <li key={title}>
                   <strong>
-                    <span className={done ? 'good' : 'dim'} role="img" aria-label={done ? '已完成' : '未完成'}>{done ? '✓ ' : '○ '}</span>
+                    <span className="achievement-status" data-complete={done} role="img" aria-label={done ? '已完成' : '未完成'} />
                     <GoalLabel term={icon} label={title} />
                   </strong>
                   {!done && <span className="dim"><GoalText hint={hint} /></span>}

@@ -297,6 +297,26 @@ body, button, input, select, textarea,
 .achievement-progress { margin-bottom: 6px; }
 .achievement-list { display: grid; gap: 8px; padding: 0; margin: 0; list-style: none; }
 .achievement-list li { display: grid; gap: 2px; border-bottom: 1px solid var(--line); padding: 4px 0; }
+.achievement-status {
+  position: relative;
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  margin-inline-end: 6px;
+  border: 2px solid currentColor;
+  color: var(--faint);
+  vertical-align: -0.15em;
+}
+.achievement-status[data-complete="true"] { color: var(--green); }
+.achievement-status[data-complete="true"]::after {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 1px;
+  width: 2px;
+  height: 2px;
+  box-shadow: 0 4px, 2px 6px, 4px 4px, 6px 2px, 8px 0;
+}
 
 .current-goal { flex-shrink: 0; overflow-wrap: anywhere; }
 .goal-term { display: inline-block; max-width: 100%; vertical-align: baseline; }
