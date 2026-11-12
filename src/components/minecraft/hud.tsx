@@ -137,7 +137,7 @@ const IconMeter = ({
       }))}
     >
       {Array.from(
-        { length: kind === "armor" && amount === 0 ? 0 : count },
+        { length: count },
         (_, order) => {
           const i = kind === "health" ? count - 1 - order : order;
           const filled = Math.max(0, Math.min(step, amount - i * step));

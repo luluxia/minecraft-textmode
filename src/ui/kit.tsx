@@ -38,7 +38,7 @@ export function Btn({ cd, onClick, disabled, children, sub, title, className = '
         />
       )}
       <span className="btn-label">
-        {children}
+        <span className="btn-title icon-text">{children}</span>
         {sub && <span className="btn-sub">{sub}</span>}
       </span>
     </Button>
@@ -64,7 +64,7 @@ export function Cost({ cost }: { cost: Bag }) {
       {Object.entries(cost).map(([k, n]) => {
         const have = Math.floor(inv[k] ?? 0)
         return (
-          <span key={k} className={have >= n ? '' : 'bad'}>
+          <span key={k} className={`tag material-tag icon-text${have >= n ? '' : ' bad'}`}>
             <Texture src={ITEMS[k].icon} /> {ITEMS[k].name} {have}/{n}
           </span>
         )
@@ -74,8 +74,8 @@ export function Cost({ cost }: { cost: Bag }) {
 }
 
 export const itemLabel = (id: string) => ITEMS[id].name
-export const ItemName = ({ id }: { id: string }) => <><Texture src={ITEMS[id].icon} /> {ITEMS[id].name}</>
-export const bagText = (bag: Bag) => Object.entries(bag).map(([k, n]) => <span key={k}><ItemName id={k} /> ×{n} </span>)
+export const ItemName = ({ id }: { id: string }) => <span className="icon-text"><Texture src={ITEMS[id].icon} /> {ITEMS[id].name}</span>
+export const bagText = (bag: Bag) => Object.entries(bag).map(([k, n]) => <span className="icon-text" key={k}><ItemName id={k} /> ×{n} </span>)
 
 export function Section({ title, extra, children }: { title: string; extra?: ReactNode; children: ReactNode }) {
   return (

@@ -8,6 +8,7 @@ import { useEffect, useState } from 'react'
 import { ITEM_LIST, MOBS, villageLevel, type Cat } from './game/data'
 import { count, dayOf, hourOf, isNight, production, useGame, villageCap } from './game/store'
 import { Adventure } from './ui/Adventure'
+import { PlayerHud } from './ui/PlayerHud'
 import { Crafting } from './ui/Crafting'
 import { Village } from './ui/Village'
 import { Bar, Btn } from './ui/kit'
@@ -61,7 +62,9 @@ export function App() {
             <TabsContent value="village"><Village /></TabsContent>
             </ScrollArea>
           </Card>
-        </Tabs></main>
+        </Tabs>
+        {flags.status && <PlayerHud />}
+        </main>
         {!early && <Sidebar />}
       </div>
 
@@ -131,8 +134,8 @@ function Sidebar() {
               const full = !!prod[i.id] && n >= cap
               return (
                 <div key={i.id} className="inv-row" title={i.desc}>
-                  <span><Texture src={i.icon} /> {i.name}</span>
-                  <span>
+                  <span className="icon-text inv-name"><Texture src={i.icon} /><span>{i.name}</span></span>
+                  <span className="inv-values">
                     {!unique && <span className={full ? 'gold' : ''}>{n}</span>}
                     {prod[i.id] && <span className="rate">{full ? '已满' : `+${prod[i.id].toFixed(2)}/秒`}</span>}
                   </span>

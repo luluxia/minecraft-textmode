@@ -22,15 +22,15 @@ export function Village() {
     <div>
       <Section title="概况">
         <div className="row">
-          <span className="loc-name"><Texture src="/textures/minecraft/oak_planks.png" /> {s.locs[s.homeId!].name}</span>
+          <span className="loc-name icon-text"><Texture src="/textures/minecraft/oak_planks.png" /> {s.locs[s.homeId!].name}</span>
           <span className="tag g">{villageLevel(v.villagers)}</span>
           {v.mayor && <span className="tag y">村长</span>}
         </div>
         <div className="stats" style={{ marginTop: 8 }}>
           <div className="row sm">
             <span> 村民 {v.villagers}/{housing(v)}</span>
-            <span><Texture src="/textures/minecraft/shield.png" /> 防御 {villageDefense(v)}</span>
-            <span><Texture src="/textures/minecraft/barrel_side.png" /> 储量上限 {villageCap(v)}</span>
+            <span className="icon-text"><Texture src="/textures/minecraft/shield.png" /> 防御 {villageDefense(v)}</span>
+            <span className="icon-text"><Texture src="/textures/minecraft/barrel_side.png" /> 储量上限 {villageCap(v)}</span>
           </div>
           {v.villagers > 0 && (
             <div className="stat">
@@ -53,7 +53,7 @@ export function Village() {
         {!v.mayor && v.villagers > 0 && (
           <div className="actions" style={{ marginTop: 8 }}>
             <Btn
-              className="primary"
+              className="primary wide"
               disabled={v.rep < MAYOR_REP || v.villagers < MAYOR_POP}
               onClick={s.runMayor}
               sub={`声望 ${v.rep}/${MAYOR_REP} · 村民 ${v.villagers}/${MAYOR_POP}`}
@@ -71,13 +71,15 @@ export function Village() {
             return (
               <article key={b.id} className="content-entry">
                 <div className="spread">
-                  <span><Texture src={b.icon} /> {b.name}</span>
+                  <span className="icon-text"><Texture src={b.icon} /> {b.name}</span>
                   <span className="dim">{v.buildings[b.id] ?? 0}</span>
                 </div>
                 <span className="sm dim">{b.desc}</span>
-                <Cost cost={cost} />
-                <div className="entry-actions">
-                  <Btn disabled={!home || !control || !canAfford(s, cost)} onClick={() => s.build(b.id)}>建造</Btn>
+                <div className="entry-foot">
+                  <Cost cost={cost} />
+                  <div className="entry-actions">
+                    <Btn disabled={!home || !control || !canAfford(s, cost)} onClick={() => s.build(b.id)}>建造</Btn>
+                  </div>
                 </div>
               </article>
             )
@@ -95,7 +97,7 @@ export function Village() {
               return (
                 <article key={j.id} className="content-entry">
                   <div className="spread">
-                    <span><Texture src={j.icon} /> {j.name}</span>
+                    <span className="icon-text"><Texture src={j.icon} /> {j.name}</span>
                     <div className="stepper">
                       <Btn className="mini" disabled={!control || n <= 0} onClick={() => s.assign(j.id, -1)} title={`减少${j.name}`}>−</Btn>
                       <b>{n}/{slots}</b>
@@ -120,13 +122,13 @@ export function Village() {
               const locked = (t.rep ?? 0) > v.rep
               return (
                 <article key={t.id} className="content-entry">
-                  <span>{bagText(t.get)}</span>
-                  <Cost cost={t.give} />
+                  <span className="item-flow">{bagText(t.get)}</span>
                   {locked && <span className="sm bad">需要声望 {t.rep}</span>}
-                  <div className="entry-actions">
-                    <Btn disabled={!home || locked || !canAfford(s, t.give)} onClick={() => s.trade(t.id)} >
-                      交易
-                    </Btn>
+                  <div className="entry-foot">
+                    <Cost cost={t.give} />
+                    <div className="entry-actions">
+                      <Btn disabled={!home || locked || !canAfford(s, t.give)} onClick={() => s.trade(t.id)}>交易</Btn>
+                    </div>
                   </div>
                 </article>
               )

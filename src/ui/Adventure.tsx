@@ -1,4 +1,3 @@
-import { PlayerHud } from './PlayerHud'
 import { Button } from '../components/minecraft/button'
 import { Texture } from './Texture'
 import { ACTIONS, BIOMES, EYES_NEEDED, ITEM_LIST, PICK_NAMES, RES_NAMES, ITEMS } from '../game/data'
@@ -22,16 +21,10 @@ export function Adventure() {
 
   return (
     <div>
-      {s.flags.status && (
-        <Section title="状态">
-          <PlayerHud />
-        </Section>
-      )}
-
       {s.flags.explore && (
         <Section title="当前位置">
           <div className="row">
-            <span className="loc-name"><Texture src={biome.icon} /> {loc.name}</span>
+            <span className="loc-name icon-text"><Texture src={biome.icon} /> {loc.name}</span>
             {loc.shelter && <span className="tag g">家</span>}
             {loc.saved && <span className="tag y">已记录</span>}
             {night && <span className="tag">夜晚 · 危险</span>}
@@ -123,11 +116,13 @@ export function Adventure() {
             </div>
           ) : (
             <article className="content-entry shelter-entry">
-              <span><Texture src="/textures/minecraft/white_bed.png" /> 庇护所</span>
+              <span className="icon-text"><Texture src="/textures/minecraft/white_bed.png" /> 庇护所</span>
               <span className="sm dim">在当前区域安家：永久记住此地，并解锁建筑与自动化。</span>
-              <Cost cost={SHELTER_COST} />
-              <div className="entry-actions">
-                <Btn className="primary" disabled={busy || !canAfford(s, SHELTER_COST)} onClick={s.buildShelter}>建立庇护所</Btn>
+              <div className="entry-foot">
+                <Cost cost={SHELTER_COST} />
+                <div className="entry-actions">
+                  <Btn className="primary" disabled={busy || !canAfford(s, SHELTER_COST)} onClick={s.buildShelter}>建立庇护所</Btn>
+                </div>
               </div>
             </article>
           )}

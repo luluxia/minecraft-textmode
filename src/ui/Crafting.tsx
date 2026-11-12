@@ -53,14 +53,16 @@ function CraftList() {
           return (
             <article key={r.id} className="content-entry fade-in">
               <div className="spread">
-                <span><Texture src={def.icon} /> {def.name}{r.n > 1 ? ` ×${r.n}` : ''}</span>
+                <span className="icon-text"><Texture src={def.icon} /> {def.name}{r.n > 1 ? ` ×${r.n}` : ''}</span>
                 {owned ? <span className="tag g">已拥有</span> : !unique && <span className="sm dim">持有 {count(s, r.out)}</span>}
               </div>
               {def.desc && <span className="sm dim">{def.desc}</span>}
-              <Cost cost={r.cost} />
-              <div className="entry-actions">
-                <Btn disabled={!ok || owned} onClick={() => s.craft(r.id)}>合成</Btn>
-                {!unique && <Btn disabled={!ok} onClick={() => s.craft(r.id, 10)}>×10</Btn>}
+              <div className="entry-foot">
+                <Cost cost={r.cost} />
+                <div className="entry-actions">
+                  <Btn disabled={!ok || owned} onClick={() => s.craft(r.id)}>合成</Btn>
+                  {!unique && <Btn disabled={!ok} onClick={() => s.craft(r.id, 10)}>×10</Btn>}
+                </div>
               </div>
             </article>
           )
@@ -82,7 +84,7 @@ function Furnace() {
           {job && jobDef ? (
             <>
               <div className="spread">
-                <span><ItemName id={jobDef.from} /> → <ItemName id={jobDef.out} /></span>
+                <span className="item-flow"><ItemName id={jobDef.from} /> → <ItemName id={jobDef.out} /></span>
                 <span className="sm dim">剩余 {job.left}</span>
               </div>
               <Bar value={job.prog} max={jobDef.time} color={s.furnace.fuel >= 1 ? '#e08a2c' : '#555'} />
@@ -109,14 +111,16 @@ function Furnace() {
             return (
               <article key={r.id} className="content-entry">
                 <div className="spread">
-                  <span><ItemName id={r.from} /> → <ItemName id={r.out} /></span>
+                  <span className="item-flow"><ItemName id={r.from} /> → <ItemName id={r.out} /></span>
                   <span className="sm dim">{r.time} 秒</span>
                 </div>
-                <span className="sm dim">持有原料 {have}</span>
-                <div className="entry-actions">
-                  <Btn disabled={blocked || have < 1} onClick={() => s.smelt(r.id, 1)}>×1</Btn>
-                  <Btn disabled={blocked || have < 1} onClick={() => s.smelt(r.id, 8)}>×8</Btn>
-                  <Btn disabled={blocked || have < 1} onClick={() => s.smelt(r.id, have)}>全部</Btn>
+                <div className="entry-foot">
+                  <span className="tag material-tag">持有原料 {have}</span>
+                  <div className="entry-actions">
+                    <Btn disabled={blocked || have < 1} onClick={() => s.smelt(r.id, 1)}>×1</Btn>
+                    <Btn disabled={blocked || have < 1} onClick={() => s.smelt(r.id, 8)}>×8</Btn>
+                    <Btn disabled={blocked || have < 1} onClick={() => s.smelt(r.id, have)}>全部</Btn>
+                  </div>
                 </div>
               </article>
             )
@@ -147,14 +151,18 @@ function Enchant() {
                 <span className="pips" aria-label={`${lvl} / ${e.max} 级`}>{'◆'.repeat(lvl)}{'◇'.repeat(e.max - lvl)}</span>
               </div>
               <span className="sm dim">{e.desc}</span>
-              {!maxed && (
+              <div className="entry-foot">
                 <div className="cost">
-                  <span className={s.level >= cost.levels ? '' : 'bad'}>✦ 等级 {s.level}/{cost.levels}</span>
-                  <span className={count(s, 'lapis') >= cost.lapis ? '' : 'bad'}>{itemLabel('lapis')} {count(s, 'lapis')}/{cost.lapis}</span>
+                  {!maxed && (
+                    <>
+                      <span className={`tag material-tag${s.level >= cost.levels ? '' : ' bad'}`}>✦ 等级 {s.level}/{cost.levels}</span>
+                      <Cost cost={{ lapis: cost.lapis }} />
+                    </>
+                  )}
                 </div>
-              )}
-              <div className="entry-actions">
-                <Btn disabled={!ok} onClick={() => s.enchant(e.id)}>{maxed ? '已满级' : '附魔'}</Btn>
+                <div className="entry-actions">
+                  <Btn disabled={!ok} onClick={() => s.enchant(e.id)}>{maxed ? '已满级' : '附魔'}</Btn>
+                </div>
               </div>
             </article>
           )
@@ -177,7 +185,7 @@ function Bag() {
               {items.map((i) => (
                 <article key={i.id} className="content-entry">
                   <div className="spread">
-                    <span><Texture src={i.icon} /> {i.name}</span>
+                    <span className="icon-text"><Texture src={i.icon} /> {i.name}</span>
                     <span>{cat === 'tool' || cat === 'gear' ? '' : `×${count(s, i.id)}`}</span>
                   </div>
                   {(i.desc || i.food) && (
