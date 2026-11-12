@@ -179,7 +179,7 @@ export function Adventure() {
             </div>
           </Section>
         )}
-        {s.homeId !== null && !atHome(s) && <p className="notice">回到营地可播种、烹饪或使用床铺。</p>}
+        {s.homeId !== null && !atHome(s) && <p className="notice camp-return-notice">回到营地可播种、烹饪或使用床铺。</p>}
       </TabsContent>
 
       <TabsContent value="dimensions">
