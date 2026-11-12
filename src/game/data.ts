@@ -2,6 +2,10 @@
 export type Cat = 'material' | 'food' | 'tool' | 'gear' | 'special'
 export type Bag = Record<string, number>
 
+export const ITEM_CATEGORIES = [
+  ['material', '材料'], ['food', '食物'], ['special', '奇物'], ['tool', '工具'], ['gear', '装备'],
+] as const satisfies readonly (readonly [Cat, string])[]
+
 export interface ItemDef {
   id: string
   name: string

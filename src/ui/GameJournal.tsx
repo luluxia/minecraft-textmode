@@ -3,14 +3,15 @@ import { Card } from '../components/minecraft/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/minecraft/tabs'
 import { GameDialog } from './GameDialog'
 import { useScrollReset } from './ScrollArea'
-import { ITEMS } from '../game/data'
+import { ITEM_CATEGORIES, ITEM_LIST, ITEMS } from '../game/data'
 import { EXPEDITIONS, OFFLINE_LIMIT } from '../game/progression'
 import { COMPLETED_MONUMENT, MONUMENT_GOAL, PROJECTS, STORY, type GoalHint, type GoalTerm } from '../game/advancements'
 import { dayOf, useGame } from '../game/store'
 import { Texture } from './Texture'
-import { Btn } from './kit'
+import { Btn, ItemName, Section } from './kit'
 
-export type GameMenu = 'achievements' | 'stats' | 'settings'
+const JOURNAL_TITLES = { catalog: '图鉴', achievements: '成就', stats: '统计', settings: '设置' } as const
+export type GameMenu = keyof typeof JOURNAL_TITLES
 
 const ACHIEVEMENT_TABS = [
   { id: 'story', label: '生存与探索', steps: STORY },
@@ -81,10 +82,11 @@ export function JournalModal({ menu, onClose, onDebug }: {
   onDebug?: () => void
 }) {
   const s = useGame()
-  const title = menu === 'settings' ? '设置' : menu === 'achievements' ? '成就' : '统计'
+  const title = JOURNAL_TITLES[menu]
   return (
     <GameDialog label={title} onClose={onClose}>
       <h2>{title}</h2>
+      {menu === 'catalog' && <ItemCatalog />}
       {menu === 'settings' && <SaveSettings onClose={onClose} onDebug={onDebug} />}
       {menu === 'achievements' && <Achievements />}
       {menu === 'stats' && <dl className="village-stats">
@@ -98,6 +100,37 @@ export function JournalModal({ menu, onClose, onDebug }: {
       </dl>}
       <div className="actions"><Btn onClick={onClose}>关闭</Btn></div>
     </GameDialog>
+  )
+}
+
+function ItemCatalog() {
+  const seen = useGame((s) => s.seen)
+  const discovered = ITEM_LIST.filter((item) => seen[item.id])
+
+  return (
+    <>
+      <p className="sm dim">已收录 {discovered.length}/{ITEM_LIST.length} 种物资</p>
+      {!discovered.length && <p className="notice">获得第一件物资后，图鉴会自动收录。</p>}
+      {ITEM_CATEGORIES.map(([category, name]) => {
+        const items = discovered.filter((item) => item.cat === category)
+        if (!items.length) return null
+        const total = ITEM_LIST.filter((item) => item.cat === category).length
+        return (
+          <Section key={category} title={name} extra={items.length + '/' + total}>
+            <ul className="entry-grid catalog-grid">
+              {items.map((item) => (
+                <li key={item.id} className="content-entry">
+                  <ItemName id={item.id} />
+                  {(item.food !== undefined || item.desc) && (
+                    <p className="sm dim">{item.food !== undefined && '饱食 +' + item.food + '。'}{item.desc}</p>
+                  )}
+                </li>
+              ))}
+            </ul>
+          </Section>
+        )
+      })}
+    </>
   )
 }
 

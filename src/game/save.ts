@@ -112,6 +112,9 @@ export function normalizeSave(input: unknown, version: number, defaults: GameSta
       if (s.combat.mob === 'dragon') s.combat.hp = Math.max(1, Math.ceil(s.combat.hp * MOBS.dragon.hp / 220))
     }
   }
+  for (const [item, amount] of Object.entries(s.inv)) {
+    if (amount > 0) s.seen[item] = true
+  }
   if (s.flags.won && !s.seen.dragon_egg) {
     s.inv.dragon_egg = 1
     s.seen.dragon_egg = true

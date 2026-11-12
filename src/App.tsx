@@ -6,7 +6,7 @@ import { Button } from './components/minecraft/button'
 import { AdventureImage } from './components/minecraft/minecraft-adventure-image'
 import { Texture } from './ui/Texture'
 import { useEffect, useState } from 'react'
-import { ITEM_LIST, MOBS, villageLevel, type Cat } from './game/data'
+import { ITEM_CATEGORIES, ITEM_LIST, ITEMS, MOBS, villageLevel } from './game/data'
 import { count, dayOf, hourOf, isNight, production, useGame, villageCap } from './game/store'
 import { Adventure } from './ui/Adventure'
 import { PlayerHud } from './ui/PlayerHud'
@@ -91,6 +91,9 @@ export function App() {
             {import.meta.env.DEV && debugActive && (
               <Btn className="toolbar-button on" onClick={() => setMenu('debug')}>Debug</Btn>
             )}
+            <Button className="btn toolbar-button" aria-label="图鉴" title="图鉴" onClick={() => setMenu('catalog')}>
+              <Texture src={ITEMS.book.icon} />
+            </Button>
             <Button className="btn toolbar-button" aria-label="成就" title="成就" onClick={() => setMenu('achievements')}>
               <Texture src="/textures/minecraft/challenge_frame_obtained.png" />
             </Button>
@@ -160,8 +163,6 @@ function LogPanel() {
   )
 }
 
-const SIDE_CATS: [Cat, string][] = [['material', '材料'], ['food', '食物'], ['special', '奇物'], ['tool', '工具'], ['gear', '装备']]
-
 function Sidebar() {
   const s = useGame()
   const prod = production(s)
@@ -170,7 +171,7 @@ function Sidebar() {
     <Card className="panel side fade-in" role="complementary" aria-label="物资">
       <ScrollArea className="sidebar-scroll" tabIndex={0} aria-label="滚动物资">
       <h3><span>物资</span></h3>
-      {SIDE_CATS.map(([cat, name]) => {
+      {ITEM_CATEGORIES.map(([cat, name]) => {
         const items = ITEM_LIST.filter((i) => i.cat === cat && (count(s, i.id) > 0 || prod[i.id]))
         if (!items.length) return null
         const unique = cat === 'tool' || cat === 'gear'

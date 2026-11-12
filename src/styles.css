@@ -295,6 +295,7 @@ body, button, input, select, textarea,
 .offline-report { margin-bottom: 8px; }
 .offline-report p { margin: 4px 0 0; overflow-wrap: anywhere; }
 .achievement-progress { margin-bottom: 6px; }
+.catalog-grid { --entry-width: 144px; margin: 0; padding: 0; list-style: none; }
 .achievement-list { display: grid; gap: 8px; padding: 0; margin: 0; list-style: none; }
 .achievement-list li { display: grid; gap: 2px; border-bottom: 1px solid var(--line); padding: 4px 0; }
 .achievement-status {
