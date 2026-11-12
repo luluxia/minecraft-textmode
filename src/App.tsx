@@ -178,7 +178,7 @@ function CombatModal() {
   return (
     <Dialog open><DialogContent className="game-dialog" aria-label="战斗">
       <div className="modal">
-        <div key={c.hp} className="mob-icon shake"><Texture src={m.icon} /></div>
+        <div key={c.hp} className="mob-icon shake"><Texture src={m.icon} className="combat-mob" /></div>
         <div className="combat-health">
           <div className="spread">
             <div className="row"><h2>{m.name}</h2>{c.boss && <span className="tag y">首领</span>}</div>

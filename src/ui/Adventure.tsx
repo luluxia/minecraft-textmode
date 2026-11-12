@@ -116,7 +116,7 @@ export function Adventure() {
             </div>
           ) : (
             <article className="content-entry shelter-entry">
-              <span className="icon-text"><Texture src="/textures/minecraft/white_bed.png" /> 庇护所</span>
+              <span className="icon-text"><Texture src={ITEMS.bed.icon} /> 庇护所</span>
               <span className="sm dim">在当前区域安家：永久记住此地，并解锁建筑与自动化。</span>
               <div className="entry-foot">
                 <Cost cost={SHELTER_COST} />

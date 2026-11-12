@@ -21,7 +21,11 @@ pnpm build
 
 中文名称参考 [中文 Minecraft Wiki](https://zh.minecraft.wiki/)，包括红石粉、末影珍珠、末影之眼、烈焰人、末影人、末影龙、下界要塞等。本次环境访问 Wiki 被站点验证阻挡，未批量复制 Wiki 的文字或图片。
 
-本地 PNG 来自 [Minecraft 1.21.4 资源镜像](https://github.com/InventivetalentDev/minecraft-assets/tree/1.21.4/assets/minecraft/textures) 和 [Mojang 的 Bedrock 示例资源包](https://github.com/Mojang/bedrock-samples/tree/15701fa9c13923f12662984c32c124327e40e3d3/resource_pack/textures/ui)。方块以对应材质面表示，生物头像由原版皮肤 UV 区域裁切，床和盾牌使用对应实体纹理。`public/textures/minecraft/sources.json` 记录版本、路径及头像裁切坐标，运行时从本地加载这些资源。Minecraft 贴图的权利归 Mojang/Microsoft 所有，grasscn 的 MIT 许可适用于组件源码。
+界面优先使用物品栏图标。白色床、盾牌和方块等使用从游戏内导出的物品栏图像，对战生物使用对应的全身模型渲染图。运行时从本地加载 PNG，`public/textures/minecraft/sources.json` 记录每张图的来源。Minecraft 贴图的权利归 Mojang/Microsoft 所有，grasscn 的 MIT 许可适用于组件源码。
+
+- 原版贴图和界面资源来自 [Minecraft 1.21.4 资源镜像](https://github.com/InventivetalentDev/minecraft-assets/tree/1.21.4/assets/minecraft/textures) 和 [Mojang 的 Bedrock 示例资源包](https://github.com/Mojang/bedrock-samples/tree/15701fa9c13923f12662984c32c124327e40e3d3/resource_pack/textures/ui)。
+- 物品栏渲染图来自 [Minecraft Item Gallery 的 Java 1.21.1 增强版图集](https://mcitemgallery.com/docs/)。
+- 对战图来自 [Minecraft Wiki 的生物模型渲染](https://minecraft.wiki/w/Help:Isometric_renders)，烈焰人使用原动画的首帧。
 
 `src/game/data.ts` 管理物品、配方、熔炼、掉落与交易；65 种物品包含猪排、牛肉、羊肉各自的生熟形态、鳕鱼和木炭。修正了原木烧木炭、胸甲材料数和地图指南针材料等明显不对应的内容。
 

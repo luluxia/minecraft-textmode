@@ -2,13 +2,9 @@
   "version": "1.21.4",
   "base": "https://raw.githubusercontent.com/InventivetalentDev/minecraft-assets/1.21.4/assets/minecraft/textures/",
   "textures": {
-    "oak_log": "block/oak_log.png",
-    "oak_planks": "block/oak_planks.png",
     "stick": "item/stick.png",
-    "short_grass": "block/short_grass.png",
     "wheat_seeds": "item/wheat_seeds.png",
     "wheat": "item/wheat.png",
-    "cobblestone": "block/cobblestone.png",
     "coal": "item/coal.png",
     "raw_iron": "item/raw_iron.png",
     "iron_ingot": "item/iron_ingot.png",
@@ -18,9 +14,6 @@
     "lapis_lazuli": "item/lapis_lazuli.png",
     "diamond": "item/diamond.png",
     "emerald": "item/emerald.png",
-    "obsidian": "block/obsidian.png",
-    "sand": "block/sand.png",
-    "glass": "block/glass.png",
     "sugar_cane": "item/sugar_cane.png",
     "paper": "item/paper.png",
     "book": "item/book.png",
@@ -29,10 +22,8 @@
     "sun": "environment/sun.png",
     "moon_phases": "environment/moon_phases.png",
     "leather": "item/leather.png",
-    "white_wool": "block/white_wool.png",
     "string": "item/string.png",
     "bone": "item/bone.png",
-    "torch": "block/torch.png",
     "ender_pearl": "item/ender_pearl.png",
     "blaze_rod": "item/blaze_rod.png",
     "blaze_powder": "item/blaze_powder.png",
@@ -44,8 +35,6 @@
     "beef": "item/beef.png",
     "cooked_beef": "item/cooked_beef.png",
     "rotten_flesh": "item/rotten_flesh.png",
-    "crafting_table": "block/crafting_table_front.png",
-    "furnace": "block/furnace_front.png",
     "wooden_pickaxe": "item/wooden_pickaxe.png",
     "stone_pickaxe": "item/stone_pickaxe.png",
     "iron_pickaxe": "item/iron_pickaxe.png",
@@ -56,36 +45,19 @@
     "bucket": "item/bucket.png",
     "map": "item/map.png",
     "compass_00": "item/compass_00.png",
-    "enchanting_table": "block/enchanting_table_top.png",
     "wooden_sword": "item/wooden_sword.png",
     "stone_sword": "item/stone_sword.png",
     "iron_sword": "item/iron_sword.png",
     "diamond_sword": "item/diamond_sword.png",
-    "leather_chestplate": "item/leather_chestplate.png",
     "iron_chestplate": "item/iron_chestplate.png",
     "diamond_chestplate": "item/diamond_chestplate.png",
-    "shield": "entity/shield_base_nopattern.png",
-    "lily_pad": "block/lily_pad.png",
-    "stone": "block/stone.png",
-    "coal_ore": "block/coal_ore.png",
-    "snow": "block/snow.png",
-    "bell": "block/bell_side.png",
-    "nether_bricks": "block/nether_bricks.png",
-    "end_portal_frame_top": "block/end_portal_frame_top.png",
-    "barrel_side": "block/barrel_side.png",
-    "composter_side": "block/composter_side.png",
-    "smithing_table_front": "block/smithing_table_front.png",
-    "bookshelf": "block/bookshelf.png",
-    "iron_block": "block/iron_block.png",
     "charcoal": "item/charcoal.png",
     "porkchop": "item/porkchop.png",
     "cooked_porkchop": "item/cooked_porkchop.png",
     "mutton": "item/mutton.png",
     "cooked_mutton": "item/cooked_mutton.png",
     "dirt": "block/dirt.png",
-    "dragon_egg": "block/dragon_egg.png",
-    "cooked_chicken": "item/cooked_chicken.png",
-    "white_bed": "entity/bed/white.png"
+    "cooked_chicken": "item/cooked_chicken.png"
   },
   "bedrock": {
     "base": "https://raw.githubusercontent.com/Mojang/bedrock-samples/15701fa9c13923f12662984c32c124327e40e3d3/resource_pack/textures/ui/",
@@ -96,96 +68,53 @@
       "weather_thunderstorm": "weather_thunderstorm.png"
     }
   },
-  "portraits": {
-    "pig": {
-      "source": "entity/pig/pig.png",
-      "crop": [
-        16,
-        16,
-        24,
-        24
-      ]
-    },
-    "cow": {
-      "source": "entity/cow/cow.png",
-      "crop": [
-        6,
-        6,
-        14,
-        14
-      ]
-    },
-    "sheep": {
-      "source": "entity/sheep/sheep.png",
-      "crop": [
-        6,
-        6,
-        12,
-        12
-      ]
-    },
-    "zombie": {
-      "source": "entity/zombie/zombie.png",
-      "crop": [
-        8,
-        8,
-        16,
-        16
-      ]
-    },
-    "skeleton": {
-      "source": "entity/skeleton/skeleton.png",
-      "crop": [
-        8,
-        8,
-        16,
-        16
-      ]
-    },
-    "spider": {
-      "source": "entity/spider/spider.png",
-      "crop": [
-        32,
-        4,
-        40,
-        12
-      ]
-    },
-    "witch": {
-      "source": "entity/witch.png",
-      "crop": [
-        8,
-        8,
-        16,
-        18
-      ]
-    },
-    "shade": {
-      "source": "entity/enderman/enderman.png",
-      "crop": [
-        8,
-        8,
-        16,
-        16
-      ]
-    },
-    "blaze": {
-      "source": "entity/blaze.png",
-      "crop": [
-        8,
-        8,
-        16,
-        16
-      ]
-    },
-    "dragon": {
-      "source": "entity/enderdragon/dragon.png",
-      "crop": [
-        176,
-        44,
-        192,
-        60
-      ]
+  "inventory": {
+    "version": "1.21.1",
+    "base": "https://mcitemgallery.com/images-v2/1.21.1/",
+    "textures": {
+      "white_bed": "white_bed.png",
+      "shield": "shield.png",
+      "oak_log": "oak_log.png",
+      "oak_planks": "oak_planks.png",
+      "short_grass": "short_grass.png",
+      "cobblestone": "cobblestone.png",
+      "obsidian": "obsidian.png",
+      "sand": "sand.png",
+      "glass": "glass.png",
+      "white_wool": "white_wool.png",
+      "crafting_table": "crafting_table.png",
+      "furnace": "furnace.png",
+      "enchanting_table": "enchanting_table.png",
+      "lily_pad": "lily_pad.png",
+      "stone": "stone.png",
+      "coal_ore": "coal_ore.png",
+      "snow": "snow.png",
+      "bell": "bell.png",
+      "nether_bricks": "nether_bricks.png",
+      "end_portal_frame_top": "end_portal_frame.png",
+      "barrel_side": "barrel.png",
+      "composter_side": "composter.png",
+      "smithing_table_front": "smithing_table.png",
+      "bookshelf": "bookshelf.png",
+      "iron_block": "iron_block.png",
+      "dragon_egg": "dragon_egg.png",
+      "leather_chestplate": "leather_chestplate.png",
+      "torch": "torch.png"
+    }
+  },
+  "mob_renders": {
+    "base": "https://minecraft.wiki/w/File:",
+    "textures": {
+      "mob_pig": "Temperate_Pig_JE3.png",
+      "mob_cow": "Cow_JE5_BE2.png",
+      "mob_sheep": "White_Sheep_JE5.png",
+      "mob_zombie": "Zombie_JE5_BE2.png",
+      "mob_skeleton": "Skeleton_JE6_BE4.png",
+      "mob_spider": "Spider_JE5_BE4.png",
+      "mob_witch": "Witch_JE4.png",
+      "mob_shade": "Enderman_JE3.png",
+      "mob_blaze": "Blaze_JE2.gif",
+      "mob_dragon": "Ender_Dragon_JE1_BE1.png"
     }
   }
 }
