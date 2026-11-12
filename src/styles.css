@@ -115,6 +115,7 @@ h1, h2, h3, p { margin: 0; font-weight: normal; }
 
 .village-stats { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 6px 16px; margin: 8px 0 0; }
 .village-stats dt { color: var(--dim); }
+.village-stats .stat-row { display: contents; }
 .village-stats dd { margin: 0; min-width: 0; overflow-wrap: anywhere; }
 .village-reputation { display: grid; grid-template-columns: minmax(0, 1fr); gap: 4px; }
 
@@ -233,6 +234,8 @@ body, button, input, select, textarea,
 .main-scroll { --entry-width: 264px; --action-width: 136px; }
 .entry-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, var(--entry-width)), 1fr)); gap: 8px; }
 .entry-list-notice { margin-bottom: 10px; }
+.recipe-filters { margin-bottom: 10px; }
+.trial-vaults { margin-top: 8px; }
 .content-entry { box-sizing: border-box; width: 100%; min-width: 0; padding: 8px 10px; display: flex; flex-direction: column; gap: 4px; border: 1px solid #555; background: #ffffff05; }
 .content-entry > .spread { align-items: center; }
 .content-entry > .spread > span:first-child { min-width: 0; overflow-wrap: anywhere; }

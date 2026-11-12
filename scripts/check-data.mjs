@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict'
 import { existsSync, readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
-import { ITEM_LIST, ITEMS, RECIPES, SMELTS, MOBS, BIOMES, BUILDINGS, JOBS, ACTIONS, TRADES, FUELS } from '../src/game/data.ts'
-import { BARTER_COST, BARTER_OFFERS, EXPEDITIONS, LINES, NETHER_COST, ROUTES, SURVEY_COST, WITHER_COST } from '../src/game/progression.ts'
+import { ITEM_LIST, ITEMS, RECIPES, SMELTS, MOBS, BIOMES, BUILDINGS, BUILDING_MAP, JOBS, ACTIONS, TRADES, FUELS, ENCHANTS } from '../src/game/data.ts'
+import { BARTER_COST, BARTER_OFFERS, EXCAVATION_COST, EXPEDITIONS, LINES, NETHER_COST, PLANTS, RESPAWN_COST, ROUTES, SURVEY_COST, TRIAL_VAULTS, WITHER_COST } from '../src/game/progression.ts'
 const root = new URL('../', import.meta.url)
 const bag = (entries) => { for (const id of Object.keys(entries)) assert.ok(ITEMS[id], `Unknown item: ${id}`) }
 const assetSources = JSON.parse(readFileSync(new URL('public/textures/minecraft/sources.json', root), 'utf8'))
@@ -19,7 +19,8 @@ for (const entries of [ITEM_LIST, Object.values(MOBS)]) {
  const icons = new Set(entries.map((entry) => entry.icon))
  assert.equal(icons.size, entries.length, 'Different items or combat creatures should have distinct icons')
 }
-for (const recipe of RECIPES) { bag(recipe.cost); assert.ok(ITEMS[recipe.out]) }
+for (const recipe of RECIPES) { bag(recipe.cost); bag(recipe.returns ?? {}); assert.ok(ITEMS[recipe.out]) }
+for (const item of ITEM_LIST) if (item.container) assert.ok(ITEMS[item.container])
 for (const smelt of SMELTS) { assert.ok(ITEMS[smelt.from]); assert.ok(ITEMS[smelt.out]) }
 for (const mob of Object.values(MOBS)) for (const drop of mob.drops) assert.ok(ITEMS[drop.item])
 for (const biome of Object.values(BIOMES)) for (const id of biome.actions) {
@@ -28,16 +29,46 @@ for (const biome of Object.values(BIOMES)) for (const id of biome.actions) {
  if (action.finite) assert.ok(biome.res[action.finite], `Missing deposit: ${biome.id}/${action.finite}`)
  if (action.mob) assert.ok(MOBS[action.mob])
  if (action.tool) assert.ok(ITEMS[action.tool])
+ if (action.enchant) assert.ok(ENCHANTS.some((entry) => entry.id === action.enchant))
+ for (const tool of action.needs ?? []) assert.ok(ITEMS[tool])
+ bag(action.cost ?? {})
  for (const drop of action.drops ?? []) assert.ok(ITEMS[drop.item])
 }
-for (const b of BUILDINGS) bag(b.cost)
+for (const biome of Object.values(BIOMES)) for (const id of biome.renew ?? []) assert.ok(biome.res[id])
+for (const b of BUILDINGS) { bag(b.cost); if (b.tool) assert.ok(ITEMS[b.tool]) }
 for (const job of JOBS) bag(job.out)
 for (const trade of TRADES) { bag(trade.give); bag(trade.get) }
-for (const route of ROUTES) assert.ok(BIOMES[route.biome])
-for (const cost of [NETHER_COST, WITHER_COST, SURVEY_COST, BARTER_COST]) bag(cost)
+for (const route of ROUTES) {
+ assert.ok(BIOMES[route.biome])
+ assert.equal(!!route.nether, !!BIOMES[route.biome].nether)
+ if (route.tool) assert.ok(ITEMS[route.tool])
+}
+for (const cost of [NETHER_COST, WITHER_COST, SURVEY_COST, BARTER_COST, EXCAVATION_COST, RESPAWN_COST]) bag(cost)
 for (const offer of BARTER_OFFERS) bag(offer.reward)
-for (const line of LINES) { bag(line.input); bag(line.output); assert.ok(line.seconds > 0) }
-for (const trip of EXPEDITIONS) { bag(trip.cost); bag(trip.reward); assert.ok(trip.seconds > 0) }
+for (const line of LINES) {
+ bag(line.input); bag(line.output); assert.ok(line.seconds > 0)
+ if (line.building) assert.ok(BUILDING_MAP[line.building])
+}
+for (const plant of PLANTS) { bag(plant.cost); bag(plant.reward); assert.ok(plant.seconds > 0) }
+for (const vault of TRIAL_VAULTS) { bag(vault.cost); bag(vault.reward) }
+for (const trip of EXPEDITIONS) {
+ bag(trip.cost); bag(trip.reward); bag(trip.first ?? {}); assert.ok(trip.seconds > 0)
+ if (trip.tool) assert.ok(ITEMS[trip.tool])
+ const chain = new Set([trip.id])
+ let requirement = trip.after
+ while (requirement) {
+   assert.ok(!chain.has(requirement), `Circular expedition unlock: ${requirement}`)
+   chain.add(requirement)
+   const predecessor = EXPEDITIONS.find((entry) => entry.id === requirement)
+   assert.ok(predecessor, `Missing expedition: ${requirement}`)
+   requirement = predecessor.after
+ }
+}
+assert.equal(RECIPES.find((recipe) => recipe.id === 'conduit').cost.nautilus, 8)
+assert.equal(RECIPES.find((recipe) => recipe.id === 'pick_netherite').station, 'smithing')
+assert.equal(TRIAL_VAULTS.find((vault) => vault.id === 'ominous').reward.heavy_core, 1)
+assert.equal(EXPEDITIONS.find((trip) => trip.id === 'warm_ruins').first.sniffer_egg, 1)
+assert.equal(EXPEDITIONS.find((trip) => trip.id === 'buried_treasure').first.heart_of_sea, 1)
 assert.equal(new Set(RECIPES.map(r => r.id)).size, RECIPES.length)
 assert.ok(BIOMES.forest.actions.includes('mine_stone'))
 assert.ok(BIOMES.cave.res.obsidian[0] * ACTIONS.mine_obsidian.drops[0].min >= NETHER_COST.obsidian)

@@ -1,10 +1,10 @@
 import { BIOMES, BUILDING_MAP, ENCHANTS, EYES_NEEDED, ITEMS, JOB_MAP, MOBS, SMELTS, type Bag } from './data'
 import { migrateMinecraftNames } from './migrate'
-import { EXPEDITIONS, LINES } from './progression'
+import { EXPEDITIONS, LINES, PLANTS } from './progression'
 import type { GameState, Loc } from './store'
 
 export const SAVE_KEY = 'block-idle-save'
-export const SAVE_VERSION = 3
+export const SAVE_VERSION = 4
 export type SaveSnapshot = GameState
 
 type Fields = Record<string, unknown>
@@ -83,18 +83,23 @@ export function normalizeSave(input: unknown, version: number, defaults: GameSta
     if (!record(c) || typeof c.mob !== 'string' || !Object.hasOwn(MOBS, c.mob) || !number(c.hp, 10000) ||
       c.hp <= 0 || !boolean(c.boss) || !integer(c.turn) || !Array.isArray(c.lines) ||
       c.lines.length > (version < 3 ? 1000 : 6) || !c.lines.every(shortText) ||
-      (c.crystals !== undefined && !integer(c.crystals, 3))) return null
+      (c.crystals !== undefined && !integer(c.crystals, 3)) ||
+      (c.trial !== undefined && (c.mob !== 'breeze' || !['normal', 'ominous'].includes(c.trial))) ||
+      (c.breathTaken !== undefined && (c.mob !== 'dragon' || !boolean(c.breathTaken)))) return null
   }
   if (!record(s.furnace) || !integer(s.furnace.fuel)) return null
   if (s.furnace.job !== null) {
     const job = s.furnace.job
     if (!record(job) || !integer(job.left) || job.left < 1 || !SMELTS.some((r) => r.id === job.r && integer(job.prog, r.time - 1))) return null
   }
-  if (!integer(s.crop, 60) || !integer(s.recruitment) || !bag(s.lines, (key) => LINES.some((entry) => entry.id === key), integer) ||
+  if (!integer(s.crop, 120) || !PLANTS.some((plant) => plant.id === s.cropKind) || !integer(s.recruitment) || !bag(s.lines, (key) => LINES.some((entry) => entry.id === key), integer) ||
     !bag(s.expeditions, (key) => key === 'raid' || EXPEDITIONS.some((entry) => entry.id === key), integer)) return null
   if (s.expedition !== null) {
     const trip = s.expedition
-    if (!record(trip) || !EXPEDITIONS.some((entry) => entry.id === trip.id && integer(trip.left, entry.seconds) && trip.left > 0)) return null
+    if (!record(trip) || !EXPEDITIONS.some((entry) => entry.id === trip.id &&
+      integer(trip.left, entry.seconds) && trip.left > 0 &&
+      (trip.total === undefined || (integer(trip.total, entry.seconds) && trip.total >= trip.left))) ||
+      (trip.returnBottle !== undefined && !boolean(trip.returnBottle))) return null
   }
   if (s.offline !== null) {
     const report = s.offline
@@ -103,14 +108,14 @@ export function normalizeSave(input: unknown, version: number, defaults: GameSta
       (report.expedition !== null && !EXPEDITIONS.some((trip) => trip.id === report.expedition))) return null
   }
   if (version < 2) migrateMinecraftNames(s)
-  if (version < 3) {
+  if (version < 4) {
     for (const loc of Object.values(s.locs)) {
       for (const [id, [min]] of Object.entries(BIOMES[loc.biome].res)) loc.res[id] ??= min
     }
-    if (s.combat) {
-      s.combat.lines = s.combat.lines.slice(0, 6)
-      if (s.combat.mob === 'dragon') s.combat.hp = Math.max(1, Math.ceil(s.combat.hp * MOBS.dragon.hp / 220))
-    }
+  }
+  if (version < 3 && s.combat) {
+    s.combat.lines = s.combat.lines.slice(0, 6)
+    if (s.combat.mob === 'dragon') s.combat.hp = Math.max(1, Math.ceil(s.combat.hp * MOBS.dragon.hp / 220))
   }
   for (const [item, amount] of Object.entries(s.inv)) {
     if (amount > 0) s.seen[item] = true

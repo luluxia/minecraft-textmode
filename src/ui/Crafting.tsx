@@ -1,8 +1,9 @@
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '../components/minecraft/tabs'
+import { Button } from '../components/minecraft/button'
 import { AdventureImage } from '../components/minecraft/minecraft-adventure-image'
 import { Texture } from './Texture'
 import { useState } from 'react'
-import { ENCHANTS, FUELS, ITEMS, ITEM_LIST, RECIPES, SMELTS, type Cat } from '../game/data'
+import { ENCHANTS, FUELS, ITEM_CATEGORIES, ITEMS, ITEM_LIST, RECIPES, SMELTS, type Cat } from '../game/data'
 import { canAfford, count, enchantCost, recipeStationReady, useGame } from '../game/store'
 import { Btn, Cost, EntryHeader, ItemName, Section } from './kit'
 import { useScrollReset } from './ScrollArea'
@@ -40,13 +41,26 @@ export function Crafting() {
 
 function CraftList() {
   const s = useGame()
+  const [category, setCategory] = useState<Cat | 'all'>('all')
   const hasTable = count(s, 'table') > 0
-  const list = RECIPES.filter(
+  const unlocked = RECIPES.filter(
     (r) => recipeStationReady(s, r.station) && Object.keys(r.cost).every((k) => s.seen[k]),
   )
+  const showFilters = unlocked.length > 18
+  const list = showFilters && category !== 'all' ? unlocked.filter((recipe) => ITEMS[recipe.out].cat === category) : unlocked
   return (
     <>
       {!hasTable && <p className="notice" style={{ marginBottom: 8 }}>双手能做的东西有限。先做一张工作台吧。</p>}
+      {showFilters && (
+        <div className="row recipe-filters" role="group" aria-label="配方分类">
+          {([['all', '全部'], ...ITEM_CATEGORIES] as const).map(([id, name]) => (
+            <Button key={id} className={`btn mini ${category === id ? 'on' : ''}`} aria-pressed={category === id} onClick={() => setCategory(id)}>
+              {name}
+            </Button>
+          ))}
+        </div>
+      )}
+      {list.length === 0 && <p className="notice">还没有发现这类配方。</p>}
       <div className="entry-grid">
         {list.map((r) => {
           const def = ITEMS[r.out]
@@ -58,13 +72,15 @@ function CraftList() {
               <EntryHeader actions={<>
                 {owned
                   ? <span className="tag g">已拥有</span>
-                  : <Btn disabled={!ok} onClick={() => s.craft(r.id)}>{r.station === 'brewing' ? '酿造' : '合成'}</Btn>}
+                  : <Btn disabled={!ok} onClick={() => s.craft(r.id)}>{r.station === 'brewing' ? '酿造' : r.station === 'smithing' ? '升级' : '合成'}</Btn>}
                 {!unique && <Btn disabled={!ok} onClick={() => s.craft(r.id, 10)}>×10</Btn>}
               </>}>
                 <span className="icon-text"><Texture src={def.icon} /> {def.name}{r.n > 1 ? ` ×${r.n}` : ''}</span>
                 {!unique && <span className="sm dim">持有 {count(s, r.out)}</span>}
               </EntryHeader>
-              {(def.desc || r.station === 'brewing') && <span className="sm dim">{r.station === 'brewing' && '酿造台 · '}{def.desc}</span>}
+              {(def.desc || r.station === 'brewing' || r.station === 'smithing') && (
+                <span className="sm dim">{r.station === 'brewing' ? '酿造台 ' : r.station === 'smithing' ? '锻造台 ' : ''}{def.desc}</span>
+              )}
               <Cost cost={r.cost} />
             </article>
           )

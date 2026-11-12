@@ -5,6 +5,7 @@ import { initial, useGame, type Game, type GameState } from './store'
 export const DEBUG_SCENARIOS = [
   { id: 'start', label: '新游戏', detail: '初生森林 · 空背包' },
   { id: 'village', label: '村庄经营', detail: '村民岗位 · 红石产线 · 熔炉' },
+  { id: 'expansion', label: '遗迹与远航', detail: '备好刷子、望远镜和船 · 可勘察或派远征' },
   { id: 'nether', label: '下界探索', detail: '下界门已建成 · 从家出发' },
   { id: 'stronghold', label: '末影龙战前', detail: '传送门房间 · 门已开启' },
   { id: 'endgame', label: '通关后经营', detail: '末地远征 · 纪念碑条件' },
@@ -69,6 +70,11 @@ export function loadDebugScenario(id: DebugScenario) {
   s.lines.sawmill = 0
   s.furnace = { fuel: 20, job: { r: 'iron', left: 12, prog: 2 } }
   if (id === 'village') { useGame.setState(s); return }
+  if (id === 'expansion') {
+    addStock(s, { boat: 1, brush: 1, spyglass: 1, shears: 1, bottle: 12, wool: 16, copper: 24, amethyst: 16 })
+    useGame.setState(s)
+    return
+  }
 
   addStock(s, { pick_diamond: 1, sword_diamond: 1, armor_diamond: 1, diamond: 24, potion: 4, brewing_stand: 1 })
   if (id === 'endgame') {

@@ -180,3 +180,101 @@ export const PROJECTS: Milestone[] = [
     complete: (s) => !!s.village?.buildings.shulker_store,
   },
 ]
+
+const spyglass = item('spyglass', 'equipment')
+const copper = item('copper', 'material')
+const amethyst = item('amethyst', 'special')
+const brush = item('brush', 'equipment')
+const pot = item('pot', 'special')
+const apiary = building('apiary')
+const honeycomb = item('honeycomb', 'material')
+const campfire = item('campfire', 'equipment')
+const shears = item('shears', 'equipment')
+const ruin = place('desert_ruin')
+const trial = place('trial_chamber')
+const breeze = mob('breeze')
+const trialKey = item('trial_key', 'special')
+const ominousBottle = item('ominous_bottle', 'special')
+const mace = item('mace', 'equipment')
+const windCharge = item('wind_charge', 'special')
+const echoShard = item('echo_shard', 'special')
+const city = place('ancient_city')
+const compass = item('recovery_compass', 'equipment')
+const boat = item('boat', 'equipment')
+const treasureMap = item('treasure_map', 'special')
+const heart = item('heart_of_sea', 'special')
+const shellNautilus = item('nautilus', 'special')
+const conduit = item('conduit', 'equipment')
+const snifferEgg = item('sniffer_egg', 'special')
+const torchflower = item('torchflower', 'material')
+const wasteland = place('nether_wastes')
+const bastion = place('bastion')
+const debris = item('ancient_debris', 'special')
+const netherite = item('netherite_ingot', 'special')
+const smithing = item('smithing_table', 'equipment')
+const endCrystal = item('end_crystal', 'special')
+const enderChest = item('ender_chest', 'equipment')
+const endStore = building('end_store')
+
+export const EXPLORATION: Milestone[] = [
+  {
+    title: '蜂巢下的烟火', icon: apiary,
+    hint: ['带上', campfire, '与', shears, '，到白桦森林或平原采', honeycomb, '，再建起', apiary, '。'],
+    complete: (s) => !!s.village?.buildings.apiary,
+  },
+  {
+    title: '古陶复原', icon: pot,
+    hint: ['制作', brush, '，在', ruin, '和暖水海底废墟收集陶片，再制作', pot, '。'],
+    complete: (s) => !!s.seen.pot,
+  },
+  {
+    title: '远望地下', icon: spyglass,
+    hint: ['熔出', copper, '，采收', amethyst, '，合成', spyglass, '，用铁镐勘察', trial, '。'],
+    complete: (s) => Object.values(s.locs).some((loc) => loc.biome === 'trial_chamber') || !!s.flags.trialVault,
+  },
+  {
+    title: '珍藏密敛', icon: trialKey,
+    hint: ['在', trial, '挑战', breeze, '，用获得的', trialKey, '开启宝库。'],
+    complete: (s) => !!s.flags.trialVault,
+  },
+  {
+    title: '天赐良击', icon: mace,
+    hint: ['用', ominousBottle, '开启强化试炼，取出沉重核心，合成', mace, '并在战斗中配合', windCharge, '使用。'],
+    complete: (s) => !!s.flags.maceLeap,
+  },
+  {
+    title: '故地重寻', icon: compass,
+    hint: ['用羊毛在', city, '潜行搜寻', echoShard, '，制作', compass, '。'],
+    complete: (s) => !!s.seen.recovery_compass,
+  },
+  {
+    title: '海洋之心', icon: heart,
+    hint: ['造一艘', boat, '，在村庄派队打捞沉船，再凭', treasureMap, '找到', heart, '。'],
+    complete: (s) => !!s.seen.heart_of_sea,
+  },
+  {
+    title: '潮涌能量', icon: conduit,
+    hint: ['用', heart, '和 8 个', shellNautilus, '制作', conduit, '，再完成一次海底神殿远征。'],
+    complete: (s) => !!s.seen.conduit && !!s.expeditions.ocean_monument,
+  },
+  {
+    title: '播种过往', icon: torchflower,
+    hint: ['考察暖水海底废墟，带回并孵化', snifferEgg, '，然后在营地种下', torchflower, '。'],
+    complete: (s) => !!s.seen.torchflower,
+  },
+  {
+    title: '残骸裹身', icon: netherite,
+    hint: ['在', wasteland, '采', debris, '，前往', bastion, '取得模板，再用', smithing, '升级钻石胸甲。'],
+    complete: (s) => !!s.seen.armor_netherite,
+  },
+  {
+    title: '末地补给线', icon: enderChest,
+    hint: ['制作', enderChest, '，绘制紫颂林地图，并建成', endStore, '。'],
+    complete: (s) => !!s.expeditions.chorus_grove && !!s.village?.buildings.end_store,
+  },
+  {
+    title: '结束了……再一次', icon: dragon,
+    hint: ['在要塞传送门房间使用 4 座', endCrystal, '，复活并再次击败', dragon, '。'],
+    complete: (s) => !!s.flags.dragonAgain,
+  },
+]

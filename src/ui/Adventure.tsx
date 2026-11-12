@@ -2,13 +2,13 @@ import { useState } from 'react'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/minecraft/tabs'
 import { Button } from '../components/minecraft/button'
 import { Texture } from './Texture'
-import { ACTIONS, BIOMES, EYES_NEEDED, ITEM_LIST, PICK_NAMES, RES_NAMES, ITEMS } from '../game/data'
-import { BARTER_COST, NETHER_COST, ROUTES, SURVEY_COST, WITHER_COST } from '../game/progression'
+import { ACTIONS, BIOMES, EYES_NEEDED, ITEM_LIST, RES_NAMES, ITEMS } from '../game/data'
+import { BARTER_COST, EXCAVATION_COST, NETHER_COST, PLANTS, RESPAWN_COST, ROUTES, SURVEY_COST, TRIAL_VAULTS, WITHER_COST } from '../game/progression'
 import {
-  CAMP_COOK, SHELTER_COST, actionAllowed, atHome, canAfford, canSurvey, count, curLoc, inNether,
-  isNight, mineResources, pickTier, scoutAllowed, travelAllowed, useGame,
+  CAMP_COOK, SHELTER_COST, actionAllowed, actionLock, atHome, canAfford, canCampHere, canSurvey, count, curLoc, inNether,
+  isNight, mineResources, pickTier, routeReady, scoutAllowed, travelAllowed, useGame,
 } from '../game/store'
-import { Btn, Cost, EntryHeader, Section } from './kit'
+import { Btn, Cost, EntryHeader, Section, bagText } from './kit'
 import { useScrollReset } from './ScrollArea'
 
 export function Adventure() {
@@ -20,11 +20,12 @@ export function Adventure() {
   const tier = pickTier(s)
   const night = isNight(s.minute)
   const busy = !!s.combat
-  const nether = !!s.flags.nether && inNether(loc)
+  const nether = inNether(loc)
+  const fireWard = (s.cds.fire_ward?.until ?? 0) > Date.now()
 
   const actions = biome.actions.filter((id) => actionAllowed(s, id))
-  const routes = ROUTES.filter((route) => !Object.values(s.locs).some((place) =>
-    place.biome === route.biome && (place.saved || place.shelter)))
+  const routes = ROUTES.filter((route) => !!route.nether === nether && (!route.newRoute || routeReady(s, route)) &&
+    !Object.values(s.locs).some((place) => place.biome === route.biome && (place.saved || place.shelter)))
   const protectedLoc = ['altar', 'rift', 'warped'].includes(loc.biome)
   const camp = atHome(s) && count(s, 'campfire') > 0
   const foods = ITEM_LIST.filter((i) => i.food && count(s, i.id) > 0)
@@ -67,10 +68,7 @@ export function Adventure() {
           <div className="actions">
             {actions.map((id) => {
               const a = ACTIONS[id]
-              let lock = ''
-              if (a.pick && tier < a.pick) lock = `需要${PICK_NAMES[a.pick]}`
-              else if (a.tool && count(s, a.tool) < 1) lock = `需要${ITEMS[a.tool].name}`
-              else if (a.finite && (loc.res[a.finite] ?? 0) <= 0) lock = '已枯竭'
+              const lock = actionLock(s, a)
               return (
                 <Btn key={id} cd={id} disabled={busy || !!lock} onClick={() => s.act(id)} sub={lock || undefined}>
                   {a.name}
@@ -83,6 +81,7 @@ export function Adventure() {
             )}
           </div>
         </Section>
+        <SiteTasks />
 
       </TabsContent>
 
@@ -92,9 +91,9 @@ export function Adventure() {
             {!nether && <Btn cd="move" disabled={busy} onClick={s.explore} sub={!loc.saved && !loc.shelter ? '将丢失当前地点' : '随机前往新地点'}>
               探索
             </Btn>}
-            {!nether && routes.map((route) => (
+            {routes.map((route) => (
               <Btn key={route.biome} cd="move" disabled={busy || !scoutAllowed(s, route.biome)} onClick={() => s.scout(route.biome)}
-                sub={tier < route.pick ? '需要' + route.requirement : '首次到达后记住路线'}>
+                sub={routeReady(s, route) ? '首次到达后记住路线' : '需要' + route.requirement}>
                 {route.name}
               </Btn>
             ))}
@@ -139,7 +138,8 @@ export function Adventure() {
                   吃{f.name}
                 </Btn>
               ))}
-              {count(s, 'potion') > 0 && <Btn cd="drink" disabled={s.hp >= 20} onClick={s.drink} sub="回复 8 生命">饮用治疗药水</Btn>}
+              {count(s, 'potion') > 0 && <Btn cd="drink" disabled={s.hp >= 20} onClick={() => s.drink()} sub="回复 8 生命">饮用治疗药水</Btn>}
+              {count(s, 'fire_resistance') > 0 && <Btn cd="drink" disabled={busy || fireWard} onClick={() => s.drink('fire_resistance')} sub={fireWard ? '抗火生效中' : '持续 60 秒'}>饮用抗火药水</Btn>}
               {atHome(s) && count(s, 'bed') > 0 && (
                 <Btn disabled={busy || !night} onClick={s.sleep} sub={night ? '跳过夜晚' : '只能在夜晚入睡'}>睡觉</Btn>
               )}
@@ -147,7 +147,7 @@ export function Adventure() {
           </Section>
         )}
 
-        {s.flags.explore && s.homeId === null && !protectedLoc && (
+        {s.flags.explore && s.homeId === null && canCampHere(loc) && (
           <Section title="安家">
             {loc.biome === 'village' ? (
               <div className="actions">
@@ -170,8 +170,14 @@ export function Adventure() {
         {atHome(s) && (
           <Section title="营地">
             <div className="actions">
-              <Btn disabled={busy || s.crop > 0 || count(s, 'seed') < 2} onClick={s.plant}
-                sub={s.crop ? '成熟还需 ' + s.crop + ' 秒' : '播种 2 粒 · 收获 4 小麦'}>播种小麦</Btn>
+              {PLANTS.filter((plant) => plant.id === 'wheat' || Object.keys(plant.cost).every((id) => s.seen[id])).map((plant) => (
+                <Btn key={plant.id} disabled={busy || s.crop > 0 || !canAfford(s, plant.cost)} onClick={() => s.plant(plant.id)}
+                  sub={s.crop && s.cropKind === plant.id
+                    ? '成熟还需 ' + s.crop + ' 秒'
+                    : Object.entries(plant.cost).map(([id, n]) => ITEMS[id].name + ' ×' + n).join('、')}>
+                  播种{plant.name}
+                </Btn>
+              ))}
               {camp && CAMP_COOK.filter((recipe) => count(s, recipe.from) > 0).map((recipe) => (
                 <Btn key={recipe.id} cd="cook" disabled={busy} onClick={() => s.cook(recipe.from)}
                   sub={'余 ' + count(s, recipe.from) + ' 份原料'}>烤制{ITEMS[recipe.out].name}</Btn>
@@ -203,13 +209,13 @@ export function Adventure() {
           </Section>
         )}
 
-        {s.flags.nether && ['rift', 'warped'].includes(loc.biome) && (
+        {s.flags.nether && inNether(loc) && (
           <Section title="猪灵交易">
             <article className="content-entry">
               <EntryHeader actions={
                 <Btn cd="barter" disabled={busy || !canAfford(s, BARTER_COST)} onClick={s.barter}>递上金锭</Btn>
               }>
-                <p className="sm dim">猪灵会用末影珍珠、黑曜石、线或皮革交换金锭。</p>
+                <p className="sm dim">猪灵会用末影珍珠、黑曜石、石英或其他物资交换金锭。</p>
               </EntryHeader>
               <Cost cost={BARTER_COST} />
             </article>
@@ -230,7 +236,11 @@ export function Adventure() {
                 <Btn disabled={busy || count(s, 'eye') < 1} onClick={s.insertEyes} sub={`${s.altarEyes}/${EYES_NEEDED}`}>嵌入末影之眼</Btn>
               )}
               {loc.biome === 'altar' && s.flags.portal && !s.flags.won && (
-                <Btn className="danger" disabled={busy} onClick={s.enterPortal} sub="备好护甲、盾牌与熟食">踏入传送门</Btn>
+                <Btn className="danger" disabled={busy} onClick={s.enterPortal} sub="护甲与熟食可帮助战斗，玻璃瓶可收集龙息">踏入传送门</Btn>
+              )}
+              {loc.biome === 'altar' && s.flags.portal && s.flags.won && (
+                <Btn className="danger" disabled={busy || !canAfford(s, RESPAWN_COST)} onClick={s.enterPortal}
+                  sub="消耗 4 座末地水晶">复活末影龙</Btn>
               )}
             </div>
           </Section>
@@ -238,4 +248,59 @@ export function Adventure() {
       </TabsContent>
     </Tabs>
   )
+}
+
+function SiteTasks() {
+  const s = useGame()
+  const loc = curLoc(s)
+  const busy = !!s.combat
+
+  if (loc.biome === 'trial_chamber') {
+    return (
+      <Section title="试炼刷怪笼与宝库">
+        <p className="notice entry-list-notice">击败旋风人后可取得钥匙。开启普通宝库获得不祥之瓶，再用它挑战强化试炼。</p>
+        <div className="actions">
+          <Btn cd="trial" disabled={busy} onClick={() => s.startTrial(false)}>开始试炼</Btn>
+          <Btn cd="trial" disabled={busy || !s.flags.trialVault || count(s, 'ominous_bottle') < 1}
+            onClick={() => s.startTrial(true)} sub="消耗 1 瓶不祥之瓶">开启不祥试炼</Btn>
+        </div>
+        <div className="entry-grid trial-vaults">
+          {TRIAL_VAULTS.map((vault) => (
+            <article className="content-entry" key={vault.id}>
+              <EntryHeader actions={
+                <Btn cd="vault" disabled={busy || !canAfford(s, vault.cost)} onClick={() => s.openVault(vault.id === 'ominous')}>开启</Btn>
+              }>
+                <span>{vault.name}</span>
+              </EntryHeader>
+              <div className="item-flow">{bagText(vault.reward)}</div>
+              <Cost cost={vault.cost} />
+            </article>
+          ))}
+        </div>
+      </Section>
+    )
+  }
+
+  if (loc.biome === 'desert_ruin') {
+    return (
+      <Section title="考古">
+        <div className="actions">
+          <Btn cd="excavation" disabled={busy || (loc.res.suspicious ?? 0) > 0 || !canAfford(s, EXCAVATION_COST)}
+            onClick={s.searchDig} sub="消耗 1 面包和 2 火把">寻找下一片沙层</Btn>
+        </div>
+      </Section>
+    )
+  }
+
+  if (loc.biome === 'bastion') {
+    return (
+      <Section title="堡垒藏宝箱">
+        <div className="actions">
+          <Btn disabled={busy || !s.flags.bastionCleared} onClick={s.openBastion} sub="击败猪灵蛮兵后开启">取出锻造模板</Btn>
+        </div>
+      </Section>
+    )
+  }
+
+  return null
 }

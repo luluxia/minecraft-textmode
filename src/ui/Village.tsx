@@ -5,10 +5,11 @@ import {
   BUILDINGS, CONTROL_REP, ITEMS, JOBS, MAYOR_POP, MAYOR_REP, TRADES, repTier, villageLevel,
 } from '../game/data'
 import {
-  activeLines, attackPower, atHome, buildCost, canAfford, canControl, defensePower, employed, housing,
+  activeLines, attackPower, atHome, buildCost, canAfford, canControl, count, cropMultiplier, defensePower, employed,
+  expeditionCost, expeditionLock, expeditionTime, expeditionVisible, housing,
   jobSlots, lineLimit, monumentReady, production, raidStrength, recruitTime, useGame, villageCap, villageDefense, wheatDemand,
 } from '../game/store'
-import { EXPEDITIONS, LINES, seasonAt } from '../game/progression'
+import { EXPEDITIONS, LINES, seasonAt, type ExpeditionDef } from '../game/progression'
 import { Bar, Btn, Cost, EntryHeader, Section, bagText } from './kit'
 import { useScrollReset } from './ScrollArea'
 
@@ -19,13 +20,14 @@ export function Village() {
   const v = s.village
   if (!v) return null
   const hasVillagers = v.villagers > 0
+  const trips = EXPEDITIONS.filter((entry) => expeditionVisible(s, entry))
   const tabs: [string, string, boolean][] = [
     ['overview', '概况', true],
     ['buildings', '建筑', true],
     ['villagers', '村民', hasVillagers],
     ['exchange', '交流', hasVillagers],
     ['automation', '红石', lineLimit(s) > 0],
-    ['expeditions', '远征', !!s.flags.won],
+    ['expeditions', '远征', trips.length > 0],
   ]
   const cur = tabs.some(([id, , available]) => id === sub && available) ? sub : 'overview'
   const home = atHome(s)
@@ -69,9 +71,9 @@ export function Village() {
             <dt>防御</dt>
             <dd>{villageDefense(v)}</dd>
             <dt>储量上限</dt>
-            <dd>{villageCap(v)}</dd>
+            <dd>{villageCap(s)}</dd>
             <dt>农时</dt>
-            <dd>{seasonAt(s.minute).name} · 作物产出 {Math.round(seasonAt(s.minute).crops * 100)}%</dd>
+            <dd>{seasonAt(s.minute).name} · 作物产出 {Math.round(cropMultiplier(s) * 100)}%</dd>
             {wheatDemand(v) > 0 && <>
               <dt>村民口粮</dt>
               <dd>小麦 {wheatDemand(v).toFixed(2)}/秒 · 口粮不足时非农业岗位效率降至 65%</dd>
@@ -123,16 +125,18 @@ export function Village() {
               const cost = buildCost(v, b.id)
               const full = (v.buildings[b.id] ?? 0) >= (b.limit ?? 40)
               const locked = b.project && !monumentReady(s)
+              const missingTool = b.tool && !count(s, b.tool) ? ITEMS[b.tool].name : undefined
               return (
                 <article key={b.id} className="content-entry">
                   <EntryHeader actions={
-                    <Btn disabled={full || locked || !home || !control || !canAfford(s, cost)} onClick={() => s.build(b.id)}>{full ? '已达上限' : '建造'}</Btn>
+                    <Btn disabled={full || locked || !!missingTool || !home || !control || !canAfford(s, cost)} onClick={() => s.build(b.id)}>{full ? '已达上限' : '建造'}</Btn>
                   }>
                     <span className="icon-text"><Texture src={b.icon} /> {b.name}</span>
                     <span className="sm dim">已建 {v.buildings[b.id] ?? 0}</span>
                   </EntryHeader>
                   <span className="sm dim">{b.desc}</span>
                   {locked && <span className="sm bad">需要成为村长、点亮信标并完成远端群岛远征。</span>}
+                  {missingTool && <span className="sm bad">需要{missingTool}</span>}
                   <Cost cost={cost} />
                 </article>
               )
@@ -196,7 +200,7 @@ export function Village() {
         </TabsContent>
       )}
       {lineLimit(s) > 0 && <TabsContent value="automation"><Automation /></TabsContent>}
-      {s.flags.won && <TabsContent value="expeditions"><Expeditions /></TabsContent>}
+      {trips.length > 0 && <TabsContent value="expeditions"><Expeditions trips={trips} /></TabsContent>}
     </Tabs>
   )
 }
@@ -209,18 +213,20 @@ function Automation() {
     <Section title="红石产线" extra={active + '/' + cap}>
       <p className="notice entry-list-notice">产线与村民一同运转。原料不足或产物堆满时，产线会等待。面包坊优先留出一分钟的村民口粮。</p>
       <div className="entry-grid">
-        {LINES.map((line) => {
+        {LINES.filter((line) => line.id in s.lines || Object.keys(line.input).some((item) => s.seen[item])).map((line) => {
           const running = line.id in s.lines
+          const building = line.building && !s.village?.buildings[line.building] ? BUILDINGS.find((entry) => entry.id === line.building) : undefined
           return (
             <article className="content-entry" key={line.id}>
               <EntryHeader actions={
-                <Btn disabled={!atHome(s) || (!running && active >= cap)} onClick={() => s.setLine(line.id)}>
+                <Btn disabled={!atHome(s) || !!building || (!running && active >= cap)} onClick={() => s.setLine(line.id)}>
                   {running ? '停用' : '启用'}
                 </Btn>
               }>
                 <span>{line.name}</span>
                 <span className="sm dim">{running ? s.lines[line.id] + '/' + line.seconds + ' 秒' : line.seconds + ' 秒/批'}</span>
               </EntryHeader>
+              {building && <span className="sm bad">需要{building.name}</span>}
               <div className="item-flow">{bagText(line.output)}</div>
               <Cost cost={line.input} />
             </article>
@@ -231,35 +237,53 @@ function Automation() {
   )
 }
 
-function Expeditions() {
+const TRIP_SECTIONS = [
+  ['ocean', '海洋远征'],
+  ['camp', '营地照料'],
+  ['end', '末地外岛'],
+] as const
+
+function Expeditions({ trips }: { trips: ExpeditionDef[] }) {
   const s = useGame()
   const trip = s.expedition
   return (
-    <Section title="末地外岛">
-      <p className="notice entry-list-notice">备齐物资后派出远征队。远征途中可继续经营或离线，归来时物资直接入库。</p>
-      <div className="entry-grid">
-        {EXPEDITIONS.map((entry) => {
-          const locked = entry.flight && !s.inv.elytra
-          const away = trip?.id === entry.id
-          const time = away ? trip.left : entry.seconds
-          return (
-            <article className="content-entry" key={entry.id}>
-              <EntryHeader actions={
-                <Btn disabled={!atHome(s) || !!trip || locked || !canAfford(s, entry.cost)} onClick={() => s.launch(entry.id)}>
-                  {away ? '远征中' : '出发'}
-                </Btn>
-              }>
-                <span>{entry.name}</span>
-                <span className="sm dim">{Math.floor(time / 60)} 分 {time % 60} 秒</span>
-              </EntryHeader>
-              <span className="sm dim">{entry.desc}{locked && ' 需要鞘翅。'}</span>
-              <div className="item-flow">{bagText(entry.reward)}</div>
-              {away && <Bar value={entry.seconds - time} max={entry.seconds} color="#8d3fbf" label="远征进度" />}
-              <Cost cost={entry.cost} />
-            </article>
-          )
-        })}
-      </div>
-    </Section>
+    <>
+      <p className="notice">同一时间可安排一项远征或孵化。派出后可以继续经营，离线也会结算。</p>
+      {TRIP_SECTIONS.map(([region, title]) => {
+        const entries = trips.filter((entry) => entry.region === region)
+        if (!entries.length) return null
+        return (
+          <Section key={region} title={title}>
+            <div className="entry-grid">
+              {entries.map((entry) => {
+                const locked = expeditionLock(s, entry)
+                const running = trip?.id === entry.id ? trip : null
+                const total = running ? running.total ?? entry.seconds : expeditionTime(s, entry)
+                const time = running?.left ?? total
+                const cost = expeditionCost(s, entry)
+                const reward = s.expeditions[entry.id] ? entry.reward : { ...entry.reward, ...entry.first }
+                return (
+                  <article className="content-entry" key={entry.id}>
+                    <EntryHeader actions={
+                      <Btn disabled={!atHome(s) || !!trip || !!locked || !canAfford(s, cost)} onClick={() => s.launch(entry.id)}>
+                        {running ? '进行中' : region === 'camp' ? '开始孵化' : '出发'}
+                      </Btn>
+                    }>
+                      <span>{entry.name}</span>
+                      <span className="sm dim">{Math.floor(time / 60)} 分 {time % 60} 秒</span>
+                    </EntryHeader>
+                    <span className="sm dim">{entry.desc}</span>
+                    {locked && <span className="sm bad">{locked}</span>}
+                    <div className="item-flow">{bagText(reward)}</div>
+                    {running && <Bar value={total - time} max={total} color="#8d3fbf" label="远征进度" />}
+                    <Cost cost={cost} />
+                  </article>
+                )
+              })}
+            </div>
+          </Section>
+        )
+      })}
+    </>
   )
 }

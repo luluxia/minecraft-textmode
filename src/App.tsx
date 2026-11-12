@@ -7,7 +7,7 @@ import { AdventureImage } from './components/minecraft/minecraft-adventure-image
 import { Texture } from './ui/Texture'
 import { useEffect, useState } from 'react'
 import { ITEM_CATEGORIES, ITEM_LIST, ITEMS, MOBS, villageLevel } from './game/data'
-import { count, dayOf, hourOf, isNight, production, useGame, villageCap } from './game/store'
+import { combatMaxHp, count, dayOf, hourOf, isNight, production, useGame, villageCap } from './game/store'
 import { Adventure } from './ui/Adventure'
 import { PlayerHud } from './ui/PlayerHud'
 import { Crafting } from './ui/Crafting'
@@ -166,7 +166,7 @@ function LogPanel() {
 function Sidebar() {
   const s = useGame()
   const prod = production(s)
-  const cap = s.village ? villageCap(s.village) : 0
+  const cap = villageCap(s)
   return (
     <Card className="panel side fade-in" role="complementary" aria-label="物资">
       <ScrollArea className="sidebar-scroll" tabIndex={0} aria-label="滚动物资">
@@ -205,9 +205,11 @@ function CombatModal() {
   if (!c) return null
   const m = MOBS[c.mob]
   const food = ITEM_LIST.filter((i) => i.food && i.id !== 'rotten' && count(s, i.id) > 0).sort((a, b) => b.food! - a.food!)[0]
-  const mobHealth = `${Math.max(0, c.hp)} / ${m.hp}`
+  const maxHp = combatMaxHp(c)
+  const mobHealth = `${Math.max(0, c.hp)} / ${maxHp}`
   const playerHealth = `${Math.ceil(s.hp)} / 20`
   const interval = c.boss ? 4 : 3
+  const fireWard = (s.cds.fire_ward?.until ?? 0) > Date.now()
   return (
     <GameDialog label="战斗">
       <div key={c.hp} className="mob-icon shake"><Texture src={m.icon} className="combat-mob" /></div>
@@ -216,7 +218,7 @@ function CombatModal() {
           <div className="row"><h2>{m.name}</h2>{c.boss && <span className="tag y">首领</span>}</div>
           <span className="sm">{mobHealth}</span>
         </div>
-        <Bar value={c.hp} max={m.hp} color="#8d3fbf" label={`${m.name}生命值`} valueText={mobHealth} />
+        <Bar value={c.hp} max={maxHp} color="#8d3fbf" label={`${m.name}生命值`} valueText={mobHealth} />
         {m.atk > 0 && <p className="sm dim">距下一次攻击 {interval - (c.turn % interval)} 秒</p>}
       </div>
       <div className="combat-health">
@@ -232,7 +234,16 @@ function CombatModal() {
           sub={c.crystals ? '剩余 ' + c.crystals + ' 座' : undefined}>{c.crystals ? '击碎末地水晶' : '攻击'}</Btn>
         {count(s, 'shield') > 0 && <Btn cd="block" onClick={s.block} sub="持续 4 秒">举盾</Btn>}
         {food && <Btn cd="eat" disabled={s.hunger >= 20 && s.hp >= 20} onClick={() => s.eat(food.id)} sub={`余 ${count(s, food.id)}`}>吃{food.name}</Btn>}
-        {count(s, 'potion') > 0 && <Btn cd="drink" disabled={s.hp >= 20} onClick={s.drink} sub="回复 8 生命">治疗药水</Btn>}
+        {count(s, 'potion') > 0 && <Btn cd="drink" disabled={s.hp >= 20} onClick={() => s.drink()} sub="回复 8 生命">治疗药水</Btn>}
+        {count(s, 'splash_healing') > 0 && <Btn cd="drink" disabled={s.hp >= 20} onClick={() => s.drink('splash_healing')} sub="回复 8 生命">喷溅型治疗药水</Btn>}
+        {count(s, 'lingering_healing') > 0 && <Btn cd="drink" disabled={s.hp >= 20} onClick={() => s.drink('lingering_healing')} sub="回复 12 生命">滞留型治疗药水</Btn>}
+        {['blaze', 'magma_cube', 'ghast'].includes(c.mob) && count(s, 'fire_resistance') > 0 && (
+          <Btn cd="drink" disabled={fireWard} onClick={() => s.drink('fire_resistance')} sub={fireWard ? '抗火生效中' : '减轻火焰伤害'}>抗火药水</Btn>
+        )}
+        {count(s, 'wind_charge') > 0 && <Btn cd="gust" onClick={s.gust} sub={count(s, 'mace') ? '强化下一击' : '打断敌人'}>投掷风弹</Btn>}
+        {c.mob === 'dragon' && count(s, 'bottle') > 0 && !c.breathTaken && (
+          <Btn disabled={c.turn < 4} onClick={s.bottleBreath} sub={c.turn < 4 ? '等待龙息落下' : '消耗一个玻璃瓶'}>收集龙息</Btn>
+        )}
         <Btn cd="flee" onClick={s.flee} sub={c.boss ? '下次挑战重新开始' : undefined}>撤退</Btn>
       </div>
     </GameDialog>

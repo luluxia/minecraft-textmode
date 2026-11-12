@@ -1,4 +1,7 @@
-import { BARTER_COST, BARTER_OFFERS, EXPEDITIONS, LINES, NETHER_COST, OFFLINE_LIMIT, ROUTES, SURVEY_COST, WITHER_COST, seasonAt } from './progression'
+import {
+  BARTER_COST, BARTER_OFFERS, EXCAVATION_COST, EXPEDITIONS, LINES, NETHER_COST, OFFLINE_LIMIT, PLANTS,
+  RESPAWN_COST, ROUTES, SURVEY_COST, TRIAL_VAULTS, WITHER_COST, seasonAt, type ExpeditionDef,
+} from './progression'
 import { decodeSave, encodeSave, normalizeSave, SAVE_KEY, SAVE_VERSION, snapshot } from './save'
 import { current } from 'immer'
 import { create } from 'zustand'
@@ -14,7 +17,17 @@ export interface Loc { id: number; biome: string; name: string; res: Bag; saved:
 export interface Village { villagers: number; jobs: Bag; buildings: Bag; rep: number; founded: boolean; mayor: boolean }
 export type LogKind = 'info' | 'good' | 'bad' | 'event'
 export interface LogEntry { id: number; text: string; kind: LogKind }
-export interface Combat { mob: string; hp: number; boss: boolean; crystals?: number; lines: string[]; turn: number }
+export interface Combat {
+  mob: string
+  hp: number
+  boss: boolean
+  crystals?: number
+  trial?: 'normal' | 'ominous'
+  breathTaken?: boolean
+  lines: string[]
+  turn: number
+}
+export type PotionId = 'potion' | 'fire_resistance' | 'splash_healing' | 'lingering_healing'
 export type Weather = 'clear' | 'rain' | 'storm'
 
 export interface GameState {
@@ -44,9 +57,10 @@ export interface GameState {
   altarEyes: number
   lastTick: number
   crop: number
+  cropKind: string
   recruitment: number
   lines: Bag
-  expedition: { id: string; left: number } | null
+  expedition: { id: string; left: number; total?: number; returnBottle?: boolean } | null
   expeditions: Bag
   offline: { seconds: number; items: Bag; villagers: number; expedition: string | null } | null
 }
@@ -60,7 +74,13 @@ export interface GameActions {
   survey(): void
   buildNether(): void
   rest(): void
-  plant(): void
+  plant(id?: string): void
+  startTrial(ominous: boolean): void
+  openVault(ominous: boolean): void
+  openBastion(): void
+  searchDig(): void
+  gust(): void
+  bottleBreath(): void
   cook(item: string): void
   setLine(id: string): void
   launch(id: string): void
@@ -69,7 +89,7 @@ export interface GameActions {
   breakCrystal(): void
   block(): void
   barter(): void
-  drink(): void
+  drink(item?: PotionId): void
   act(id: string): void
   explore(): void
   travel(id: number): void
@@ -113,13 +133,16 @@ export const attackPower = (s: GameState) =>
   1 + (SWORDS.find(([id]) => count(s, id) > 0)?.[1] ?? 0) + (s.ench.sharp ?? 0)
 export const defensePower = (s: GameState) =>
   (ARMORS.find(([id]) => count(s, id) > 0)?.[1] ?? 0) + (count(s, 'shield') > 0 ? 1 : 0) + (s.ench.prot ?? 0)
+export const combatMaxHp = (combat: Combat) =>
+  Math.ceil(MOBS[combat.mob].hp * (combat.trial === 'ominous' ? 1.65 : 1))
 export const hourOf = (minute: number) => Math.floor(minute / 60) % 24
 export const isNight = (minute: number) => { const h = hourOf(minute); return h >= 20 || h < 6 }
 export const dayOf = (minute: number) => Math.floor(minute / 1440) + 1
 export const xpNeed = (level: number) => 10 + level * 5
 export const curLoc = (s: GameState) => s.locs[s.locId]
 export const atHome = (s: GameState) => s.homeId !== null && s.homeId === s.locId
-export const inNether = (loc: Loc) => loc.biome === 'rift' || loc.biome === 'warped'
+export const inNether = (loc: Loc) => !!BIOMES[loc.biome].nether
+export const canCampHere = (loc: Loc) => !inNether(loc) && !['altar', 'trial_chamber', 'ancient_city'].includes(loc.biome)
 export const travelAllowed = (s: GameState, target: Loc) => {
   if (!s.flags.nether || s.homeId === null || inNether(curLoc(s)) === inNether(target)) return true
   return inNether(target) ? atHome(s) : target.id === s.homeId
@@ -129,9 +152,14 @@ export const housing = (v: Village) => (v.buildings.house ?? 0) * 2
 export const employed = (v: Village) => Object.values(v.jobs).reduce((a, b) => a + b, 0)
 export const jobSlots = (v: Village, job: string) =>
   BUILDINGS.filter((b) => b.job === job).reduce((a, b) => a + (v.buildings[b.id] ?? 0) * (b.slots ?? 0), 0)
-export const villageCap = (v: Village) => 200 + 300 * (v.buildings.warehouse ?? 0) + 1200 * (v.buildings.shulker_store ?? 0)
+export const villageCap = (s: GameState) => {
+  const v = s.village
+  if (!v) return 0
+  return 200 + 300 * (v.buildings.warehouse ?? 0) + 1200 * (v.buildings.shulker_store ?? 0) +
+    1800 * (v.buildings.end_store ?? 0) + (count(s, 'ender_chest') ? 600 : 0)
+}
 export const villageDefense = (v: Village) =>
-  (v.jobs.guard ?? 0) * 3 + (v.buildings.watchtower ?? 0) * 5 + (v.buildings.golem ?? 0) * 10
+  (v.jobs.guard ?? 0) * 3 + (v.buildings.watchtower ?? 0) * 5 + (v.buildings.golem ?? 0) * 10 + (v.buildings.sculk_station ?? 0) * 8
 export const buildCost = (v: Village, id: string): Bag => {
   const n = v.buildings[id] ?? 0
   return Object.fromEntries(
@@ -141,11 +169,16 @@ export const buildCost = (v: Village, id: string): Bag => {
 export const monumentReady = (s: GameState) =>
   !!s.village?.mayor && !!s.village.buildings.beacon && !!s.expeditions.flight
 export const wheatDemand = (v: Village) => Math.max(0, v.villagers - 2) * 0.012
+export const cropMultiplier = (s: GameState) => {
+  const greenhouses = s.village?.buildings.greenhouse ?? 0
+  const season = seasonAt(s.minute).crops
+  return (greenhouses ? Math.max(1, season) : season) * (1 + greenhouses * 0.2)
+}
 export const production = (s: GameState): Bag => {
   const v = s.village
   if (!v) return {}
   const out: Bag = {}
-  const crops = seasonAt(s.minute).crops
+  const crops = cropMultiplier(s)
   const demand = wheatDemand(v)
   const mult = (v.mayor ? 1.25 : 1) * (v.buildings.beacon ? 1.35 : 1) * (v.buildings.monument ? 1.25 : 1)
   const wheat = (v.jobs.farmer ?? 0) * JOB_MAP.farmer.out.wheat * crops * mult
@@ -153,7 +186,7 @@ export const production = (s: GameState): Bag => {
   for (const j of JOBS) {
     const n = v.jobs[j.id] ?? 0
     if (!n) continue
-    const factor = j.id === 'farmer' || j.id === 'gardener' ? crops : fed ? 1 : 0.65
+    const factor = ['farmer', 'gardener', 'vegetable_grower', 'beekeeper'].includes(j.id) ? crops : fed ? 1 : 0.65
     for (const [k, r] of Object.entries(j.out)) out[k] = (out[k] ?? 0) + r * n * mult * factor
   }
   if (v.buildings.cobblegen) out.cobble = (out.cobble ?? 0) + 0.38 * v.buildings.cobblegen * mult
@@ -162,18 +195,57 @@ export const production = (s: GameState): Bag => {
 }
 export const recipeStationReady = (s: GameState, station: Recipe['station']) => {
   if (station === 'hand') return true
-  return count(s, station === 'brewing' ? 'brewing_stand' : 'table') > 0
+  const item = station === 'brewing' ? 'brewing_stand' : station === 'smithing' ? 'smithing_table' : 'table'
+  return count(s, item) > 0
 }
 export const raidStrength = (s: GameState) => 8 + (s.village?.villagers ?? 0) + 3 * (s.expeditions.raid ?? 0)
-export const lineLimit = (s: GameState) => s.village?.buildings.redstone ?? 0
+export const lineLimit = (s: GameState) => (s.village?.buildings.redstone ?? 0) + (s.village?.buildings.crafter ?? 0)
 export const activeLines = (s: GameState) => LINES.filter((line) => line.id in s.lines).length
 export const actionAllowed = (s: GameState, id: string) =>
   BIOMES[curLoc(s).biome].actions.includes(id) &&
   (s.flags.explore || id === 'chop' || (s.flags.inv && id === 'grass'))
+export const routeReady = (s: GameState, route: typeof ROUTES[number]) =>
+  pickTier(s) >= route.pick && (!route.tool || count(s, route.tool) > 0)
 export const scoutAllowed = (s: GameState, biome: string) => {
   const route = ROUTES.find((entry) => entry.biome === biome)
-  return !!route && !!s.flags.explore && (!s.flags.nether || !inNether(curLoc(s))) && pickTier(s) >= route.pick &&
+  return !!route && !!s.flags.explore && !!route.nether === inNether(curLoc(s)) && routeReady(s, route) &&
     !Object.values(s.locs).some((loc) => loc.biome === biome && (loc.saved || loc.shelter))
+}
+
+export const actionLock = (s: GameState, action: typeof ACTIONS[string]) => {
+  const tool = [action.tool, ...(action.needs ?? [])].find((id) => id && count(s, id) < 1)
+  if (action.pick && pickTier(s) < action.pick) return '需要' + ITEMS[PICKS[action.pick - 1]].name
+  if (tool) return '需要' + ITEMS[tool].name
+  if (action.enchant && !s.ench[action.enchant]) return '需要精准采集'
+  if (action.finite && (curLoc(s).res[action.finite] ?? 0) <= 0) return '已枯竭'
+  if (action.cost && !canAfford(s, action.cost)) {
+    return '需要 ' + Object.entries(action.cost).map(([id, n]) => ITEMS[id].name + ' ×' + n).join('、')
+  }
+  return ''
+}
+
+export const expeditionCost = (s: GameState, trip: ExpeditionDef): Bag =>
+  trip.breathing && !count(s, 'conduit') ? { ...trip.cost, water_breathing: 1 } : trip.cost
+export const expeditionLock = (s: GameState, trip: ExpeditionDef) => {
+  if (trip.region === 'camp' && s.expeditions[trip.id]) return '孵化已完成'
+  if (trip.region === 'end' && !s.flags.won) return '需要击败末影龙'
+  if (trip.after && !s.expeditions[trip.after]) return '需要完成「' + EXPEDITIONS.find((entry) => entry.id === trip.after)!.name + '」'
+  if (trip.tool && !count(s, trip.tool)) return '需要' + ITEMS[trip.tool].name
+  if (trip.region === 'ocean' && !count(s, 'boat')) return '需要橡木船'
+  return ''
+}
+export const expeditionTime = (s: GameState, trip: ExpeditionDef) => {
+  let multiplier = s.village?.buildings.sculk_station ? 0.85 : 1
+  if (trip.region === 'ocean') {
+    if (s.village?.buildings.harbor) multiplier *= 0.8
+    if (count(s, 'conduit')) multiplier *= 0.8
+  }
+  return Math.ceil(trip.seconds * multiplier)
+}
+export const expeditionVisible = (s: GameState, trip: ExpeditionDef) => {
+  if (trip.region === 'end') return !!s.flags.won
+  if (trip.region === 'camp') return !!s.expeditions.warm_ruins
+  return !!s.seen.boat || !!s.expeditions.shipwreck
 }
 
 export const enchantCost = (s: GameState, id: string) => {
@@ -212,7 +284,7 @@ const rollDrops = (s: GameState, drops: Drop[]) => {
   for (const dr of drops) {
     if (Math.random() > (dr.p ?? 1)) continue
     let n = rand(dr.min, dr.max)
-    if (dr.item !== 'dragon_egg' && dr.item !== 'nether_star' && Math.random() < 0.12 * (s.ench.fortune ?? 0)) n *= 2
+    if (!['dragon_egg', 'nether_star', 'sculk_catalyst'].includes(dr.item) && Math.random() < 0.12 * (s.ench.fortune ?? 0)) n *= 2
     give(s, dr.item, n)
     parts.push(`${ITEMS[dr.item].name} +${n}`)
   }
@@ -242,7 +314,7 @@ const maybeEncounter = (s: GameState) => {
   if (!s.flags.explore || s.combat) return
   const loc = curLoc(s)
   const night = isNight(s.minute)
-  const underground = loc.biome === 'cave' || loc.biome === 'rift'
+  const underground = loc.biome === 'cave' || inNether(loc)
   if (loc.shelter || (!night && !underground) || attackPower(s) <= 1) return
   let p = (underground ? 0.09 : 0.055) * BIOMES[loc.biome].danger
   if (s.weather === 'storm') p *= 1.4
@@ -259,7 +331,7 @@ const maybeEncounter = (s: GameState) => {
 const die = (s: GameState, cause: string) => {
   s.stats.deaths++
   s.combat = null
-  for (const k of ['wood', 'cobble', 'wheat', 'coal']) {
+  for (const k of count(s, 'recovery_compass') ? ['wheat'] : ['wood', 'cobble', 'wheat', 'coal']) {
     if (s.inv[k]) s.inv[k] -= Math.min(12, Math.floor(s.inv[k] * 0.08))
   }
   s.level = Math.floor(s.level * 0.85)
@@ -290,10 +362,12 @@ const checkUnlocks = (s: GameState) => {
   if (count(s, 'enchant_table') > 0) unlock(s, 'enchant', '附魔台上的书页无风自动，低语着陌生的文字。')
   if (count(s, 'map') > 0) unlock(s, 'waypoint', '地图已标明方位，你可以记录走过的地点了。')
   if (pickTier(s) >= 3) unlock(s, 'deepMine', '铁镐可以凿开红石与钻石矿。洞穴深处还凝结着黑曜石。')
+  if (count(s, 'spyglass')) unlock(s, 'spyglass', '望远镜让你辨认出试炼密室的铜制入口。')
+  if (count(s, 'boat')) unlock(s, 'ocean', '有了船，你可以在村庄组织海洋远征。')
   if (count(s, 'eye') > 0) unlock(s, 'eye', '末影之眼在掌心微微颤动，似乎想飞向某个方向。')
 }
 
-const moveTime = (s: GameState, base: number) => base * (count(s, 'elytra') ? 0.55 : 1)
+const moveTime = (s: GameState, base: number) => base * (count(s, 'elytra') ? 0.55 : count(s, 'scaffolding') ? 0.85 : 1)
 const replenish = (loc: Loc, keys: string[]) => {
   for (const key of keys) {
     const range = BIOMES[loc.biome].res[key]
@@ -303,19 +377,28 @@ const replenish = (loc: Loc, keys: string[]) => {
     loc.res[key] = range[1]
   }
 }
-export const mineResources = (loc: Loc) => Object.keys(loc.res).filter((id) => !['wheat', 'pig', 'cow', 'sheep', 'nether_wart'].includes(id))
+const renewResources = (s: GameState) => {
+  for (const loc of Object.values(s.locs)) replenish(loc, BIOMES[loc.biome].renew ?? [])
+}
+export const mineResources = (loc: Loc) => {
+  const biome = BIOMES[loc.biome]
+  return biome.actions.flatMap((id) => {
+    const action = ACTIONS[id]
+    return action.kind === 'mine' && action.finite && !biome.renew?.includes(action.finite) ? [action.finite] : []
+  })
+}
 export const canSurvey = (s: GameState) => {
   const loc = curLoc(s)
-  return pickTier(s) >= 2 && mineResources(loc).some((id) => loc.res[id] < BIOMES[loc.biome].res[id][1])
+  return pickTier(s) >= 2 && mineResources(loc).some((id) => (loc.res[id] ?? 0) < BIOMES[loc.biome].res[id][1])
 }
-export const CAMP_COOK = SMELTS.filter((recipe) => ITEMS[recipe.from].cat === 'food')
+export const CAMP_COOK = SMELTS.filter((recipe) => ITEMS[recipe.from].food && ITEMS[recipe.out].food)
 
 const advanceEconomy = (s: GameState, live: boolean) => {
   const previous = hourOf(s.minute)
   s.minute += 5
   const hour = hourOf(s.minute)
   if (hour !== previous && hour === 6) {
-    for (const loc of Object.values(s.locs)) replenish(loc, ['wheat', 'pig', 'cow', 'sheep', 'nether_wart'])
+    renewResources(s)
   }
   if (live && s.flags.explore && hour !== previous) {
     if (hour === 20) pushLog(s, '夜幕降临，带上火把再出门。', 'event')
@@ -328,17 +411,17 @@ const advanceEconomy = (s: GameState, live: boolean) => {
   }
 
   if (s.crop > 0 && --s.crop === 0) {
-    give(s, 'wheat', 4)
-    give(s, 'seed', 2)
-    if (live) pushLog(s, '营地的小麦成熟了。收获小麦 ×4、种子 ×2。', 'good')
+    const plant = PLANTS.find((entry) => entry.id === s.cropKind) ?? PLANTS[0]
+    for (const [item, n] of Object.entries(plant.reward)) give(s, item, n)
+    if (live) pushLog(s, '营地的' + plant.name + '成熟了，收获已收入背包。', 'good')
   }
 
   const job = s.furnace.job
   if (job && s.furnace.fuel >= 1) {
     const def = SMELTS.find((entry) => entry.id === job.r)!
-    job.prog++
+    job.prog += s.village?.buildings.nether_forge ? 2 : 1
     if (job.prog >= def.time) {
-      job.prog = 0
+      job.prog -= def.time
       job.left--
       s.furnace.fuel--
       give(s, def.out, 1)
@@ -352,7 +435,7 @@ const advanceEconomy = (s: GameState, live: boolean) => {
 
   const v = s.village
   if (v) {
-    const cap = villageCap(v)
+    const cap = villageCap(s)
     for (const [item, rate] of Object.entries(production(s))) {
       const current = s.inv[item] ?? 0
       if (rate < 0) s.inv[item] = Math.max(0, current + rate)
@@ -375,7 +458,7 @@ const advanceEconomy = (s: GameState, live: boolean) => {
       s.lines[line.id] = ready
       if (ready < line.seconds || !canAfford(s, line.input)) continue
       if (Object.entries(line.output).some(([item, n]) => (s.inv[item] ?? 0) + n > cap)) continue
-      if (line.id === 'bakery' && (s.inv.wheat ?? 0) < line.input.wheat + wheatDemand(v) * 60) continue
+      if (line.reserveWheat && (s.inv.wheat ?? 0) < line.input.wheat + wheatDemand(v) * 60) continue
       pay(s, line.input)
       for (const [item, n] of Object.entries(line.output)) give(s, item, n)
       s.lines[line.id] = 0
@@ -384,7 +467,9 @@ const advanceEconomy = (s: GameState, live: boolean) => {
 
   if (s.expedition && --s.expedition.left <= 0) {
     const def = EXPEDITIONS.find((entry) => entry.id === s.expedition?.id)!
-    for (const [item, n] of Object.entries(def.reward)) give(s, item, n)
+    const reward = s.expeditions[def.id] ? def.reward : { ...def.reward, ...def.first }
+    for (const [item, n] of Object.entries(reward)) give(s, item, n)
+    if (s.expedition.returnBottle) give(s, 'bottle', 1)
     gainXp(s, def.xp)
     s.expeditions[def.id] = (s.expeditions[def.id] ?? 0) + 1
     s.expedition = null
@@ -405,6 +490,7 @@ const advancePlayer = (s: GameState) => {
     if (food) {
       pay(s, { [food.id]: 1 })
       s.hunger += food.food!
+      if (food.container) give(s, food.container, 1)
       setCd(s, 'eat', 1, true)
       pushLog(s, `你自动吃掉了一份${food.name}。`)
     }
@@ -413,10 +499,13 @@ const advancePlayer = (s: GameState) => {
   if (!c) return
   c.turn++
   const mob = MOBS[c.mob]
-  if (!mob.atk || c.turn % (c.boss ? 4 : 3) !== 0) return
+  if (!mob.atk || onCd(s, 'staggered') || c.turn % (c.boss ? 4 : 3) !== 0) return
   const guarded = count(s, 'shield') > 0 && onCd(s, 'guarding')
   const enraged = c.mob === 'wither' && c.hp <= mob.hp / 2
-  const damage = Math.max(1, mob.atk + Number(enraged) + rand(0, 1) - Math.floor(defensePower(s) * 0.6) - (guarded ? 4 : 0))
+  const fireWard = ['blaze', 'magma_cube', 'ghast'].includes(c.mob) && onCd(s, 'fire_ward')
+  const armor = Math.floor(defensePower(s) * (c.mob === 'warden' ? 0.35 : 0.6))
+  const damage = Math.max(1, mob.atk + Number(enraged) + (c.trial === 'ominous' ? 2 : 0) +
+    rand(0, 1) - armor - (guarded ? 4 : 0) - (fireWard ? 4 : 0))
   s.hp -= damage
   if (c.crystals) c.hp = Math.min(mob.hp, c.hp + c.crystals)
   combatLine(c, `${guarded ? '盾牌挡下了部分伤害。' : ''}${mob.name}造成 ${damage} 点伤害。`)
@@ -433,7 +522,7 @@ export const initial = (): GameState => ({
   autoEat: false,
   minute: 8 * 60,
   weather: 'clear',
-  locs: { 1: { id: 1, biome: 'forest', name: '初生森林', res: { pig: 5 }, saved: true, shelter: false } },
+  locs: { 1: { id: 1, biome: 'forest', name: '初生森林', res: { pig: 5, chicken: 4, eggs: 4 }, saved: true, shelter: false } },
   locId: 1,
   homeId: null,
   nextId: 2,
@@ -453,6 +542,7 @@ export const initial = (): GameState => ({
   altarEyes: 0,
   lastTick: Date.now(),
   crop: 0,
+  cropKind: 'wheat',
   recruitment: 0,
   lines: {},
   expedition: null,
@@ -557,11 +647,74 @@ export const useGame = create<Game>()(
         pushLog(s, camp ? '你在营火旁恢复了体力。' : '你找了一处安静的地方休整。')
       }),
 
-      plant: () => set((s) => {
-        if (s.combat || !atHome(s) || s.crop || count(s, 'seed') < 2) return
-        pay(s, { seed: 2 })
-        s.crop = Math.ceil(24 / seasonAt(s.minute).crops)
-        pushLog(s, '你在营地播下了两粒小麦种子。')
+      plant: (id = 'wheat') => set((s) => {
+        const plant = PLANTS.find((entry) => entry.id === id)
+        if (!plant || s.combat || !atHome(s) || s.crop || !canAfford(s, plant.cost)) return
+        pay(s, plant.cost)
+        s.cropKind = id
+        s.crop = Math.ceil(plant.seconds / cropMultiplier(s))
+        pushLog(s, '你在营地种下了' + plant.name + '。')
+      }),
+
+      searchDig: () => set((s) => {
+        if (s.combat || curLoc(s).biome !== 'desert_ruin' || !count(s, 'brush') || onCd(s, 'excavation')) return
+        if ((curLoc(s).res.suspicious ?? 0) > 0 || !canAfford(s, EXCAVATION_COST)) return
+        pay(s, EXCAVATION_COST)
+        replenish(curLoc(s), ['suspicious'])
+        setCd(s, 'excavation', 35, true)
+        pushLog(s, '你沿砂岩墙找到另一片未清理的沙层。', 'good')
+      }),
+
+      startTrial: (ominous) => set((s) => {
+        if (s.combat || curLoc(s).biome !== 'trial_chamber' || onCd(s, 'trial')) return
+        if (ominous && (!s.flags.trialVault || !count(s, 'ominous_bottle'))) return
+        if (ominous) pay(s, { ominous_bottle: 1 })
+        setCd(s, 'trial', ominous ? 45 : 30, true)
+        startCombat(s, 'breeze')
+        const combat = s.combat!
+        combat.trial = ominous ? 'ominous' : 'normal'
+        if (ominous) {
+          combat.hp = combatMaxHp(combat)
+          combatLine(combat, '不祥试炼刷怪笼强化了旋风人。')
+        }
+      }),
+
+      openVault: (ominous) => set((s) => {
+        if (s.combat || curLoc(s).biome !== 'trial_chamber') return
+        const vault = TRIAL_VAULTS.find((entry) => entry.id === (ominous ? 'ominous' : 'normal'))!
+        if (!canAfford(s, vault.cost) || onCd(s, 'vault')) return
+        pay(s, vault.cost)
+        for (const [item, n] of Object.entries(vault.reward)) give(s, item, n)
+        s.flags[vault.flag] = true
+        setCd(s, 'vault', 4, true)
+        pushLog(s, vault.name + '喷出了战利品。', 'good')
+      }),
+
+      openBastion: () => set((s) => {
+        if (s.combat || curLoc(s).biome !== 'bastion' || !s.flags.bastionCleared) return
+        s.flags.bastionCleared = false
+        give(s, 'netherite_template', 1)
+        give(s, 'gold', 6)
+        pushLog(s, '你从堡垒遗迹的箱子中找到下界合金升级锻造模板。', 'good')
+      }),
+
+      gust: () => set((s) => {
+        const c = s.combat
+        if (!c || onCd(s, 'gust') || !count(s, 'wind_charge')) return
+        pay(s, { wind_charge: 1 })
+        setCd(s, 'gust', 7, true)
+        setCd(s, 'staggered', 2.5, true)
+        if (count(s, 'mace')) setCd(s, 'leap', 4, true)
+        combatLine(c, count(s, 'mace') ? '风弹将你推上空中，下一击可用重锤砸落。' : '风弹让对手失去平衡，短暂停止攻击。')
+      }),
+
+      bottleBreath: () => set((s) => {
+        const c = s.combat
+        if (c?.mob !== 'dragon' || c.turn < 4 || c.breathTaken || !count(s, 'bottle')) return
+        pay(s, { bottle: 1 })
+        give(s, 'dragon_breath', 1)
+        c.breathTaken = true
+        combatLine(c, '你用玻璃瓶收集了末影龙留下的龙息。')
       }),
 
       cook: (item) => set((s) => {
@@ -574,7 +727,9 @@ export const useGame = create<Game>()(
       }),
 
       setLine: (id) => set((s) => {
-        if (!atHome(s) || s.combat || !s.village || !canControl(s.village) || !LINES.some((line) => line.id === id)) return
+        const line = LINES.find((entry) => entry.id === id)
+        if (!line || !atHome(s) || s.combat || !s.village || !canControl(s.village) ||
+          (line.building && !s.village.buildings[line.building])) return
         if (id in s.lines) delete s.lines[id]
         else if (activeLines(s) < lineLimit(s)) {
           s.lines[id] = 0
@@ -584,10 +739,12 @@ export const useGame = create<Game>()(
 
       launch: (id) => set((s) => {
         const def = EXPEDITIONS.find((entry) => entry.id === id)
-        if (!def || s.combat || !s.flags.won || !atHome(s) || s.expedition || !canAfford(s, def.cost)) return
-        if (def.flight && !count(s, 'elytra')) return
-        pay(s, def.cost)
-        s.expedition = { id, left: def.seconds }
+        if (!def || s.combat || !atHome(s) || s.expedition || expeditionLock(s, def)) return
+        const cost = expeditionCost(s, def)
+        if (!canAfford(s, cost)) return
+        const total = expeditionTime(s, def)
+        pay(s, cost)
+        s.expedition = { id, left: total, total, returnBottle: !!cost.water_breathing }
         pushLog(s, `远征出发：${def.name}。`, 'event')
       }),
 
@@ -599,9 +756,10 @@ export const useGame = create<Game>()(
         v.rep += 12
         give(s, 'emerald', 3)
         give(s, 'bone', 4)
+        give(s, 'ominous_bottle', 1)
         gainXp(s, 12)
         s.expeditions.raid = (s.expeditions.raid ?? 0) + 1
-        pushLog(s, '袭击者被守卫和铁傀儡挡在村外。村庄声望 +12，缴获绿宝石 ×3、骨头 ×4。', 'good')
+        pushLog(s, '袭击者被守卫和铁傀儡挡在村外。村庄声望 +12，缴获绿宝石 ×3、骨头 ×4、不祥之瓶 ×1。', 'good')
       }),
 
       summonWither: () => set((s) => {
@@ -615,7 +773,7 @@ export const useGame = create<Game>()(
       }),
 
       barter: () => set((s) => {
-        if (!s.flags.nether || s.combat || !['rift', 'warped'].includes(curLoc(s).biome) || onCd(s, 'barter') || !canAfford(s, BARTER_COST)) return
+        if (!s.flags.nether || s.combat || !inNether(curLoc(s)) || onCd(s, 'barter') || !canAfford(s, BARTER_COST)) return
         pay(s, BARTER_COST)
         setCd(s, 'barter', 12, true)
         let ticket = Math.random() * BARTER_OFFERS.reduce((n, offer) => n + offer.weight, 0)
@@ -625,12 +783,21 @@ export const useGame = create<Game>()(
         pushLog(s, '猪灵收下了金锭，扔给你' + loot.join('、') + '。', 'good')
       }),
 
-      drink: () => set((s) => {
-        if (!count(s, 'potion') || s.hp >= 20 || onCd(s, 'drink')) return
-        pay(s, { potion: 1 })
-        s.hp = Math.min(20, s.hp + 8)
+      drink: (item = 'potion') => set((s) => {
+        if (!['potion', 'fire_resistance', 'splash_healing', 'lingering_healing'].includes(item) || !count(s, item) || onCd(s, 'drink')) return
+        if ((item === 'splash_healing' || item === 'lingering_healing') && !s.combat) return
+        if (item === 'fire_resistance' ? onCd(s, 'fire_ward') : s.hp >= 20) return
+        pay(s, { [item]: 1 })
         setCd(s, 'drink', 8, true)
-        pushLog(s, '你饮下了治疗药水，回复至多 8 点生命。', 'good')
+        if (item === 'fire_resistance') {
+          give(s, 'bottle', 1)
+          setCd(s, 'fire_ward', 60, true)
+          pushLog(s, '你饮下了抗火药水，60 秒内降低来自烈焰人、岩浆怪和恶魂的伤害。', 'good')
+        } else {
+          const heal = item === 'lingering_healing' ? 12 : 8
+          s.hp = Math.min(20, s.hp + heal)
+          pushLog(s, '你使用了' + ITEMS[item].name + '，回复至多 ' + heal + ' 点生命。', 'good')
+        }
       }),
 
       breakCrystal: () => set((s) => {
@@ -652,19 +819,19 @@ export const useGame = create<Game>()(
         const a = ACTIONS[id]
         if (!a || s.combat || onCd(s, id) || !actionAllowed(s, id)) return
         const loc = curLoc(s)
-        if (a.pick && pickTier(s) < a.pick) return
-        if (a.tool && count(s, a.tool) < 1) return
-        if (a.finite && (loc.res[a.finite] ?? 0) <= 0) return
+        if (actionLock(s, a)) return
+        if (a.cost) pay(s, a.cost)
         let cd = a.cd
         if (a.kind === 'mine') cd *= Math.max(0.58, 1 - 0.14 * (pickTier(s) - (a.pick ?? 1)))
-        if (id === 'chop') cd *= count(s, 'axe_iron') ? 0.5 : count(s, 'axe_stone') ? 0.7 : 1
+        if (id.startsWith('chop')) cd *= count(s, 'axe_netherite') ? 0.36 : count(s, 'axe_diamond') ? 0.42 :
+          count(s, 'axe_iron') ? 0.5 : count(s, 'axe_stone') ? 0.7 : 1
         setCd(s, id, cd)
         s.stats.actions++
         if (s.flags.status) s.hunger = Math.max(0, s.hunger - a.hunger)
         if (a.finite) loc.res[a.finite]--
         if (a.mob) {
           pushLog(s, `你盯上了一只${MOBS[a.mob].name}。`)
-          startCombat(s, a.mob)
+          startCombat(s, a.mob, a.mob === 'warden')
           return
         }
         let got = rollDrops(s, a.drops ?? [])
@@ -729,6 +896,7 @@ export const useGame = create<Game>()(
         if (!def?.food || count(s, item) < 1 || onCd(s, 'eat') || (s.hunger >= 20 && !s.combat)) return
         pay(s, { [item]: 1 })
         s.hunger = Math.min(20, s.hunger + def.food)
+        if (def.container) give(s, def.container, 1)
         if (s.combat && item !== 'rotten') s.hp = Math.min(20, s.hp + Math.ceil(def.food / 2))
         setCd(s, 'eat', s.combat ? 4 : 1, true)
         if (item === 'rotten' && Math.random() < 0.3) {
@@ -744,7 +912,7 @@ export const useGame = create<Game>()(
         const h = hourOf(s.minute)
         const skip = ((h >= 20 ? 30 - h : 6 - h) * 60) - (s.minute % 60)
         s.minute += skip
-        for (const loc of Object.values(s.locs)) replenish(loc, ['wheat', 'pig', 'cow', 'sheep', 'nether_wart'])
+        renewResources(s)
         s.hp = Math.min(20, s.hp + 8)
         s.hunger = Math.max(0, s.hunger - 2)
         pushLog(s, '你在床上睡了一觉。醒来时天已经亮了。', 'good')
@@ -756,7 +924,12 @@ export const useGame = create<Game>()(
         const unique = ['tool', 'gear'].includes(ITEMS[r.out].cat)
         if (unique && count(s, r.out)) return
         let made = 0
-        for (let i = 0; i < Math.min(unique ? 1 : 100, times) && canAfford(s, r.cost); i++) { pay(s, r.cost); give(s, r.out, r.n); made += r.n }
+        for (let i = 0; i < Math.min(unique ? 1 : 100, times) && canAfford(s, r.cost); i++) {
+          pay(s, r.cost)
+          give(s, r.out, r.n)
+          for (const [item, n] of Object.entries(r.returns ?? {})) give(s, item, n)
+          made += r.n
+        }
         if (!made) return
         pushLog(s, `你合成了${ITEMS[r.out].name} ×${made}。`)
         checkUnlocks(s)
@@ -799,7 +972,7 @@ export const useGame = create<Game>()(
       }),
 
       buildShelter: () => set((s) => {
-        if (!s.flags.explore || s.combat || s.homeId !== null || ['altar', 'rift', 'warped'].includes(curLoc(s).biome) || !canAfford(s, SHELTER_COST)) return
+        if (!s.flags.explore || s.combat || s.homeId !== null || !canCampHere(curLoc(s)) || !canAfford(s, SHELTER_COST)) return
         pay(s, SHELTER_COST)
         const loc = curLoc(s)
         loc.shelter = true
@@ -823,7 +996,7 @@ export const useGame = create<Game>()(
         const v = s.village
         const building = BUILDING_MAP[id]
         if (!v || !building || s.combat || !atHome(s) || !canControl(v)) return
-        if ((building.project && !monumentReady(s)) || (building.need && !s.seen[building.need]) || (v.buildings[id] ?? 0) >= (building.limit ?? 40)) return
+        if ((building.project && !monumentReady(s)) || (building.tool && !count(s, building.tool)) || (building.need && !s.seen[building.need]) || (v.buildings[id] ?? 0) >= (building.limit ?? 40)) return
         const cost = buildCost(v, id)
         if (!canAfford(s, cost)) return
         pay(s, cost)
@@ -851,7 +1024,7 @@ export const useGame = create<Game>()(
         for (let i = 0; i < Math.min(times, 5) && canAfford(s, t.give); i++) {
           pay(s, t.give)
           for (const [k, n] of Object.entries(t.get)) give(s, k, n)
-          v.rep += v.buildings.market ? 2 : 1
+          v.rep += (v.buildings.market ? 2 : 1) + (v.buildings.cultural_hall ? 1 : 0)
         }
       }),
 
@@ -876,7 +1049,12 @@ export const useGame = create<Game>()(
         setCd(s, 'attack', 1, true)
         const m = MOBS[c.mob]
         const crit = Math.random() < 0.1
-        const power = (attackPower(s) + rand(0, 1)) * (crit ? 2 : 1)
+        const leap = count(s, 'mace') && onCd(s, 'leap')
+        const power = (attackPower(s) + rand(0, 1)) * (crit ? 2 : 1) + (leap ? 8 : 0)
+        if (leap) {
+          delete s.cds.leap
+          s.flags.maceLeap = true
+        }
         const dmg = c.crystals ? Math.max(1, Math.floor(power * 0.35)) : power
         c.hp -= dmg
         combatLine(c, `你${crit ? '打出暴击，' : ''}对${m.name}造成 ${dmg} 点伤害。`)
@@ -886,9 +1064,13 @@ export const useGame = create<Game>()(
         const got = rollDrops(s, m.drops.filter((drop) => drop.item !== 'dragon_egg' || !s.flags.won))
         gainXp(s, m.xp)
         pushLog(s, `你击败了${m.name}。${got ? `（${got}）` : ''}`, 'good')
+        if (c.trial) give(s, c.trial === 'ominous' ? 'ominous_key' : 'trial_key', 1)
+        if (c.mob === 'piglin_brute') s.flags.bastionCleared = true
+        if (c.mob === 'warden') s.flags.warden = true
         if (c.mob === 'dragon') {
+          if (s.flags.won) s.flags.dragonAgain = true
+          else s.flags.showWin = true
           s.flags.won = true
-          s.flags.showWin = true
           pushLog(s, '末影龙发出最后一声长啸，化作漫天光点。世界安静了下来。', 'event')
         }
         if (c.mob === 'wither') s.flags.wither = true
@@ -932,8 +1114,14 @@ export const useGame = create<Game>()(
       }),
 
       enterPortal: () => set((s) => {
-        if (!s.flags.portal || s.flags.won || s.combat || curLoc(s).biome !== 'altar') return
-        pushLog(s, '你踏入传送门。末地之中，一双巨大的紫色眼睛缓缓睁开。', 'event')
+        if (!s.flags.portal || s.combat || curLoc(s).biome !== 'altar') return
+        if (s.flags.won) {
+          if (!canAfford(s, RESPAWN_COST)) return
+          pay(s, RESPAWN_COST)
+          pushLog(s, '四座末地水晶重新点亮，末影龙回到了末地。', 'event')
+        } else {
+          pushLog(s, '你踏入传送门。末地之中，一双巨大的紫色眼睛缓缓睁开。', 'event')
+        }
         startCombat(s, 'dragon', true)
       }),
 

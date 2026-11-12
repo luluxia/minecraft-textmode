@@ -5,7 +5,7 @@ import { GameDialog } from './GameDialog'
 import { useScrollReset } from './ScrollArea'
 import { ITEM_CATEGORIES, ITEM_LIST, ITEMS } from '../game/data'
 import { EXPEDITIONS, OFFLINE_LIMIT } from '../game/progression'
-import { COMPLETED_MONUMENT, MONUMENT_GOAL, PROJECTS, STORY, type GoalHint, type GoalTerm } from '../game/advancements'
+import { COMPLETED_MONUMENT, EXPLORATION, MONUMENT_GOAL, PROJECTS, STORY, type GoalHint, type GoalTerm } from '../game/advancements'
 import { dayOf, useGame } from '../game/store'
 import { Texture } from './Texture'
 import { Btn, ItemName, Section } from './kit'
@@ -16,6 +16,7 @@ export type GameMenu = keyof typeof JOURNAL_TITLES
 const ACHIEVEMENT_TABS = [
   { id: 'story', label: '生存与探索', steps: STORY },
   { id: 'projects', label: '村庄与远征', steps: PROJECTS },
+  { id: 'exploration', label: '遗迹与远航', steps: EXPLORATION },
 ]
 
 export function CurrentGoal() {
@@ -70,7 +71,7 @@ export function OfflineReport() {
       </div>
       {changes.length > 0 && <p>{changes.map(([id, n]) => ITEMS[id].name + ' ' + (n > 0 ? '+' : '') + n).join('，')}</p>}
       {report.villagers > 0 && <p>新搬入的村民 +{report.villagers}</p>}
-      {trip && <p>远征归来 · {trip.name}</p>}
+      {trip && <p>{trip.region === 'camp' ? '孵化完成' : '远征归来'} · {trip.name}</p>}
       {!changes.length && !report.villagers && !trip && <p>这段时间没有物资变化。</p>}
     </aside>
   )
@@ -96,7 +97,11 @@ export function JournalModal({ menu, onClose, onDebug }: {
         <dt>击败生物</dt><dd>{s.stats.kills}</dd>
         <dt>死亡次数</dt><dd>{s.stats.deaths}</dd>
         <dt>击退袭击</dt><dd>{s.expeditions.raid ?? 0}</dd>
-        <dt>末地远征</dt><dd>{EXPEDITIONS.reduce((n, entry) => n + (s.expeditions[entry.id] ?? 0), 0)}</dd>
+        {([['ocean', '海洋远征'], ['end', '末地远征']] as const).map(([region, label]) => (
+          <div key={region} className="stat-row">
+            <dt>{label}</dt><dd>{EXPEDITIONS.reduce((n, entry) => n + (entry.region === region ? s.expeditions[entry.id] ?? 0 : 0), 0)}</dd>
+          </div>
+        ))}
       </dl>}
       <div className="actions"><Btn onClick={onClose}>关闭</Btn></div>
     </GameDialog>
@@ -105,31 +110,45 @@ export function JournalModal({ menu, onClose, onDebug }: {
 
 function ItemCatalog() {
   const seen = useGame((s) => s.seen)
+  const resetScroll = useScrollReset()
   const discovered = ITEM_LIST.filter((item) => seen[item.id])
 
   return (
     <>
       <p className="sm dim">已收录 {discovered.length}/{ITEM_LIST.length} 种物资</p>
       {!discovered.length && <p className="notice">获得第一件物资后，图鉴会自动收录。</p>}
-      {ITEM_CATEGORIES.map(([category, name]) => {
-        const items = discovered.filter((item) => item.cat === category)
-        if (!items.length) return null
-        const total = ITEM_LIST.filter((item) => item.cat === category).length
-        return (
-          <Section key={category} title={name} extra={items.length + '/' + total}>
-            <ul className="entry-grid catalog-grid">
-              {items.map((item) => (
-                <li key={item.id} className="content-entry">
-                  <ItemName id={item.id} />
-                  {(item.food !== undefined || item.desc) && (
-                    <p className="sm dim">{item.food !== undefined && '饱食 +' + item.food + '。'}{item.desc}</p>
+      {discovered.length > 0 && (
+        <Tabs defaultValue={discovered[0].cat} onValueChange={() => resetScroll()}>
+          <TabsList className="subtabs" aria-label="图鉴分类">
+            {ITEM_CATEGORIES.map(([category, name]) => (
+              <TabsTrigger key={category} value={category} aria-label={name}>{name}</TabsTrigger>
+            ))}
+          </TabsList>
+          {ITEM_CATEGORIES.map(([category, name]) => {
+            const items = discovered.filter((item) => item.cat === category)
+            const total = ITEM_LIST.filter((item) => item.cat === category).length
+            return (
+              <TabsContent key={category} value={category}>
+                <Section title={name} extra={items.length + '/' + total}>
+                  {items.length === 0 && <p className="notice">还未收录此类物资。</p>}
+                  {items.length > 0 && (
+                    <ul className="entry-grid catalog-grid">
+                      {items.map((item) => (
+                        <li key={item.id} className="content-entry">
+                          <ItemName id={item.id} />
+                          {(item.food !== undefined || item.desc) && (
+                            <p className="sm dim">{item.food !== undefined && '饱食 +' + item.food + '。'}{item.desc}</p>
+                          )}
+                        </li>
+                      ))}
+                    </ul>
                   )}
-                </li>
-              ))}
-            </ul>
-          </Section>
-        )
-      })}
+                </Section>
+              </TabsContent>
+            )
+          })}
+        </Tabs>
+      )}
     </>
   )
 }
