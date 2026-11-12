@@ -1,9 +1,10 @@
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '../components/minecraft/tabs'
+import { AdventureImage } from '../components/minecraft/minecraft-adventure-image'
 import { Texture } from './Texture'
 import { useState } from 'react'
 import { ENCHANTS, FUELS, ITEMS, ITEM_LIST, RECIPES, SMELTS, type Cat } from '../game/data'
 import { canAfford, count, enchantCost, useGame } from '../game/store'
-import { Bar, Btn, Cost, Section, ItemName, itemLabel } from './kit'
+import { Bar, Btn, Cost, Section, ItemName } from './kit'
 
 const CAT_NAMES: [Cat, string][] = [['tool', '工具'], ['gear', '装备'], ['food', '食物'], ['material', '材料'], ['special', '奇物']]
 
@@ -84,10 +85,10 @@ function Furnace() {
           {job && jobDef ? (
             <>
               <div className="spread">
-                <span className="item-flow"><ItemName id={jobDef.from} /> → <ItemName id={jobDef.out} /></span>
+                <SmeltItems from={jobDef.from} to={jobDef.out} />
                 <span className="sm dim">剩余 {job.left}</span>
               </div>
-              <Bar value={job.prog} max={jobDef.time} color={s.furnace.fuel >= 1 ? '#e08a2c' : '#555'} />
+              <Bar value={job.prog} max={jobDef.time} color={s.furnace.fuel >= 1 ? '#e08a2c' : '#555'} label="熔炼进度" />
               {s.furnace.fuel < 1 && <span className="sm bad">燃料耗尽，熔炉熄灭了。</span>}
               <div><Btn className="mini" onClick={s.cancelSmelt}>取出原料</Btn></div>
             </>
@@ -111,7 +112,7 @@ function Furnace() {
             return (
               <article key={r.id} className="content-entry">
                 <div className="spread">
-                  <span className="item-flow"><ItemName id={r.from} /> → <ItemName id={r.out} /></span>
+                  <SmeltItems from={r.from} to={r.out} />
                   <span className="sm dim">{r.time} 秒</span>
                 </div>
                 <div className="entry-foot">
@@ -131,10 +132,25 @@ function Furnace() {
   )
 }
 
+function SmeltItems({ from, to }: { from: string; to: string }) {
+  return (
+    <span className="item-flow">
+      <ItemName id={from} />
+      <AdventureImage texture="gui/sprites/container/villager/trade_arrow" scale={2} alt="熔炼为" />
+      <ItemName id={to} />
+    </span>
+  )
+}
+
 function Enchant() {
   const s = useGame()
   return (
-    <Section title="附魔" extra={`✦ ${s.level} 级 · ${itemLabel('lapis')} ${count(s, 'lapis')}`}>
+    <Section title="附魔" extra={
+      <span className="row">
+        <span>等级 {s.level}</span>
+        <span className="icon-text"><ItemName id="lapis" /> {count(s, 'lapis')}</span>
+      </span>
+    }>
       <p className="notice" style={{ marginBottom: 8 }}>
         消耗经验等级与青金石，为你的装备刻下永久的符文。{s.village?.buildings.library ? '（图书馆：青金石消耗减半）' : ''}
       </p>
@@ -148,14 +164,14 @@ function Enchant() {
             <article key={e.id} className="content-entry">
               <div className="spread">
                 <span>{e.name}</span>
-                <span className="pips" aria-label={`${lvl} / ${e.max} 级`}>{'◆'.repeat(lvl)}{'◇'.repeat(e.max - lvl)}</span>
+                <span className="sm dim">{lvl}/{e.max} 级</span>
               </div>
               <span className="sm dim">{e.desc}</span>
               <div className="entry-foot">
                 <div className="cost">
                   {!maxed && (
                     <>
-                      <span className={`tag material-tag${s.level >= cost.levels ? '' : ' bad'}`}>✦ 等级 {s.level}/{cost.levels}</span>
+                      <span className={`tag material-tag${s.level >= cost.levels ? '' : ' bad'}`}>等级 {s.level}/{cost.levels}</span>
                       <Cost cost={{ lapis: cost.lapis }} />
                     </>
                   )}

@@ -1,8 +1,9 @@
 import { ScrollArea } from './ui/ScrollArea'
-import { Tabs, TabsList, TabsTrigger, TabsContent } from './components/minecraft/tabs'
+import { TabCard, Tabs, TabsList, TabsTrigger, TabsContent } from './components/minecraft/tabs'
 import { Dialog, DialogContent } from './components/minecraft/dialog'
 import { Card } from './components/minecraft/card'
 import { Button } from './components/minecraft/button'
+import { AdventureImage } from './components/minecraft/minecraft-adventure-image'
 import { Texture } from './ui/Texture'
 import { useEffect, useState } from 'react'
 import { ITEM_LIST, MOBS, villageLevel, type Cat } from './game/data'
@@ -13,7 +14,11 @@ import { Crafting } from './ui/Crafting'
 import { Village } from './ui/Village'
 import { Bar, Btn } from './ui/kit'
 
-const WEATHER = { clear: ['☀️', '晴'], rain: ['🌧️', '雨'], storm: ['⛈️', '雷暴'] } as const
+const WEATHER = {
+  clear: { label: '晴', icon: '/textures/minecraft/weather_clear.png' },
+  rain: { label: '雨', icon: '/textures/minecraft/weather_rain.png' },
+  storm: { label: '雷暴', icon: '/textures/minecraft/weather_thunderstorm.png' },
+} as const
 
 export function App() {
   const flags = useGame((s) => s.flags)
@@ -36,15 +41,11 @@ export function App() {
 
   return (
     <div className="app">
-      <header className="header">
-        <h1 className="title">方块纪元</h1>
-        {flags.explore && <Clock />}
-        <span className="grow" />
-        <Button className="btn mini" aria-label="设置" onClick={() => setSettings(true)}>设置</Button>
-      </header>
-
       <div className={`layout ${early ? 'early' : ''}`}>
-        <LogPanel />
+        <div className="sidebar-column sidebar-left">
+          {flags.explore && <Clock />}
+          <LogPanel />
+        </div>
         <main className="main"><Tabs value={cur} onValueChange={(value) => setTab(String(value))}>
           {!early && (
             <TabsList className="tabs" aria-label="游戏页面">
@@ -65,7 +66,20 @@ export function App() {
         </Tabs>
         {flags.status && <PlayerHud />}
         </main>
-        {!early && <Sidebar />}
+        <div className="sidebar-column sidebar-right">
+          <div className="toolbar" role="group" aria-label="游戏菜单">
+            <Button className="btn toolbar-button" aria-label="成就" title="成就" disabled>
+              <Texture src="/textures/minecraft/challenge_frame_obtained.png" />
+            </Button>
+            <Button className="btn toolbar-button" aria-label="统计" title="统计" disabled>
+              <Texture src="/textures/minecraft/writable_book.png" />
+            </Button>
+            <Button className="btn toolbar-button" aria-label="设置" title="设置" onClick={() => setSettings(true)}>
+              <Texture src="/textures/minecraft/icon_setting.png" />
+            </Button>
+          </div>
+          {!early && <Sidebar />}
+        </div>
       </div>
 
       <CombatModal />
@@ -78,6 +92,7 @@ export function App() {
 function Clock() {
   const minute = useGame((s) => s.minute)
   const weather = useGame((s) => s.weather)
+  const { label, icon } = WEATHER[weather]
   const h = hourOf(minute)
   const night = isNight(minute)
   const pos = night ? ((h + 4) % 24) / 10 : (h - 6) / 14
@@ -87,13 +102,15 @@ function Clock() {
       ? 'linear-gradient(90deg,#d9793a,#e9b46a,#7fb2d9)'
       : weather === 'clear' ? 'linear-gradient(90deg,#6fb3e8,#a6d4f5,#6fb3e8)' : 'linear-gradient(90deg,#59636e,#7d8791,#59636e)'
   return (
-    <div className="clock fade-in">
-      <span>第 {dayOf(minute)} 天 {String(h).padStart(2, '0')}:{String(minute % 60).padStart(2, '0')}</span>
-      <div className="sky" style={{ background: bg }} aria-hidden>
-        <i style={{ left: `${Math.min(96, Math.max(4, pos * 100))}%` }}>{night ? '🌙' : '☀️'}</i>
+    <TabCard className="clock" aria-label="日期、时间和天气">
+      <div className="spread">
+        <span>第 {dayOf(minute)} 天 {String(h).padStart(2, '0')}:{String(minute % 60).padStart(2, '0')}</span>
+        <span className="icon-text"><Texture src={icon} />{label}</span>
       </div>
-      <span>{WEATHER[weather][0]} {WEATHER[weather][1]}</span>
-    </div>
+      <div className="sky" style={{ background: bg }} aria-hidden>
+        <span className="sky-marker" data-night={night} style={{ left: `${Math.min(96, Math.max(4, pos * 100))}%` }} />
+      </div>
+    </TabCard>
   )
 }
 
@@ -156,13 +173,26 @@ function CombatModal() {
   if (!c) return null
   const m = MOBS[c.mob]
   const food = ITEM_LIST.filter((i) => i.food && i.id !== 'rotten' && count(s, i.id) > 0).sort((a, b) => b.food! - a.food!)[0]
+  const mobHealth = `${Math.max(0, c.hp)} / ${m.hp}`
+  const playerHealth = `${Math.ceil(s.hp)} / 20`
   return (
     <Dialog open><DialogContent className="game-dialog" aria-label="战斗">
       <div className="modal">
         <div key={c.hp} className="mob-icon shake"><Texture src={m.icon} /></div>
-        <div className="spread"><h2>{m.name}</h2>{c.boss && <span className="tag y">首领</span>}</div>
-        <Bar value={c.hp} max={m.hp} color="#8d3fbf" label={`${Math.max(0, c.hp)} / ${m.hp}`} />
-        <div className="stat"><span>❤ 你</span><Bar value={s.hp} max={20} color="#c8402f" label={`${Math.ceil(s.hp)} / 20`} /></div>
+        <div className="combat-health">
+          <div className="spread">
+            <div className="row"><h2>{m.name}</h2>{c.boss && <span className="tag y">首领</span>}</div>
+            <span className="sm">{mobHealth}</span>
+          </div>
+          <Bar value={c.hp} max={m.hp} color="#8d3fbf" label={`${m.name}生命值`} valueText={mobHealth} />
+        </div>
+        <div className="combat-health">
+          <div className="spread sm">
+            <span className="icon-text"><AdventureImage texture="gui/sprites/hud/heart/full" scale={2} /> 你</span>
+            <span>{playerHealth}</span>
+          </div>
+          <Bar value={s.hp} max={20} color="#c8402f" label="玩家生命值" valueText={playerHealth} />
+        </div>
         <div className="combat-lines">{c.lines.map((l, i) => <p key={c.lines.length - i}>{l}</p>)}</div>
         <div className="actions">
           <Btn cd="attack" className="primary" onClick={s.attack}>攻击</Btn>

@@ -12,7 +12,6 @@
   --red: #d9583f;
   --gold: #e3b341;
   --blue: #5fa8d8;
-  --purple: #a77bd8;
   --font: 'Fusion Pixel 12px Proportional SC', 'Microsoft YaHei', monospace;
 }
 * { box-sizing: border-box; }
@@ -36,23 +35,37 @@ h1, h2, h3, p { margin: 0; font-weight: normal; }
 .gold { color: var(--gold); }
 .row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .spread { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
-.grow { flex: 1; min-width: 0; }
 
 /* ---------- 布局 ---------- */
-.app { max-width: 1240px; margin: 0 auto; padding: 16px; min-height: 100%; display: flex; flex-direction: column; gap: 12px; }
-.header { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
-.title { font-size: 24px; letter-spacing: 2px; }
-.clock { display: flex; align-items: center; gap: 10px; color: var(--dim); }
-.sky { position: relative; width: 140px; height: 12px; border: 2px solid var(--lo); transition: background 2s; }
-.sky i { position: absolute; top: -9px; font-style: normal; font-size: 14px; transform: translateX(-50%); transition: left 1s linear; }
-.layout { display: grid; grid-template-columns: 270px minmax(0, 1fr) 300px; gap: 12px; align-items: start; align-content: start; flex: 1; }
-.layout.early { grid-template-columns: minmax(0, 420px); justify-content: center; padding-top: 12vh; }
-.layout.early .log { order: 2; max-height: 40vh; }
+.app { max-width: 1240px; margin: 0 auto; padding: 16px; min-height: 100%; display: flex; flex-direction: column; }
+.clock, .player-status { flex: none; }
+.clock { display: grid; align-content: center; gap: 3px; padding: 6px 12px; color: var(--dim); font-size: 14px; }
+.clock .spread { flex-wrap: wrap; }
+.clock .texture { width: 17px; height: 17px; }
+.sky { position: relative; height: 8px; border: 1px solid var(--lo); transition: background 2s; }
+.sky-marker { position: absolute; top: 50%; width: 16px; height: 16px; background: url('/textures/minecraft/sun.png') center / contain no-repeat; transform: translate(-50%, -50%); transition: left 1s linear; }
+.sky-marker[data-night="true"] { background-image: url('/textures/minecraft/moon_phases.png'); background-size: 400% 200%; background-position: 66.6667% 0; }
+.layout { --layout-height: max(240px, calc(100dvh - 32px)); --column-heading-height: 48px; display: grid; grid-template-columns: 270px minmax(0, 1fr) 300px; gap: 12px; align-items: start; align-content: start; flex: 1; }
+.sidebar-column { display: flex; flex-direction: column; gap: 12px; min-width: 0; max-height: var(--layout-height); }
+.toolbar { display: flex; gap: 6px; align-self: end; justify-self: end; }
+.btn.toolbar-button { width: var(--column-heading-height); height: var(--column-heading-height); min-width: 0; min-height: 0; padding: 0; }
+.layout.early { --layout-height: max(240px, calc(100dvh - 100px)); grid-template-columns: minmax(0, 420px); justify-content: center; padding-top: 12vh; }
+.layout.early .sidebar-right { order: -1; }
+.layout.early .sidebar-left { order: 3; }
+.layout.early .log { max-height: 40vh; }
 @media (max-width: 960px) {
+  .layout, .layout.early { --layout-height: max(240px, calc(100dvh - 180px)); }
   .layout { grid-template-columns: minmax(0, 1fr); }
+  .sidebar-column { max-height: none; }
+  .sidebar-right { display: contents; }
+  .toolbar { order: -1; }
   .layout .main { order: 1; }
   .layout .side { order: 2; }
-  .layout .log { order: 3; max-height: 280px; }
+  .sidebar-left { order: 3; }
+  .layout .log { max-height: 280px; }
+}
+@media (width > 960px) {
+  .layout:not(.early) :is(.clock, .mc-tabs-list.tabs) { min-height: var(--column-heading-height); }
 }
 
 .panel {
@@ -86,23 +99,27 @@ h1, h2, h3, p { margin: 0; font-weight: normal; }
 .btn.primary .btn-label, .btn.on .btn-label { color: #c0ff94; }
 .btn.danger .btn-label { color: #ffb3a8; }
 .btn:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
-.btn-label { position: relative; display: block; }
+.btn-label { position: relative; display: flex; flex-direction: column; align-items: center; gap: 3px; line-height: 1.5; }
 .btn-sub { display: block; font-size: 14px; color: var(--dim); }
 .btn:disabled .btn-sub { color: var(--faint); }
-.btn-cd { position: absolute; inset: 0 auto 0 0; background: #00000070; animation: cd linear forwards; }
-@keyframes cd { from { width: 100%; } to { width: 0; } }
+.btn-cd { position: absolute; inset: 0; background: #00000070; pointer-events: none; transform-origin: left center; animation: button-cooldown linear both; }
+@keyframes button-cooldown { from { transform: scaleX(1); } to { transform: scaleX(0); } }
+@media (prefers-reduced-motion: reduce) { .btn-cd { animation: none; } }
 .actions { display: flex; flex-wrap: wrap; gap: 8px; }
 
 /* ---------- 进度条 ---------- */
-.bar { position: relative; min-width: 0; height: 22px; container-type: inline-size; }
-.bar .mc-progress { --mc-pixel: calc(100cqw / 182); width: 100%; height: 20px; }
-.bar .mc-progress-surface { background-size: 100cqw 20px; }
-.bar-label { position: absolute; inset: 0; font-size: 14px; line-height: 20px; text-align: center; color: #fff; text-shadow: 1px 1px #000; pointer-events: none; }
-.stat { display: grid; grid-template-columns: 76px 1fr; white-space: nowrap; align-items: center; gap: 8px; }
-.stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 6px 16px; }
+.bar, .combat-health { width: min(100%, 364px); }
+.bar { min-width: 0; container-type: inline-size; }
+.bar .mc-progress { --mc-pixel: calc(100cqw / 182); width: 100%; }
+.combat-health { display: grid; grid-template-columns: minmax(0, 1fr); gap: 4px; }
+
+.village-stats { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 6px 16px; margin: 8px 0 0; }
+.village-stats dt { color: var(--dim); }
+.village-stats dd { margin: 0; min-width: 0; overflow-wrap: anywhere; }
+.village-reputation { display: grid; grid-template-columns: minmax(0, 1fr); gap: 4px; }
 
 /* ---------- 日志 ---------- */
-.log { display: flex; flex-direction: column; gap: 8px; max-height: calc(100vh - 100px); overflow: hidden; }
+.log { display: flex; flex-direction: column; gap: 8px; overflow: hidden; }
 .log p { animation: fadein .5s ease; }
 .log .event { color: var(--gold); }
 
@@ -130,7 +147,6 @@ h1, h2, h3, p { margin: 0; font-weight: normal; }
 .loc-name { font-size: 20px; }
 .stepper { display: flex; align-items: center; gap: 6px; }
 .stepper b { min-width: 44px; text-align: center; font-weight: normal; }
-.pips { letter-spacing: 2px; color: var(--purple); }
 
 /* ---------- 弹窗 ---------- */
 .overlay { position: fixed; inset: 0; background: #000000b0; display: grid; place-items: center; padding: 16px; z-index: 10; animation: fadein .3s; }
@@ -141,8 +157,7 @@ h1, h2, h3, p { margin: 0; font-weight: normal; }
 .combat-lines p:first-child { color: var(--text); }
 .shake { animation: shake .25s; }
 @keyframes shake { 25% { transform: translateX(-4px); } 75% { transform: translateX(4px); } }
-.side { max-height: calc(100vh - 100px); overflow: hidden; }
-@media (max-width: 960px) { .side { max-height: none; } }
+.side { overflow: hidden; }
 
 /* App layout adaptations; original component artwork lives in components/minecraft. */
 :root { --bg: #242424; --panel: #313131; --panel-2: #393939; --line: #666; --text: #fff; --dim: #c3c3c3; --faint: #aaa; }
@@ -160,13 +175,12 @@ body { background: linear-gradient(#0009, #0009), url('/textures/minecraft/dirt.
 .game-dialog .modal { padding: 8px; width: 100%; }
 .game-dialog .modal > .mc-surface { display: none; }
 .main, .panel, .card { min-width: 0; }
-@media (max-width: 480px) { .app { padding: 8px; } .cards { grid-template-columns: minmax(0,1fr); } .stats { grid-template-columns: minmax(0,1fr); } .mc-card.panel { padding: 12px; } }
+@media (max-width: 480px) { .app { padding: 8px; } .cards { grid-template-columns: minmax(0,1fr); } .mc-card.panel { padding: 12px; } }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; } }
 
 .mc-tabs { width: 100%; min-width: 0; font-family: var(--font); line-height: 1.5; }
-.btn > .mc-button-label { position: relative; left: auto; top: auto; transform: none; white-space: normal; }
-.btn-label { line-height: 1.5; }
-.btn-sub { margin-top: 3px; }
+.btn > .mc-button-label { position: relative; left: auto; top: auto; transform: none; text-align: center; white-space: normal; }
+.btn:not(.toolbar-button) > .mc-button-label { transform: translateY(-1px); }
 .btn { flex-shrink: 0; }
 
 /* Text is DOM-rendered: grasscn supplies artwork, Fusion Pixel supplies every label. */
@@ -196,11 +210,10 @@ body, button, input, select, textarea,
 .inv-row .rate { display: inline; margin-left: 0; }
 @media (max-width: 480px) {
   .mc-tabs-trigger { font-size: var(--text-sm); }
-  .clock { flex-wrap: wrap; }
 }
 
 /* Keep navigation and the textured frame fixed while the main content scrolls. */
-.main { height: max(240px, calc(100dvh - 100px)); min-height: 0; display: flex; flex-direction: column; gap: 16px; container-type: inline-size; }
+.main { height: var(--layout-height); min-height: 0; display: flex; flex-direction: column; gap: 16px; container-type: inline-size; }
 .main > .mc-tabs { flex: 1; min-height: 0; }
 .main-panel { flex: 1; min-height: 0; overflow: hidden; }
 .main-scroll {
@@ -209,13 +222,10 @@ body, button, input, select, textarea,
   scrollbar-gutter: auto; overscroll-behavior: contain;
 }
 .main-scroll:focus-visible { outline: 2px solid var(--gold); outline-offset: -2px; }
-@media (max-width: 960px) {
-  .main { height: max(240px, calc(100dvh - 180px)); }
-}
 
 /* Native HUD sprites; text continues to use the application typography. */
-.player-status { flex: none; container-type: inline-size; }
-.player-hud { display: grid; gap: 12px; width: 364px; align-self: center; flex: none; background: transparent; }
+.player-status { display: grid; justify-items: center; padding: 10px 12px; container-type: inline-size; }
+.player-hud { display: grid; gap: 8px; width: 364px; }
 .hud-meters { display: grid; grid-template-columns: repeat(2, 162px); justify-content: space-between; gap: 6px 0; }
 .hud-experience { position: relative; padding-block: 5px; }
 .hud-level { position: absolute; inset: 0; display: grid; place-items: center; color: #80ff20; font-size: 20px; line-height: 20px; text-shadow: 2px 0 #102900, -2px 0 #102900, 0 2px #102900, 0 -2px #102900; pointer-events: none; }
@@ -244,8 +254,10 @@ body, button, input, select, textarea,
 .fuel-actions { --action-width: 176px; }
 .fuel-actions > .btn { min-height: 32px; }
 .main-scroll .btn-label { width: 100%; }
-.main-scroll .actions .btn-sub { margin-top: 0; line-height: 20px; }
-.main-scroll .stepper .btn { width: 28px; height: 28px; min-width: 28px; padding: 2px; }
+.main-scroll .actions .btn-label { gap: 0; }
+.main-scroll .actions .btn-sub { line-height: 20px; }
+.jobs-grid .content-entry > .spread { flex-wrap: wrap; }
+.main-scroll .stepper .btn { padding: 2px 6px; }
 .main-scroll .stepper { flex-shrink: 0; }
 .main-scroll .section { margin-top: 14px; }
 .main-scroll .section:first-child { margin-top: 0; }

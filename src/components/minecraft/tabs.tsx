@@ -331,7 +331,18 @@ const TabsContent = ({
   />
 );
 
+const TabCard = ({ className, style, ...props }: React.ComponentProps<"section">) => (
+  <section
+    className={cn("mc-tab-card", className)}
+    style={minecraftStyle(style, (__style): TabsTextureStyle => ({
+      "--mc-tabs-image": assets.textures.menu_background,
+      ...__style,
+    }))}
+    {...props}
+  />
+);
+
 // oxlint-disable-next-line react-doctor/only-export-components -- Preserve the upstream shadcn component-and-variant export API used by consumer styling composition.
-export { Tabs, TabsList, TabsTrigger, TabsContent, tabsListVariants };
+export { TabCard, Tabs, TabsList, TabsTrigger, TabsContent, tabsListVariants };
 
 export type { TabsProps, TabsListProps, TabsTriggerProps };

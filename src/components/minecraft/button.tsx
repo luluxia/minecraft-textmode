@@ -37,13 +37,14 @@ const buttonVariants = cva(
   }
 );
 
-const skin = (content: React.ReactNode) => (
+const skin = (content: React.ReactNode, overlay: React.ReactNode) => (
   <>
     <span className="mc-button-surface" aria-hidden="true">
       {Array.from({ length: 9 }, (_, index) => (
         <span key={index} />
       ))}
     </span>
+    {overlay}
     <span className="mc-button-label">{content}</span>
   </>
 );
@@ -56,15 +57,17 @@ const Button = ({
   scale = 2,
   style,
   children,
+  overlay,
   onClick,
   ...props
 }: MinecraftProps<typeof ButtonPrimitive> &
   VariantProps<typeof buttonVariants> & {
     scale?: 1 | 2 | 3;
+    overlay?: React.ReactNode;
   }) => {
   const Comp = ButtonPrimitive;
 
-  const content = skin(children);
+  const content = skin(children, overlay);
 
   return (
     <Comp

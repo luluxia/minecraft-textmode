@@ -24,6 +24,10 @@
     "sugar_cane": "item/sugar_cane.png",
     "paper": "item/paper.png",
     "book": "item/book.png",
+    "writable_book": "item/writable_book.png",
+    "challenge_frame_obtained": "gui/sprites/advancements/challenge_frame_obtained.png",
+    "sun": "environment/sun.png",
+    "moon_phases": "environment/moon_phases.png",
     "leather": "item/leather.png",
     "white_wool": "block/white_wool.png",
     "string": "item/string.png",
@@ -82,6 +86,15 @@
     "dragon_egg": "block/dragon_egg.png",
     "cooked_chicken": "item/cooked_chicken.png",
     "white_bed": "entity/bed/white.png"
+  },
+  "bedrock": {
+    "base": "https://raw.githubusercontent.com/Mojang/bedrock-samples/15701fa9c13923f12662984c32c124327e40e3d3/resource_pack/textures/ui/",
+    "textures": {
+      "icon_setting": "icon_setting.png",
+      "weather_clear": "weather_clear.png",
+      "weather_rain": "weather_rain.png",
+      "weather_thunderstorm": "weather_thunderstorm.png"
+    }
   },
   "portraits": {
     "pig": {
