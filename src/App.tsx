@@ -1,6 +1,6 @@
 import { ScrollArea } from './ui/ScrollArea'
 import { TabCard, Tabs, TabsList, TabsTrigger, TabsContent } from './components/minecraft/tabs'
-import { Dialog, DialogContent } from './components/minecraft/dialog'
+import { GameDialog } from './ui/GameDialog'
 import { Card } from './components/minecraft/card'
 import { Button } from './components/minecraft/button'
 import { AdventureImage } from './components/minecraft/minecraft-adventure-image'
@@ -13,6 +13,9 @@ import { PlayerHud } from './ui/PlayerHud'
 import { Crafting } from './ui/Crafting'
 import { Village } from './ui/Village'
 import { Bar, Btn } from './ui/kit'
+import { CurrentGoal, JournalModal, OfflineReport, type GameMenu } from './ui/GameJournal'
+import { seasonAt } from './game/progression'
+import { DebugPanel } from './ui/DebugPanel'
 
 const WEATHER = {
   clear: { label: '晴', icon: '/textures/minecraft/weather_clear.png' },
@@ -24,11 +27,26 @@ export function App() {
   const flags = useGame((s) => s.flags)
   const villagers = useGame((s) => s.village?.villagers ?? null)
   const [tab, setTab] = useState('adventure')
-  const [settings, setSettings] = useState(false)
+  const [menu, setMenu] = useState<GameMenu | 'debug' | null>(null)
+  const [debugActive, setDebugActive] = useState(false)
+  const [worldRevision, setWorldRevision] = useState(0)
+  const closeMenu = () => setMenu(null)
+  const showAdventure = () => {
+    setTab('adventure')
+    setWorldRevision((revision) => revision + 1)
+    closeMenu()
+  }
 
   useEffect(() => {
-    const t = setInterval(() => useGame.getState().tick(), 1000)
-    return () => clearInterval(t)
+    const tick = (background: boolean) => useGame.getState().tick(background)
+    const visibility = () => tick(!document.hidden)
+    if (!document.hidden) tick(true)
+    const timer = window.setInterval(() => { if (!document.hidden) tick(false) }, 1000)
+    document.addEventListener('visibilitychange', visibility)
+    return () => {
+      window.clearInterval(timer)
+      document.removeEventListener('visibilitychange', visibility)
+    }
   }, [])
 
   const tabs: [string, string, boolean][] = [
@@ -44,6 +62,7 @@ export function App() {
       <div className={`layout ${early ? 'early' : ''}`}>
         <div className="sidebar-column sidebar-left">
           {flags.explore && <Clock />}
+          <CurrentGoal />
           <LogPanel />
         </div>
         <main className="main"><Tabs value={cur} onValueChange={(value) => setTab(String(value))}>
@@ -57,7 +76,8 @@ export function App() {
             </TabsList>
           )}
           <Card className="panel main-panel">
-            <ScrollArea key={cur} className="main-scroll" tabIndex={0} aria-label="滚动主区域">
+            <ScrollArea key={cur + worldRevision} className="main-scroll" tabIndex={0} aria-label="滚动主区域">
+            <OfflineReport />
             <TabsContent value="adventure"><Adventure /></TabsContent>
             <TabsContent value="crafting"><Crafting /></TabsContent>
             <TabsContent value="village"><Village /></TabsContent>
@@ -68,13 +88,16 @@ export function App() {
         </main>
         <div className="sidebar-column sidebar-right">
           <div className="toolbar" role="group" aria-label="游戏菜单">
-            <Button className="btn toolbar-button" aria-label="成就" title="成就" disabled>
+            {import.meta.env.DEV && debugActive && (
+              <Btn className="toolbar-button on" onClick={() => setMenu('debug')}>Debug</Btn>
+            )}
+            <Button className="btn toolbar-button" aria-label="成就" title="成就" onClick={() => setMenu('achievements')}>
               <Texture src="/textures/minecraft/challenge_frame_obtained.png" />
             </Button>
-            <Button className="btn toolbar-button" aria-label="统计" title="统计" disabled>
+            <Button className="btn toolbar-button" aria-label="统计" title="统计" onClick={() => setMenu('stats')}>
               <Texture src="/textures/minecraft/writable_book.png" />
             </Button>
-            <Button className="btn toolbar-button" aria-label="设置" title="设置" onClick={() => setSettings(true)}>
+            <Button className="btn toolbar-button" aria-label="设置" title="设置" onClick={() => setMenu('settings')}>
               <Texture src="/textures/minecraft/icon_setting.png" />
             </Button>
           </div>
@@ -84,7 +107,15 @@ export function App() {
 
       <CombatModal />
       <WinModal />
-      {settings && <SettingsModal onClose={() => setSettings(false)} />}
+      {menu && menu !== 'debug' && <JournalModal menu={menu} onClose={closeMenu}
+        onDebug={import.meta.env.DEV ? () => setMenu('debug') : undefined} />}
+      {import.meta.env.DEV && menu === 'debug' && (
+        <GameDialog label="Debug" onClose={closeMenu}>
+          <h2>Debug</h2>
+          <DebugPanel active={debugActive} onChange={setDebugActive} onWorldChange={showAdventure} />
+          <div className="actions"><Btn onClick={closeMenu}>关闭</Btn></div>
+        </GameDialog>
+      )}
     </div>
   )
 }
@@ -104,7 +135,7 @@ function Clock() {
   return (
     <TabCard className="clock" aria-label="日期、时间和天气">
       <div className="spread">
-        <span>第 {dayOf(minute)} 天 {String(h).padStart(2, '0')}:{String(minute % 60).padStart(2, '0')}</span>
+        <span>{seasonAt(minute).name} · 第 {dayOf(minute)} 天 {String(h).padStart(2, '0')}:{String(minute % 60).padStart(2, '0')}</span>
         <span className="icon-text"><Texture src={icon} />{label}</span>
       </div>
       <div className="sky" style={{ background: bg }} aria-hidden>
@@ -133,7 +164,7 @@ const SIDE_CATS: [Cat, string][] = [['material', '材料'], ['food', '食物'], 
 
 function Sidebar() {
   const s = useGame()
-  const prod = s.village ? production(s.village) : {}
+  const prod = production(s)
   const cap = s.village ? villageCap(s.village) : 0
   return (
     <Card className="panel side fade-in" role="complementary" aria-label="物资">
@@ -148,13 +179,13 @@ function Sidebar() {
             <div className="sm dim">{name}</div>
             {items.map((i) => {
               const n = count(s, i.id)
-              const full = !!prod[i.id] && n >= cap
+              const full = (prod[i.id] ?? 0) > 0 && n >= cap
               return (
                 <div key={i.id} className="inv-row" title={i.desc}>
                   <span className="icon-text inv-name"><Texture src={i.icon} /><span>{i.name}</span></span>
                   <span className="inv-values">
                     {!unique && <span className={full ? 'gold' : ''}>{n}</span>}
-                    {prod[i.id] && <span className="rate">{full ? '已满' : `+${prod[i.id].toFixed(2)}/秒`}</span>}
+                    {!!prod[i.id] && <span className="rate">{full ? '已满' : (prod[i.id] > 0 ? '+' : '') + prod[i.id].toFixed(2) + '/秒'}</span>}
                   </span>
                 </div>
               )
@@ -175,32 +206,35 @@ function CombatModal() {
   const food = ITEM_LIST.filter((i) => i.food && i.id !== 'rotten' && count(s, i.id) > 0).sort((a, b) => b.food! - a.food!)[0]
   const mobHealth = `${Math.max(0, c.hp)} / ${m.hp}`
   const playerHealth = `${Math.ceil(s.hp)} / 20`
+  const interval = c.boss ? 4 : 3
   return (
-    <Dialog open><DialogContent className="game-dialog" aria-label="战斗">
-      <div className="modal">
-        <div key={c.hp} className="mob-icon shake"><Texture src={m.icon} className="combat-mob" /></div>
-        <div className="combat-health">
-          <div className="spread">
-            <div className="row"><h2>{m.name}</h2>{c.boss && <span className="tag y">首领</span>}</div>
-            <span className="sm">{mobHealth}</span>
-          </div>
-          <Bar value={c.hp} max={m.hp} color="#8d3fbf" label={`${m.name}生命值`} valueText={mobHealth} />
+    <GameDialog label="战斗">
+      <div key={c.hp} className="mob-icon shake"><Texture src={m.icon} className="combat-mob" /></div>
+      <div className="combat-health">
+        <div className="spread">
+          <div className="row"><h2>{m.name}</h2>{c.boss && <span className="tag y">首领</span>}</div>
+          <span className="sm">{mobHealth}</span>
         </div>
-        <div className="combat-health">
-          <div className="spread sm">
-            <span className="icon-text"><AdventureImage texture="gui/sprites/hud/heart/full" scale={2} /> 你</span>
-            <span>{playerHealth}</span>
-          </div>
-          <Bar value={s.hp} max={20} color="#c8402f" label="玩家生命值" valueText={playerHealth} />
-        </div>
-        <div className="combat-lines">{c.lines.map((l, i) => <p key={c.lines.length - i}>{l}</p>)}</div>
-        <div className="actions">
-          <Btn cd="attack" className="primary" onClick={s.attack}>攻击</Btn>
-          {food && <Btn cd="eat" disabled={s.hunger >= 20} onClick={() => s.eat(food.id)} sub={`余 ${count(s, food.id)}`}>吃{food.name}</Btn>}
-          <Btn cd="flee" disabled={c.boss} onClick={s.flee} sub={c.boss ? '无路可退' : undefined}>逃跑</Btn>
-        </div>
+        <Bar value={c.hp} max={m.hp} color="#8d3fbf" label={`${m.name}生命值`} valueText={mobHealth} />
+        {m.atk > 0 && <p className="sm dim">距下一次攻击 {interval - (c.turn % interval)} 秒</p>}
       </div>
-    </DialogContent></Dialog>
+      <div className="combat-health">
+        <div className="spread sm">
+          <span className="icon-text"><AdventureImage texture="gui/sprites/hud/heart/full" scale={2} /> 你</span>
+          <span>{playerHealth}</span>
+        </div>
+        <Bar value={s.hp} max={20} color="#c8402f" label="玩家生命值" valueText={playerHealth} />
+      </div>
+      <div className="combat-lines">{c.lines.map((l, i) => <p key={c.lines.length - i}>{l}</p>)}</div>
+      <div className="actions">
+        <Btn cd="attack" className="primary" onClick={c.crystals ? s.breakCrystal : s.attack}
+          sub={c.crystals ? '剩余 ' + c.crystals + ' 座' : undefined}>{c.crystals ? '击碎末地水晶' : '攻击'}</Btn>
+        {count(s, 'shield') > 0 && <Btn cd="block" onClick={s.block} sub="持续 4 秒">举盾</Btn>}
+        {food && <Btn cd="eat" disabled={s.hunger >= 20 && s.hp >= 20} onClick={() => s.eat(food.id)} sub={`余 ${count(s, food.id)}`}>吃{food.name}</Btn>}
+        {count(s, 'potion') > 0 && <Btn cd="drink" disabled={s.hp >= 20} onClick={s.drink} sub="回复 8 生命">治疗药水</Btn>}
+        <Btn cd="flee" onClick={s.flee} sub={c.boss ? '下次挑战重新开始' : undefined}>撤退</Btn>
+      </div>
+    </GameDialog>
   )
 }
 
@@ -208,36 +242,14 @@ function WinModal() {
   const s = useGame()
   if (!s.flags.showWin) return null
   return (
-    <Dialog open onOpenChange={(open) => { if (!open) s.dismissWin() }}><DialogContent className="game-dialog" aria-label="通关">
-      <div className="modal">
-        <div className="mob-icon"><Texture src="/textures/minecraft/dragon_egg.png" /></div>
-        <h2>一周目通关</h2>
-        <p className="dim">末影龙倒下了。从一棵树开始，你走到了世界的尽头。</p>
-        <p className="sm">
-          历时 {dayOf(s.minute)} 天 · 行动 {s.stats.actions} 次 · 探索 {s.stats.explored} 处 · 击败 {s.stats.kills} 只生物 · 死亡 {s.stats.deaths} 次
-        </p>
-        <div className="actions"><Btn className="primary" onClick={s.dismissWin}>继续经营</Btn></div>
-      </div>
-    </DialogContent></Dialog>
-  )
-}
-
-function SettingsModal({ onClose }: { onClose: () => void }) {
-  const s = useGame()
-  const [confirm, setConfirm] = useState(false)
-  return (
-    <Dialog open onOpenChange={(open) => { if (!open) onClose() }}><DialogContent className="game-dialog" aria-label="设置">
-      <div className="modal" onClick={(e) => e.stopPropagation()}>
-        <h2>设置</h2>
-        <p className="sm dim">进度会自动保存在本机浏览器中。</p>
-        <div className="actions">
-          <Btn onClick={() => { s.devUnlock(); onClose() }} sub="预览全部界面">开发者：发放物资</Btn>
-          <Btn className="danger" onClick={() => (confirm ? (s.reset(), onClose()) : setConfirm(true))}>
-            {confirm ? '确定删除存档？' : '重置存档'}
-          </Btn>
-          <Btn onClick={onClose}>关闭</Btn>
-        </div>
-      </div>
-    </DialogContent></Dialog>
+    <GameDialog label="通关" onClose={s.dismissWin}>
+      <div className="mob-icon"><Texture src="/textures/minecraft/dragon_egg.png" /></div>
+      <h2>解放末地</h2>
+      <p className="dim">末影龙倒下了，通往末地外岛的道路已经打开。回到村庄后，你可以派出第一支远征队。</p>
+      <p className="sm">
+        历时 {dayOf(s.minute)} 天 · 行动 {s.stats.actions} 次 · 探索 {s.stats.explored} 处 · 击败 {s.stats.kills} 只生物 · 死亡 {s.stats.deaths} 次
+      </p>
+      <div className="actions"><Btn className="primary" onClick={s.dismissWin}>继续经营</Btn></div>
+    </GameDialog>
   )
 }

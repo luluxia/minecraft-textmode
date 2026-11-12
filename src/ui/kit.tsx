@@ -81,7 +81,7 @@ export function Cost({ cost }: { cost: Bag }) {
   return (
     <div className="cost">
       {Object.entries(cost).map(([k, n]) => {
-        const have = Math.floor(inv[k] ?? 0)
+        const have = Math.floor((inv[k] ?? 0) + 1e-9)
         return (
           <span key={k} className={`tag material-tag icon-text${have >= n ? '' : ' bad'}`}>
             <Texture src={ITEMS[k].icon} /> {ITEMS[k].name} {have}/{n}
@@ -94,6 +94,15 @@ export function Cost({ cost }: { cost: Bag }) {
 
 export const ItemName = ({ id }: { id: string }) => <span className="icon-text"><Texture src={ITEMS[id].icon} /> {ITEMS[id].name}</span>
 export const bagText = (bag: Bag) => Object.entries(bag).map(([k, n]) => <span className="icon-text" key={k}><ItemName id={k} /> ×{n} </span>)
+
+export function EntryHeader({ children, actions }: { children: ReactNode; actions: ReactNode }) {
+  return (
+    <div className="entry-header">
+      <div className="entry-heading">{children}</div>
+      <div className="entry-actions">{actions}</div>
+    </div>
+  )
+}
 
 export function Section({ title, extra, children }: { title: string; extra?: ReactNode; children: ReactNode }) {
   return (

@@ -43,7 +43,7 @@ h1, h2, h3, p { margin: 0; font-weight: normal; }
 .clock .spread { flex-wrap: wrap; }
 .clock .texture { width: 17px; height: 17px; }
 .sky { position: relative; height: 8px; border: 1px solid var(--lo); transition: background 2s; }
-.sky-marker { position: absolute; top: 50%; width: 16px; height: 16px; background: url('/textures/minecraft/sun.png') center / contain no-repeat; transform: translate(-50%, -50%); transition: left 1s linear; }
+.sky-marker { position: absolute; top: 50%; width: 16px; height: 16px; background: url('/textures/minecraft/sun.png') center / contain no-repeat; mix-blend-mode: screen; transform: translate(-50%, -50%); transition: left 1s linear; }
 .sky-marker[data-night="true"] { background-image: url('/textures/minecraft/moon_phases.png'); background-size: 400% 200%; background-position: 66.6667% 0; }
 .layout { --layout-height: max(240px, calc(100dvh - 32px)); --column-heading-height: 48px; display: grid; grid-template-columns: 270px minmax(0, 1fr) 300px; gap: 12px; align-items: start; align-content: start; flex: 1; }
 .sidebar-column { display: flex; flex-direction: column; gap: 12px; min-width: 0; max-height: var(--layout-height); }
@@ -74,7 +74,7 @@ h1, h2, h3, p { margin: 0; font-weight: normal; }
   box-shadow: inset 2px 2px 0 #ffffff12, inset -2px -2px 0 #00000055;
   padding: 12px;
 }
-.panel h3 { font-size: 14px; color: var(--dim); letter-spacing: 2px; margin-bottom: 8px; display: flex; justify-content: space-between; }
+.panel h3, .game-dialog .section > h3 { font-size: 14px; color: var(--dim); letter-spacing: 2px; margin-bottom: 8px; display: flex; justify-content: space-between; gap: 8px; }
 .section { margin-top: 16px; }
 .section:first-child { margin-top: 0; }
 .fade-in { animation: fadein .8s ease; }
@@ -172,8 +172,10 @@ body { background: linear-gradient(#0009, #0009), url('/textures/minecraft/dirt.
 .mc-tabs-list.tabs, .mc-tabs-list.subtabs { width: 100%; margin-bottom: 12px; border: 0; gap: 0; }
 .mc-tabs-content { padding: 0; background: transparent; }
 .mc-tabs-trigger { cursor: pointer; }
-.game-dialog { max-height: 90dvh; overflow-y: auto; font-family: var(--font); line-height: 1.5; }
+.game-dialog { width: min(500px, calc(100vw - 24px)); max-height: 90dvh; overflow: hidden; font-family: var(--font); line-height: 1.5; }
+.dialog-scroll { flex: 0 1 auto; min-height: 0; width: 100%; max-height: 720px; overflow-wrap: anywhere; }
 .game-dialog .modal { padding: 8px; width: 100%; }
+.game-dialog .modal > .section { margin-top: 0; }
 .game-dialog .modal > .mc-surface { display: none; }
 .main, .panel, .card { min-width: 0; }
 @media (max-width: 480px) { .app { padding: 8px; } .cards { grid-template-columns: minmax(0,1fr); } .mc-card.panel { padding: 12px; } }
@@ -202,12 +204,10 @@ body, button, input, select, textarea,
 .mc-tabs-trigger:focus-visible { outline: 2px solid var(--gold); outline-offset: -4px; }
 /* The textured card never scrolls; only its content does. */
 .mc-card.log, .mc-card.side { min-height: 0; gap: 0; }
-.sidebar-scroll { min-height: 0; overflow-y: auto; overflow-x: hidden; scrollbar-width: none; overscroll-behavior: contain; }
-.sidebar-scroll:focus-visible { outline: 2px solid var(--gold); outline-offset: -2px; }
+.sidebar-scroll { min-height: 0; }
 .log-scroll > .scroll-content { display: flex; flex-direction: column; gap: 8px; }
-.inv-row { white-space: nowrap; }
-.inv-name { flex-shrink: 0; }
-.inv-values { display: inline-flex; align-items: center; justify-content: flex-end; gap: 6px; flex-shrink: 0; margin-left: auto; font-variant-numeric: tabular-nums; }
+.inv-name { overflow-wrap: anywhere; }
+.inv-values { display: inline-flex; align-items: center; justify-content: flex-end; gap: 6px; flex-shrink: 0; margin-left: auto; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .inv-row .rate { display: inline; margin-left: 0; }
 @media (max-width: 480px) {
   .mc-tabs-trigger { font-size: var(--text-sm); }
@@ -217,12 +217,7 @@ body, button, input, select, textarea,
 .main { height: var(--layout-height); min-height: 0; display: flex; flex-direction: column; gap: 16px; container-type: inline-size; }
 .main > .mc-tabs { flex: 1; min-height: 0; }
 .main-panel { flex: 1; min-height: 0; overflow: hidden; }
-.main-scroll {
-  flex: 1; min-height: 0; overflow-y: auto; overflow-x: hidden;
-  scrollbar-width: none;
-  scrollbar-gutter: auto; overscroll-behavior: contain;
-}
-.main-scroll:focus-visible { outline: 2px solid var(--gold); outline-offset: -2px; }
+.main-scroll { flex: 1; min-height: 0; }
 
 /* Native HUD sprites; text continues to use the application typography. */
 .player-status { display: grid; justify-items: center; padding: 10px 12px; container-type: inline-size; }
@@ -237,19 +232,34 @@ body, button, input, select, textarea,
 /* One outer frame; compact records inside it that size to their content. */
 .main-scroll { --entry-width: 264px; --action-width: 136px; }
 .entry-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, var(--entry-width)), 1fr)); gap: 8px; }
+.entry-list-notice { margin-bottom: 10px; }
 .content-entry { box-sizing: border-box; width: 100%; min-width: 0; padding: 8px 10px; display: flex; flex-direction: column; gap: 4px; border: 1px solid #555; background: #ffffff05; }
 .content-entry > .spread { align-items: center; }
 .content-entry > .spread > span:first-child { min-width: 0; overflow-wrap: anywhere; }
 .content-entry .sm { line-height: 20px; }
-/* Cost on the left, buttons on the right: one shared row pinned to the card's bottom edge. */
-.entry-foot { margin-top: auto; padding-top: 2px; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; }
-.entry-foot > .cost { flex: 1 1 140px; min-width: 0; align-self: center; line-height: 20px; }
+.entry-header { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: start; gap: 8px; }
+.entry-heading { display: grid; min-width: 0; justify-items: start; gap: 2px; overflow-wrap: anywhere; }
+.content-entry > .cost { min-width: 0; line-height: 20px; }
 .cost > span { white-space: nowrap; }
-.entry-actions { display: flex; gap: 4px; flex-shrink: 0; margin-left: auto; }
-.entry-actions .btn { min-width: 52px; height: 32px; min-height: 32px; padding: 2px 10px; }
+.entry-actions { display: flex; justify-content: flex-end; align-items: flex-start; gap: 4px; }
+.entry-actions :is(.btn, .tag) { min-height: 32px; }
+.entry-actions .btn { min-width: 44px; padding: 2px 8px; }
 .inventory-grid { --entry-width: 200px; }
 .furnace-workspace { display: grid; gap: 8px; padding: 8px 0; border-block: 1px solid var(--line); }
+.furnace-job {
+  --furnace-fill: #65441e;
+  padding: 6px 8px;
+  background-color: #ffffff08;
+  background-image: linear-gradient(var(--furnace-fill), var(--furnace-fill));
+  background-repeat: no-repeat;
+}
+.furnace-job[data-paused="true"] { --furnace-fill: #4c4c4c; }
+.smelt-footer { margin-top: auto; padding-top: 2px; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; }
+.smelt-footer .entry-actions { flex-shrink: 0; margin-left: auto; }
+.smelt-footer .btn { min-width: 52px; height: 32px; padding: 2px 10px; }
 .main-scroll .actions, .fuel-actions { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, var(--action-width)), 1fr)); gap: 6px; }
+.main-scroll .move-actions { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.move-actions .btn-label { overflow-wrap: anywhere; }
 .main-scroll .actions > .btn, .fuel-actions > .btn { width: 100%; height: auto; min-height: 56px; min-width: 0; padding: 4px 8px; }
 .main-scroll .actions > .btn.wide { grid-column: span 2; }
 .fuel-actions { --action-width: 176px; }
@@ -257,8 +267,7 @@ body, button, input, select, textarea,
 .main-scroll .btn-label { width: 100%; }
 .main-scroll .actions .btn-label { gap: 0; }
 .main-scroll .actions .btn-sub { line-height: 20px; }
-.jobs-grid .content-entry > .spread { flex-wrap: wrap; }
-.main-scroll .stepper .btn { width: 28px; height: 28px; padding: 2px; }
+.main-scroll .stepper .btn { width: 28px; min-width: 28px; height: 28px; min-height: 28px; padding: 2px; }
 .main-scroll .stepper { flex-shrink: 0; }
 .main-scroll .section { margin-top: 14px; }
 .main-scroll .section:first-child { margin-top: 0; }
@@ -270,11 +279,31 @@ body, button, input, select, textarea,
 .scroll-area {
   --scroll-fade-top: 0px;
   --scroll-fade-bottom: 0px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
   scrollbar-width: none;
   scrollbar-gutter: auto;
   mask-image: linear-gradient(to bottom, transparent 0, #000 var(--scroll-fade-top), #000 calc(100% - var(--scroll-fade-bottom)), transparent 100%);
 }
+.scroll-area:focus-visible { outline: 2px solid var(--gold); outline-offset: -2px; }
 .scroll-area::-webkit-scrollbar { display: none; width: 0; height: 0; }
 .scroll-area[data-scroll-above="true"] { --scroll-fade-top: 22px; }
 .scroll-area[data-scroll-below="true"] { --scroll-fade-bottom: 22px; }
 .scroll-content { min-width: 0; display: flow-root; }
+
+.offline-report { margin-bottom: 8px; }
+.offline-report p { margin: 4px 0 0; overflow-wrap: anywhere; }
+.achievement-progress { margin-bottom: 6px; }
+.achievement-list { display: grid; gap: 8px; padding: 0; margin: 0; list-style: none; }
+.achievement-list li { display: grid; gap: 2px; border-bottom: 1px solid var(--line); padding: 4px 0; }
+
+.current-goal { flex-shrink: 0; overflow-wrap: anywhere; }
+.goal-term { display: inline-block; max-width: 100%; vertical-align: baseline; }
+.goal-term .texture { width: 16px; height: 16px; margin-inline-end: 3px; vertical-align: -0.15em; }
+.goal-term[data-tone="material"] { color: #e8bf80; }
+.goal-term[data-tone="equipment"] { color: #a5e4ec; }
+.goal-term[data-tone="place"] { color: #b6df93; }
+.goal-term[data-tone="danger"] { color: #f0a89f; }
+.goal-term[data-tone="project"] { color: #adc8ff; }
+.goal-term[data-tone="special"] { color: #d8b6ff; }

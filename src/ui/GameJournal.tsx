@@ -1,0 +1,204 @@
+import { useRef, useState, type ChangeEvent } from 'react'
+import { Card } from '../components/minecraft/card'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/minecraft/tabs'
+import { GameDialog } from './GameDialog'
+import { useScrollReset } from './ScrollArea'
+import { ITEMS } from '../game/data'
+import { EXPEDITIONS, OFFLINE_LIMIT } from '../game/progression'
+import { COMPLETED_MONUMENT, MONUMENT_GOAL, PROJECTS, STORY, type GoalHint, type GoalTerm } from '../game/advancements'
+import { dayOf, useGame } from '../game/store'
+import { Texture } from './Texture'
+import { Btn } from './kit'
+
+export type GameMenu = 'achievements' | 'stats' | 'settings'
+
+const ACHIEVEMENT_TABS = [
+  { id: 'story', label: '生存与探索', steps: STORY },
+  { id: 'projects', label: '村庄与远征', steps: PROJECTS },
+]
+
+export function CurrentGoal() {
+  const s = useGame()
+  const step = STORY.find((entry) => !entry.complete(s))
+  const goal = s.village?.buildings.monument
+    ? COMPLETED_MONUMENT
+    : s.flags.won
+      ? MONUMENT_GOAL
+      : step
+  if (!s.flags.inv || !goal) return null
+
+  return (
+    <Card className="panel current-goal" role="region" aria-labelledby="current-goal-heading">
+      <div>
+        <h3 id="current-goal-heading">当前目标</h3>
+        <p><GoalLabel term={goal.icon} label={goal.title} /></p>
+        <p className="sm dim"><GoalText hint={goal.hint} /></p>
+      </div>
+    </Card>
+  )
+}
+
+function GoalLabel({ term, label = term.name }: { term: GoalTerm; label?: string }) {
+  return (
+    <span className="goal-term" data-tone={term.tone}>
+      <Texture src={term.icon} />
+      {label}
+    </span>
+  )
+}
+
+function GoalText({ hint }: { hint: GoalHint }) {
+  return hint.map((part, index) => typeof part === 'string' ? part : <GoalLabel key={index} term={part} />)
+}
+
+export function OfflineReport() {
+  const report = useGame((s) => s.offline)
+  const dismiss = useGame((s) => s.dismissOffline)
+  if (!report) return null
+  const changes = Object.entries(report.items).filter(([, n]) => n)
+  const trip = EXPEDITIONS.find((entry) => entry.id === report.expedition)
+  const hours = Math.floor(report.seconds / 3600)
+  const minutes = Math.floor((report.seconds % 3600) / 60)
+  const seconds = report.seconds % 60
+  const duration = [hours && hours + ' 小时', minutes && minutes + ' 分钟', seconds && seconds + ' 秒'].filter(Boolean).join(' ')
+  return (
+    <aside className="notice offline-report" aria-label="离线结算">
+      <div className="spread">
+        <strong>离线结算 · {duration}</strong>
+        <Btn className="mini" onClick={dismiss}>收起</Btn>
+      </div>
+      {changes.length > 0 && <p>{changes.map(([id, n]) => ITEMS[id].name + ' ' + (n > 0 ? '+' : '') + n).join('，')}</p>}
+      {report.villagers > 0 && <p>新搬入的村民 +{report.villagers}</p>}
+      {trip && <p>远征归来 · {trip.name}</p>}
+      {!changes.length && !report.villagers && !trip && <p>这段时间没有物资变化。</p>}
+    </aside>
+  )
+}
+
+export function JournalModal({ menu, onClose, onDebug }: {
+  menu: GameMenu
+  onClose: () => void
+  onDebug?: () => void
+}) {
+  const s = useGame()
+  const title = menu === 'settings' ? '设置' : menu === 'achievements' ? '成就' : '统计'
+  return (
+    <GameDialog label={title} onClose={onClose}>
+      <h2>{title}</h2>
+      {menu === 'settings' && <SaveSettings onClose={onClose} onDebug={onDebug} />}
+      {menu === 'achievements' && <Achievements />}
+      {menu === 'stats' && <dl className="village-stats">
+        <dt>世界天数</dt><dd>{dayOf(s.minute)}</dd>
+        <dt>采集与狩猎行动</dt><dd>{s.stats.actions}</dd>
+        <dt>探索地点次数</dt><dd>{s.stats.explored}</dd>
+        <dt>击败生物</dt><dd>{s.stats.kills}</dd>
+        <dt>死亡次数</dt><dd>{s.stats.deaths}</dd>
+        <dt>击退袭击</dt><dd>{s.expeditions.raid ?? 0}</dd>
+        <dt>末地远征</dt><dd>{EXPEDITIONS.reduce((n, entry) => n + (s.expeditions[entry.id] ?? 0), 0)}</dd>
+      </dl>}
+      <div className="actions"><Btn onClick={onClose}>关闭</Btn></div>
+    </GameDialog>
+  )
+}
+
+function Achievements() {
+  const s = useGame()
+  const resetScroll = useScrollReset()
+
+  return (
+    <Tabs defaultValue="story" onValueChange={() => resetScroll()}>
+      <TabsList className="subtabs" aria-label="成就分类">
+        {ACHIEVEMENT_TABS.map(({ id, label }) => (
+          <TabsTrigger key={id} value={id} aria-label={label}>{label}</TabsTrigger>
+        ))}
+      </TabsList>
+      {ACHIEVEMENT_TABS.map(({ id, steps }) => {
+        const entries = steps.map((entry) => ({ ...entry, done: entry.complete(s) }))
+        return (
+          <TabsContent key={id} value={id}>
+            <p className="achievement-progress sm dim">已完成 {entries.filter((entry) => entry.done).length}/{entries.length}</p>
+            <ul className="achievement-list">
+              {entries.map(({ title, icon, hint, done }) => (
+                <li key={title}>
+                  <strong>
+                    <span className={done ? 'good' : 'dim'} role="img" aria-label={done ? '已完成' : '未完成'}>{done ? '✓ ' : '○ '}</span>
+                    <GoalLabel term={icon} label={title} />
+                  </strong>
+                  {!done && <span className="dim"><GoalText hint={hint} /></span>}
+                </li>
+              ))}
+            </ul>
+          </TabsContent>
+        )
+      })}
+    </Tabs>
+  )
+}
+
+function SaveSettings({ onClose, onDebug }: { onClose: () => void; onDebug?: () => void }) {
+  const backup = useGame((s) => s.backup)
+  const restore = useGame((s) => s.restore)
+  const reset = useGame((s) => s.reset)
+  const fileInput = useRef<HTMLInputElement>(null)
+  const [selected, setSelected] = useState<{ name: string; raw: string } | null>(null)
+  const [confirm, setConfirm] = useState(false)
+  const [status, setStatus] = useState('')
+  const exportSave = () => {
+    const url = URL.createObjectURL(new Blob([backup()], { type: 'application/json' }))
+    const link = document.createElement('a')
+    link.href = url
+    link.download = 'block-idle-save.json'
+    link.click()
+    window.setTimeout(() => URL.revokeObjectURL(url), 1000)
+    setStatus('已导出当前进度。')
+  }
+  const chooseSave = async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    event.target.value = ''
+    if (!file) return
+    setSelected(null)
+    setConfirm(false)
+    if (file.size > 2_000_000) { setStatus('存档文件过大。'); return }
+    try {
+      setSelected({ name: file.name, raw: await file.text() })
+      setStatus('')
+    } catch {
+      setStatus('无法读取文件。')
+    }
+  }
+  const importSave = () => {
+    if (!selected) return
+    const error = restore(selected.raw)
+    setSelected(null)
+    if (error) { setStatus(error); return }
+    useGame.getState().tick(true)
+    onClose()
+  }
+  return (
+    <>
+      <p className="sm dim">进度自动保存在此浏览器。离开后最多结算 {OFFLINE_LIMIT / 3600} 小时，战斗暂停。</p>
+      <input ref={fileInput} type="file" accept=".json,application/json" hidden onChange={chooseSave} />
+      <div className="actions">
+        <Btn onClick={exportSave}>导出存档</Btn>
+        <Btn onClick={() => fileInput.current?.click()}>选择存档文件</Btn>
+        <Btn className="danger" onClick={() => { setConfirm(true); setSelected(null) }}>重置存档</Btn>
+        {onDebug && <Btn onClick={onDebug}>Debug</Btn>}
+      </div>
+      {selected && <div className="notice">
+        <p>用「{selected.name}」覆盖当前进度？</p>
+        <div className="actions">
+          <Btn className="danger" onClick={importSave}>确认载入</Btn>
+          <Btn onClick={() => setSelected(null)}>取消</Btn>
+        </div>
+      </div>}
+      {confirm && <div className="notice">
+        <p>清除当前进度，从初生森林重新开始？</p>
+        <div className="actions">
+          <Btn className="danger" onClick={() => { reset(); onClose() }}>确认重置</Btn>
+          <Btn onClick={() => setConfirm(false)}>取消</Btn>
+        </div>
+      </div>}
+      {status && <p role="status">{status}</p>}
+    </>
+  )
+}

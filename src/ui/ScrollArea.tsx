@@ -1,9 +1,13 @@
-import { useLayoutEffect, useRef, type ComponentProps } from 'react'
+import { createContext, useCallback, useContext, useLayoutEffect, useRef, type ComponentProps } from 'react'
+
+const ScrollReset = createContext(() => {})
+export const useScrollReset = () => useContext(ScrollReset)
 
 /** Fade only the edges with offscreen content; keep the textured frame outside. */
 export function ScrollArea({ children, className = '', ...props }: ComponentProps<'div'>) {
   const viewport = useRef<HTMLDivElement>(null)
   const content = useRef<HTMLDivElement>(null)
+  const reset = useCallback(() => { if (viewport.current) viewport.current.scrollTop = 0 }, [])
 
   useLayoutEffect(() => {
     const element = viewport.current
@@ -28,6 +32,6 @@ export function ScrollArea({ children, className = '', ...props }: ComponentProp
   }, [])
 
   return <div {...props} ref={viewport} className={`scroll-area ${className}`}>
-    <div ref={content} className="scroll-content">{children}</div>
+    <div ref={content} className="scroll-content"><ScrollReset.Provider value={reset}>{children}</ScrollReset.Provider></div>
   </div>
 }

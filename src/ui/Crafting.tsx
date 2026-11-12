@@ -3,14 +3,16 @@ import { AdventureImage } from '../components/minecraft/minecraft-adventure-imag
 import { Texture } from './Texture'
 import { useState } from 'react'
 import { ENCHANTS, FUELS, ITEMS, ITEM_LIST, RECIPES, SMELTS, type Cat } from '../game/data'
-import { canAfford, count, enchantCost, useGame } from '../game/store'
-import { Bar, Btn, Cost, Section, ItemName } from './kit'
+import { canAfford, count, enchantCost, recipeStationReady, useGame } from '../game/store'
+import { Btn, Cost, EntryHeader, ItemName, Section } from './kit'
+import { useScrollReset } from './ScrollArea'
 
 const CAT_NAMES: [Cat, string][] = [['tool', '工具'], ['gear', '装备'], ['food', '食物'], ['material', '材料'], ['special', '奇物']]
 
 export function Crafting() {
   const s = useGame()
   const [sub, setSub] = useState('craft')
+  const resetScroll = useScrollReset()
   const tabs: [string, string, boolean][] = [
     ['craft', count(s, 'table') > 0 ? '工作台' : '徒手合成', true],
     ['furnace', '熔炉', !!s.flags.furnace],
@@ -21,7 +23,7 @@ export function Crafting() {
 
   return (
     <div>
-      <Tabs value={cur} onValueChange={(value) => setSub(String(value))}><TabsList className="subtabs" aria-label="制造页面">
+      <Tabs value={cur} onValueChange={(value) => { resetScroll(); setSub(String(value)) }}><TabsList className="subtabs" aria-label="制造页面">
         {tabs.filter(([, , ok]) => ok).map(([id, name]) => (
           <TabsTrigger key={id} value={id} aria-label={name}>
             {name}
@@ -40,7 +42,7 @@ function CraftList() {
   const s = useGame()
   const hasTable = count(s, 'table') > 0
   const list = RECIPES.filter(
-    (r) => (r.station === 'hand' || hasTable) && Object.keys(r.cost).every((k) => s.seen[k]),
+    (r) => recipeStationReady(s, r.station) && Object.keys(r.cost).every((k) => s.seen[k]),
   )
   return (
     <>
@@ -53,18 +55,17 @@ function CraftList() {
           const ok = canAfford(s, r.cost)
           return (
             <article key={r.id} className="content-entry fade-in">
-              <div className="spread">
+              <EntryHeader actions={<>
+                {owned
+                  ? <span className="tag g">已拥有</span>
+                  : <Btn disabled={!ok} onClick={() => s.craft(r.id)}>{r.station === 'brewing' ? '酿造' : '合成'}</Btn>}
+                {!unique && <Btn disabled={!ok} onClick={() => s.craft(r.id, 10)}>×10</Btn>}
+              </>}>
                 <span className="icon-text"><Texture src={def.icon} /> {def.name}{r.n > 1 ? ` ×${r.n}` : ''}</span>
-                {owned ? <span className="tag g">已拥有</span> : !unique && <span className="sm dim">持有 {count(s, r.out)}</span>}
-              </div>
-              {def.desc && <span className="sm dim">{def.desc}</span>}
-              <div className="entry-foot">
-                <Cost cost={r.cost} />
-                <div className="entry-actions">
-                  <Btn disabled={!ok || owned} onClick={() => s.craft(r.id)}>合成</Btn>
-                  {!unique && <Btn disabled={!ok} onClick={() => s.craft(r.id, 10)}>×10</Btn>}
-                </div>
-              </div>
+                {!unique && <span className="sm dim">持有 {count(s, r.out)}</span>}
+              </EntryHeader>
+              {(def.desc || r.station === 'brewing') && <span className="sm dim">{r.station === 'brewing' && '酿造台 · '}{def.desc}</span>}
+              <Cost cost={r.cost} />
             </article>
           )
         })}
@@ -77,6 +78,7 @@ function Furnace() {
   const s = useGame()
   const job = s.furnace.job
   const jobDef = job && SMELTS.find((x) => x.id === job.r)
+  const hasFuel = s.furnace.fuel >= 1
   const fuels = Object.keys(FUELS).filter((k) => s.seen[k])
   return (
     <>
@@ -84,12 +86,16 @@ function Furnace() {
         <div className="furnace-workspace">
           {job && jobDef ? (
             <>
-              <div className="spread">
+              <div className="spread furnace-job" data-paused={!hasFuel}
+                style={{ backgroundSize: `${job.prog / jobDef.time * 100}% 100%` }}>
                 <SmeltItems from={jobDef.from} to={jobDef.out} />
-                <span className="sm dim">剩余 {job.left}</span>
+                <span className="sm dim" role="progressbar" aria-label="熔炼进度"
+                  aria-valuemin={0} aria-valuemax={jobDef.time} aria-valuenow={job.prog}
+                  aria-valuetext={`${job.prog}/${jobDef.time} 秒，剩余 ${job.left} 件`}>
+                  剩余 {job.left}
+                </span>
               </div>
-              <Bar value={job.prog} max={jobDef.time} color={s.furnace.fuel >= 1 ? '#e08a2c' : '#555'} label="熔炼进度" />
-              {s.furnace.fuel < 1 && <span className="sm bad">燃料耗尽，熔炉熄灭了。</span>}
+              {!hasFuel && <span className="sm bad">燃料耗尽，熔炉熄灭了。</span>}
               <div><Btn className="mini" onClick={s.cancelSmelt}>取出原料</Btn></div>
             </>
           ) : (
@@ -115,7 +121,7 @@ function Furnace() {
                   <SmeltItems from={r.from} to={r.out} />
                   <span className="sm dim">{r.time} 秒</span>
                 </div>
-                <div className="entry-foot">
+                <div className="smelt-footer">
                   <span className="tag material-tag">持有原料 {have}</span>
                   <div className="entry-actions">
                     <Btn disabled={blocked || have < 1} onClick={() => s.smelt(r.id, 1)}>×1</Btn>
@@ -162,24 +168,19 @@ function Enchant() {
           const ok = !maxed && s.level >= cost.levels && count(s, 'lapis') >= cost.lapis
           return (
             <article key={e.id} className="content-entry">
-              <div className="spread">
+              <EntryHeader actions={
+                <Btn disabled={!ok} onClick={() => s.enchant(e.id)}>{maxed ? '已满级' : '附魔'}</Btn>
+              }>
                 <span>{e.name}</span>
                 <span className="sm dim">{lvl}/{e.max} 级</span>
-              </div>
+              </EntryHeader>
               <span className="sm dim">{e.desc}</span>
-              <div className="entry-foot">
+              {!maxed && (
                 <div className="cost">
-                  {!maxed && (
-                    <>
-                      <span className={`tag material-tag${s.level >= cost.levels ? '' : ' bad'}`}>等级 {s.level}/{cost.levels}</span>
-                      <Cost cost={{ lapis: cost.lapis }} />
-                    </>
-                  )}
+                  <span className={`tag material-tag${s.level >= cost.levels ? '' : ' bad'}`}>等级 {s.level}/{cost.levels}</span>
+                  <Cost cost={{ lapis: cost.lapis }} />
                 </div>
-                <div className="entry-actions">
-                  <Btn disabled={!ok} onClick={() => s.enchant(e.id)}>{maxed ? '已满级' : '附魔'}</Btn>
-                </div>
-              </div>
+              )}
             </article>
           )
         })}

@@ -57,7 +57,11 @@
     "mutton": "item/mutton.png",
     "cooked_mutton": "item/cooked_mutton.png",
     "dirt": "block/dirt.png",
-    "cooked_chicken": "item/cooked_chicken.png"
+    "cooked_chicken": "item/cooked_chicken.png",
+    "elytra": "item/elytra.png",
+    "nether_star": "item/nether_star.png",
+    "nether_wart": "item/nether_wart.png",
+    "shulker_shell": "item/shulker_shell.png"
   },
   "bedrock": {
     "base": "https://raw.githubusercontent.com/Mojang/bedrock-samples/15701fa9c13923f12662984c32c124327e40e3d3/resource_pack/textures/ui/",
@@ -99,7 +103,26 @@
       "iron_block": "iron_block.png",
       "dragon_egg": "dragon_egg.png",
       "leather_chestplate": "leather_chestplate.png",
-      "torch": "torch.png"
+      "torch": "torch.png",
+      "beacon": "beacon.png",
+      "brewing_stand": "brewing_stand.png",
+      "cactus": "cactus.png",
+      "campfire": "campfire.png",
+      "end_crystal": "end_crystal.png",
+      "end_stone": "end_stone.png",
+      "filled_map": "filled_map.png",
+      "grass_block": "grass_block.png",
+      "lava_bucket": "lava_bucket.png",
+      "oak_door": "oak_door.png",
+      "oak_fence": "oak_fence.png",
+      "observer": "observer.png",
+      "shears": "shears.png",
+      "shulker_box": "shulker_box.png",
+      "soul_sand": "soul_sand.png",
+      "stone_brick_wall": "stone_brick_wall.png",
+      "warped_stem": "warped_stem.png",
+      "wither_skeleton_skull": "wither_skeleton_skull.png",
+      "healing_potion": "potion__potion_of_healing__387dc34b.png"
     }
   },
   "mob_renders": {
@@ -116,5 +139,26 @@
       "mob_blaze": "Blaze_JE2.gif",
       "mob_dragon": "Ender_Dragon_JE1_BE1.png"
     }
+  },
+  "wiki_renders": {
+    "base": "https://wikiassets.net/minecraft-wiki-c8ddba/images/",
+    "transform": "Converted from WebP to PNG, cropped to visible bounds and resized.",
+    "textures": {
+      "end_ship": "a0de902213e34e49e89460718bfa57fc.webp",
+      "mob_iron_golem": "04002ed73288a60c69881d52e30634d1.webp",
+      "mob_villager": "d5c459cce8b48ecd1a270a49b16eb525.webp",
+      "mob_wither": "6ddfdcf55bfe46ba9b256907af794a1f.webp",
+      "mob_wither_skeleton": "ad30b517d7c6ebfb057cc034aedc0eff.webp"
+    }
+  },
+  "composites": {
+    "base": "https://raw.githubusercontent.com/InventivetalentDev/minecraft-assets/1.21.4/assets/minecraft/textures/",
+    "textures": {
+      "nether_portal": [
+        "block/nether_portal.png",
+        "block/obsidian.png"
+      ]
+    },
+    "transform": "The first portal animation frame repeated inside an obsidian frame."
   }
 }
