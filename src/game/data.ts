@@ -174,8 +174,8 @@ export const ITEM_LIST: ItemDef[] = [
   it('pufferfish', '河豚', '/textures/minecraft/pufferfish.png', 'material'),
   it('salmon', '生鲑鱼', '/textures/minecraft/salmon.png', 'food', { food: 2 }),
   it('cooked_salmon', '熟鲑鱼', '/textures/minecraft/cooked_salmon.png', 'food', { food: 6 }),
-  it('water_breathing', '水肺药水', '/textures/minecraft/water_breathing_potion.png', 'special'),
-  it('conduit', '潮涌核心', '/textures/minecraft/conduit.png', 'tool'),
+  it('water_breathing', '水肺药水', '/textures/minecraft/water_breathing_potion.png', 'special', { desc: '在岸边或潜水时饮用，60 秒内可在水下呼吸。也可用于海底神殿远征。' }),
+  it('conduit', '潮涌核心', '/textures/minecraft/conduit.png', 'tool', { desc: '建成潮涌港口后，可在潜水时持续呼吸。也能缩短海洋远征并替代远征的水肺药水。' }),
   it('breeze_rod', '旋风棒', '/textures/minecraft/breeze_rod.png', 'special'),
   it('wind_charge', '风弹', '/textures/minecraft/wind_charge.png', 'special'),
   it('trial_key', '试炼钥匙', '/textures/minecraft/trial_key.png', 'special'),
@@ -378,6 +378,7 @@ export interface ActionDef {
   kind: 'gather' | 'mine' | 'fish' | 'hunt'
   cd: number
   hunger: number
+  diveAir?: number
   pick?: number
   tool?: string
   cost?: Bag
@@ -438,6 +439,9 @@ const ACTION_LIST: ActionDef[] = [
   { id: 'dig_clay', name: '挖掘黏土', kind: 'gather', cd: 4, hunger: 0.2, drops: [d('clay', 2, 4)] },
   { id: 'brush_ruin', name: '刷开可疑的沙子', kind: 'gather', cd: 7, hunger: 0.14, tool: 'brush', finite: 'suspicious', drops: [d('sherd', 1, 1), d('emerald', 1, 1, 0.25), d('clay', 1, 2)], xp: 3 },
   { id: 'fish_deep', name: '在深水区垂钓', kind: 'fish', cd: 7, hunger: 0.12, tool: 'rod', drops: [d('salmon', 1, 2), d('pufferfish', 1, 1, 0.45), d('nautilus', 1, 1, 0.12)], xp: 2 },
+  { id: 'dive_shell', name: '搜寻海床', kind: 'gather', cd: 7, hunger: 0.16, diveAir: 3, finite: 'seabed', drops: [d('clay', 2, 4), d('nautilus', 1, 1, 0.45)], xp: 1 },
+  { id: 'dive_ruin', name: '刷扫海底废墟', kind: 'gather', cd: 10, hunger: 0.24, diveAir: 5, tool: 'brush', finite: 'sunken_sand', drops: [d('angler_sherd', 1, 1), d('emerald', 1, 1, 0.2)], xp: 4 },
+  { id: 'dive_guardian', name: '挑战守卫者', kind: 'hunt', cd: 28, hunger: 0.35, diveAir: 4, pick: 3, mob: 'guardian' },
   { id: 'mine_sculk', name: '精准采集幽匿块', kind: 'mine', cd: 5, hunger: 0.25, pick: 3, enchant: 'silk', drops: [d('sculk', 2, 4)], xp: 1 },
   { id: 'sneak_city', name: '铺羊毛潜行搜寻箱子', kind: 'gather', cd: 15, hunger: 0.4, cost: { wool: 3 }, drops: [d('echo_shard', 2, 3), d('sculk_sensor', 1, 1), d('diamond', 1, 2, 0.25)], xp: 5 },
   { id: 'hunt_warden', name: '挑战监守者', kind: 'hunt', cd: 45, hunger: 0.8, mob: 'warden' },
@@ -468,7 +472,7 @@ export interface BiomeDef {
 export const BIOMES: Record<string, BiomeDef> = {
   forest: { id: 'forest', name: '森林', icon: '/textures/minecraft/oak_log.png', desc: '高大的橡树遮住了天空，林间散落着野果。', actions: ['chop', 'grass', 'forage', 'mine_stone', 'hunt_pig', 'hunt_spider', 'hunt_chicken', 'gather_egg'], res: { pig: [3, 7], chicken: [3, 5], eggs: [3, 5] }, renew: ['pig', 'chicken', 'eggs'], danger: 1, weight: 20 },
   plains: { id: 'plains', name: '平原', icon: '/textures/minecraft/grass_block.png', desc: '一望无际的草地，牛羊在远处漫步。', actions: ['grass', 'forage', 'chop', 'hunt_cow', 'hunt_sheep', 'shear_sheep', 'gather_pumpkin', 'gather_egg', 'harvest_comb', 'bottle_honey'], res: { cow: [3, 8], sheep: [3, 8], fleece: [4, 6], pumpkin: [4, 6], eggs: [3, 5], nectar: [4, 6] }, renew: ['cow', 'sheep', 'fleece', 'pumpkin', 'eggs', 'nectar'], danger: 0.8, weight: 18 },
-  coast: { id: 'coast', name: '沙滩', icon: '/textures/minecraft/sand.png', desc: '潮水拍打着沙滩，岸边长着成片的甘蔗。', actions: ['fish', 'fish_deep', 'dig_sand', 'gather_cane', 'dig_clay'], res: {}, danger: 0.7, weight: 12 },
+  coast: { id: 'coast', name: '沙滩', icon: '/textures/minecraft/sand.png', desc: '潮水拍打着沙滩，岸边长着成片的甘蔗。往外游可以潜入海底。', actions: ['fish', 'fish_deep', 'dig_sand', 'gather_cane', 'dig_clay', 'dive_shell', 'dive_ruin', 'dive_guardian'], res: { seabed: [5, 8], sunken_sand: [3, 5] }, renew: ['seabed', 'sunken_sand'], danger: 0.7, weight: 12 },
   swamp: { id: 'swamp', name: '沼泽', icon: '/textures/minecraft/lily_pad.png', desc: '浑浊的水面漂着睡莲，空气又湿又闷。', actions: ['chop', 'fish', 'gather_cane', 'grass', 'gather_mushrooms', 'dig_clay'], res: { mushrooms: [6, 9] }, renew: ['mushrooms'], danger: 1.4, weight: 8 },
   desert: { id: 'desert', name: '沙漠', icon: '/textures/minecraft/cactus.png', desc: '炽热的沙丘连绵起伏，岩缝里闪着金光。', actions: ['dig_sand', 'mine_stone', 'mine_gold'], res: { gold: [2, 6] }, danger: 1.2, weight: 8 },
   mountain: { id: 'mountain', name: '风袭丘陵', icon: '/textures/minecraft/stone.png', desc: '裸露的岩壁上能看到煤与铁的矿脉。', actions: ['mine_stone', 'mine_coal', 'mine_iron', 'mine_copper', 'mine_emerald', 'hunt_sheep', 'shear_sheep'], res: { coal: [10, 24], iron: [6, 14], emerald: [0, 3], sheep: [2, 5], fleece: [3, 6], copper: [10, 16] }, renew: ['sheep', 'fleece'], danger: 1, weight: 14 },
@@ -491,6 +495,7 @@ export const BIOMES: Record<string, BiomeDef> = {
   bastion: { id: 'bastion', name: '堡垒遗迹', icon: '/textures/minecraft/blackstone.png', desc: '黑石堆砌的遗迹由猪灵蛮兵驻守。', actions: ['mine_blackstone', 'mine_gold', 'hunt_brute', 'hunt_magma'], res: { gold: [7, 12] }, danger: 0.8, weight: 0, nether: true },
 }
 export const RES_NAMES: Record<string, string> = {
+  seabed: '海床', sunken_sand: '水下可疑的沙子',
   pig: '猪', cow: '牛', sheep: '羊', coal: '煤矿', iron: '铁矿', gold: '金矿', lapis: '青金石',
   chicken: '鸡', eggs: '鸡蛋', fleece: '羊毛', nectar: '成熟蜂巢', vegetables: '菜地', jungle_fruit: '丛林果实',
   berries: '甜浆果', pumpkin: '南瓜', mushrooms: '蘑菇', copper: '铜矿', amethyst: '紫水晶簇', suspicious: '可疑的沙子',
@@ -514,6 +519,7 @@ export interface MobDef {
   nightOnly?: boolean
 }
 export const MOBS: Record<string, MobDef> = {
+  guardian: { id: 'guardian', name: '守卫者', icon: '/textures/minecraft/mob_guardian.png', hp: 30, atk: 5, xp: 8, drops: [d('prismarine_shard', 3, 5), d('prismarine_crystal', 1, 3)] },
   pig: { id: 'pig', name: '猪', icon: '/textures/minecraft/mob_pig.png', hp: 6, atk: 0, xp: 1, drops: [d('porkchop', 1, 3)] },
   cow: { id: 'cow', name: '牛', icon: '/textures/minecraft/mob_cow.png', hp: 8, atk: 0, xp: 1, drops: [d('meat', 1, 2), d('leather', 1, 2)] },
   sheep: { id: 'sheep', name: '羊', icon: '/textures/minecraft/mob_sheep.png', hp: 6, atk: 0, xp: 1, drops: [d('wool', 1, 2), d('mutton', 1, 2)] },

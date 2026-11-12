@@ -224,6 +224,12 @@ body, button, input, select, textarea,
 .player-status { display: grid; justify-items: center; padding: 10px 12px; container-type: inline-size; }
 .player-hud { display: grid; gap: 8px; width: 364px; }
 .hud-meters { display: grid; grid-template-columns: repeat(2, 162px); justify-content: space-between; gap: 6px 0; }
+.hud-meters [data-slot="armor-meter"] { grid-area: 1 / 1; }
+.hud-meters [data-slot="health-meter"] { grid-area: 2 / 1; }
+.hud-meters [data-slot="hunger-meter"] { grid-area: 2 / 2; }
+.hud-meters .air-status { grid-area: 1 / 2; }
+.air-status { display: grid; gap: 2px; }
+.player-hud > .btn { justify-self: end; }
 .hud-experience { position: relative; padding-block: 5px; }
 .hud-level { position: absolute; inset: 0; display: grid; place-items: center; color: #80ff20; font-size: 20px; line-height: 20px; text-shadow: 2px 0 #102900, -2px 0 #102900, 0 2px #102900, 0 -2px #102900; pointer-events: none; }
 @container (max-width: 364px) {

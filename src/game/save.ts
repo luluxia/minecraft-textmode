@@ -1,10 +1,10 @@
 import { BIOMES, BUILDING_MAP, ENCHANTS, EYES_NEEDED, ITEMS, JOB_MAP, MOBS, SMELTS, type Bag } from './data'
 import { migrateMinecraftNames } from './migrate'
-import { EXPEDITIONS, LINES, PLANTS } from './progression'
+import { EXPEDITIONS, LINES, MAX_AIR, PLANTS } from './progression'
 import type { GameState, Loc } from './store'
 
 export const SAVE_KEY = 'block-idle-save'
-export const SAVE_VERSION = 4
+export const SAVE_VERSION = 5
 export type SaveSnapshot = GameState
 
 type Fields = Record<string, unknown>
@@ -61,6 +61,8 @@ export function normalizeSave(input: unknown, version: number, defaults: GameSta
     boolean(loc.saved) && boolean(loc.shelter) && bag(loc.res, known(BIOMES[loc.biome].res), integer))) return null
   if (!integer(s.locId) || !s.locs[s.locId] || !integer(s.nextId) ||
     Object.values(s.locs).some((loc: Loc) => loc.id >= s.nextId)) return null
+  if (!integer(s.air, MAX_AIR) || !boolean(s.submerged) ||
+    (s.submerged && (s.locs[s.locId].biome !== 'coast' || !s.flags.explore))) return null
   if (s.homeId !== null && (!integer(s.homeId) || !s.locs[s.homeId]?.shelter)) return null
   if ((s.homeId === null) !== (s.village === null)) return null
   if (s.village !== null) {
@@ -85,7 +87,8 @@ export function normalizeSave(input: unknown, version: number, defaults: GameSta
       c.lines.length > (version < 3 ? 1000 : 6) || !c.lines.every(shortText) ||
       (c.crystals !== undefined && !integer(c.crystals, 3)) ||
       (c.trial !== undefined && (c.mob !== 'breeze' || !['normal', 'ominous'].includes(c.trial))) ||
-      (c.breathTaken !== undefined && (c.mob !== 'dragon' || !boolean(c.breathTaken)))) return null
+      (c.breathTaken !== undefined && (c.mob !== 'dragon' || !boolean(c.breathTaken))) ||
+      (s.submerged !== (c.mob === 'guardian'))) return null
   }
   if (!record(s.furnace) || !integer(s.furnace.fuel)) return null
   if (s.furnace.job !== null) {
@@ -108,7 +111,7 @@ export function normalizeSave(input: unknown, version: number, defaults: GameSta
       (report.expedition !== null && !EXPEDITIONS.some((trip) => trip.id === report.expedition))) return null
   }
   if (version < 2) migrateMinecraftNames(s)
-  if (version < 4) {
+  if (version < 5) {
     for (const loc of Object.values(s.locs)) {
       for (const [id, [min]] of Object.entries(BIOMES[loc.biome].res)) loc.res[id] ??= min
     }

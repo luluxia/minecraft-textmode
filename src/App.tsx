@@ -7,14 +7,14 @@ import { AdventureImage } from './components/minecraft/minecraft-adventure-image
 import { Texture } from './ui/Texture'
 import { useEffect, useState } from 'react'
 import { ITEM_CATEGORIES, ITEM_LIST, ITEMS, MOBS, villageLevel } from './game/data'
-import { combatMaxHp, count, dayOf, hourOf, isNight, production, useGame, villageCap } from './game/store'
+import { canBreatheUnderwater, combatMaxHp, count, dayOf, hourOf, isNight, production, useGame, villageCap } from './game/store'
 import { Adventure } from './ui/Adventure'
-import { PlayerHud } from './ui/PlayerHud'
+import { AirStatus, PlayerHud } from './ui/PlayerHud'
 import { Crafting } from './ui/Crafting'
 import { Village } from './ui/Village'
 import { Bar, Btn } from './ui/kit'
 import { CurrentGoal, JournalModal, OfflineReport, type GameMenu } from './ui/GameJournal'
-import { seasonAt } from './game/progression'
+import { MAX_AIR, seasonAt } from './game/progression'
 import { DebugPanel } from './ui/DebugPanel'
 
 const WEATHER = {
@@ -26,6 +26,7 @@ const WEATHER = {
 export function App() {
   const flags = useGame((s) => s.flags)
   const villagers = useGame((s) => s.village?.villagers ?? null)
+  const showAir = useGame((s) => s.submerged || s.air < MAX_AIR)
   const [tab, setTab] = useState('adventure')
   const [menu, setMenu] = useState<GameMenu | 'debug' | null>(null)
   const [debugActive, setDebugActive] = useState(false)
@@ -39,7 +40,7 @@ export function App() {
 
   useEffect(() => {
     const tick = (background: boolean) => useGame.getState().tick(background)
-    const visibility = () => tick(!document.hidden)
+    const visibility = () => tick(!document.hidden || useGame.getState().submerged)
     if (!document.hidden) tick(true)
     const timer = window.setInterval(() => { if (!document.hidden) tick(false) }, 1000)
     document.addEventListener('visibilitychange', visibility)
@@ -84,7 +85,7 @@ export function App() {
             </ScrollArea>
           </Card>
         </Tabs>
-        {flags.status && <PlayerHud />}
+        {(flags.status || showAir) && <PlayerHud />}
         </main>
         <div className="sidebar-column sidebar-right">
           <div className="toolbar" role="group" aria-label="游戏菜单">
@@ -227,6 +228,7 @@ function CombatModal() {
           <span>{playerHealth}</span>
         </div>
         <Bar value={s.hp} max={20} color="#c8402f" label="玩家生命值" valueText={playerHealth} />
+        {s.submerged && <AirStatus state={s} />}
       </div>
       <div className="combat-lines">{c.lines.map((l, i) => <p key={c.lines.length - i}>{l}</p>)}</div>
       <div className="actions">
@@ -244,7 +246,12 @@ function CombatModal() {
         {c.mob === 'dragon' && count(s, 'bottle') > 0 && !c.breathTaken && (
           <Btn disabled={c.turn < 4} onClick={s.bottleBreath} sub={c.turn < 4 ? '等待龙息落下' : '消耗一个玻璃瓶'}>收集龙息</Btn>
         )}
-        <Btn cd="flee" onClick={s.flee} sub={c.boss ? '下次挑战重新开始' : undefined}>撤退</Btn>
+        {s.submerged && count(s, 'water_breathing') > 0 && (
+          <Btn cd="drink" disabled={canBreatheUnderwater(s)} onClick={s.drinkWaterBreathing}>水肺药水</Btn>
+        )}
+        {s.submerged
+          ? <Btn onClick={s.surface}>上浮撤退</Btn>
+          : <Btn cd="flee" onClick={s.flee} sub={c.boss ? '下次挑战重新开始' : undefined}>撤退</Btn>}
       </div>
     </GameDialog>
   )

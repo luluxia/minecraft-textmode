@@ -17,6 +17,8 @@ export const BARTER_OFFERS: { weight: number; reward: Bag }[] = [
 export const SURVEY_COST: Bag = { torch: 4 }
 export const EXCAVATION_COST: Bag = { bread: 1, torch: 2 }
 export const OFFLINE_LIMIT = 8 * 60 * 60
+export const MAX_AIR = 20
+export const WATER_BREATHING_SECONDS = 60
 export const DAYS_PER_SEASON = 4
 export const SEASONS = [
   { name: '春', crops: 1.2 },

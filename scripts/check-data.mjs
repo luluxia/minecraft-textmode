@@ -27,6 +27,11 @@ for (const biome of Object.values(BIOMES)) for (const id of biome.actions) {
  const action = ACTIONS[id]
  assert.ok(action, `Unknown action: ${id}`)
  if (action.finite) assert.ok(biome.res[action.finite], `Missing deposit: ${biome.id}/${action.finite}`)
+ if (action.diveAir !== undefined) {
+   assert.equal(biome.id, 'coast')
+   assert.ok(Number.isInteger(action.diveAir) && action.diveAir > 0)
+   if (action.finite) assert.ok(biome.renew?.includes(action.finite))
+ }
  if (action.mob) assert.ok(MOBS[action.mob])
  if (action.tool) assert.ok(ITEMS[action.tool])
  if (action.enchant) assert.ok(ENCHANTS.some((entry) => entry.id === action.enchant))

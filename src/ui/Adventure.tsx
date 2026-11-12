@@ -3,9 +3,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/minecraf
 import { Button } from '../components/minecraft/button'
 import { Texture } from './Texture'
 import { ACTIONS, BIOMES, EYES_NEEDED, ITEM_LIST, RES_NAMES, ITEMS } from '../game/data'
-import { BARTER_COST, EXCAVATION_COST, NETHER_COST, PLANTS, RESPAWN_COST, ROUTES, SURVEY_COST, TRIAL_VAULTS, WITHER_COST } from '../game/progression'
+import { BARTER_COST, EXCAVATION_COST, MAX_AIR, NETHER_COST, PLANTS, RESPAWN_COST, ROUTES, SURVEY_COST, TRIAL_VAULTS, WATER_BREATHING_SECONDS, WITHER_COST } from '../game/progression'
 import {
-  CAMP_COOK, SHELTER_COST, actionAllowed, actionLock, atHome, canAfford, canCampHere, canSurvey, count, curLoc, inNether,
+  CAMP_COOK, SHELTER_COST, actionAllowed, actionLock, atHome, canAfford, canBreatheUnderwater, canCampHere, canDiveHere, canSurvey, count, curLoc, hasConduitPower, inNether,
   isNight, mineResources, pickTier, routeReady, scoutAllowed, travelAllowed, useGame,
 } from '../game/store'
 import { Btn, Cost, EntryHeader, Section, bagText } from './kit'
@@ -22,6 +22,7 @@ export function Adventure() {
   const busy = !!s.combat
   const nether = inNether(loc)
   const fireWard = (s.cds.fire_ward?.until ?? 0) > Date.now()
+  const breathing = canBreatheUnderwater(s)
 
   const actions = biome.actions.filter((id) => actionAllowed(s, id))
   const routes = ROUTES.filter((route) => !!route.nether === nether && (!route.newRoute || routeReady(s, route)) &&
@@ -48,12 +49,12 @@ export function Adventure() {
         {s.flags.explore && (
           <Section title="当前位置">
             <div className="row">
-              <span className="loc-name icon-text"><Texture src={biome.icon} /> {loc.name}</span>
-              {loc.shelter && <span className="tag g">家</span>}
+              <span className="loc-name icon-text"><Texture src={biome.icon} /> {s.submerged ? loc.name + ' · 海底' : loc.name}</span>
+              {loc.shelter && !s.submerged && <span className="tag g">家</span>}
               {loc.saved && <span className="tag y">已记录</span>}
               {night && !loc.shelter && <span className="tag">夜晚</span>}
             </div>
-            <p className="dim sm" style={{ marginTop: 4 }}>{biome.desc}</p>
+            <p className="dim sm" style={{ marginTop: 4 }}>{s.submerged ? '沙层间埋着贝壳和沉没的遗物。' : biome.desc}</p>
             {resLeft.length > 0 && (
               <div className="row sm" style={{ marginTop: 6 }}>
                 {resLeft.map(([k, n]) => (
@@ -64,13 +65,31 @@ export function Adventure() {
           </Section>
         )}
 
+        {canDiveHere(s) && (
+          <Section title="潜水">
+            <p className="notice entry-list-notice">{s.submerged
+              ? breathing ? '现在可以在水下呼吸。' : '每秒消耗 1 点空气，水下行动额外耗气。空气耗尽后每秒受到 2 点溺水伤害。'
+              : '从沙滩潜入海底，可搜寻贝壳、刷扫海底废墟或挑战守卫者。'}</p>
+            <div className="actions">
+              {s.submerged
+                ? <Btn onClick={s.surface}>上浮换气</Btn>
+                : <Btn disabled={busy || s.air < MAX_AIR} onClick={s.dive}
+                  sub={s.air < MAX_AIR ? '正在换气' : '空气 ' + MAX_AIR}>潜入海底</Btn>}
+              {count(s, 'water_breathing') > 0 && !hasConduitPower(s) && (
+                <Btn cd="drink" disabled={breathing || busy} onClick={s.drinkWaterBreathing}
+                  sub={breathing ? '水下呼吸生效中' : '持续 ' + WATER_BREATHING_SECONDS + ' 秒'}>饮用水肺药水</Btn>
+              )}
+            </div>
+          </Section>
+        )}
         <Section title="行动">
           <div className="actions">
             {actions.map((id) => {
               const a = ACTIONS[id]
               const lock = actionLock(s, a)
               return (
-                <Btn key={id} cd={id} disabled={busy || !!lock} onClick={() => s.act(id)} sub={lock || undefined}>
+                <Btn key={id} cd={id} disabled={busy || !!lock} onClick={() => s.act(id)}
+                  sub={lock || (a.diveAir && !breathing ? '空气 −' + a.diveAir : undefined)}>
                   {a.name}
                 </Btn>
               )
@@ -86,6 +105,10 @@ export function Adventure() {
       </TabsContent>
 
       {s.flags.explore && <TabsContent value="map">
+        {s.submerged ? <Section title="移动">
+          <p className="notice entry-list-notice">上浮后可以前往其他地点。</p>
+          <div className="actions"><Btn onClick={s.surface}>上浮换气</Btn></div>
+        </Section> : (
         <Section title="移动" extra={loc.name}>
           <div className="actions move-actions">
             {!nether && <Btn cd="move" disabled={busy} onClick={s.explore} sub={!loc.saved && !loc.shelter ? '将丢失当前地点' : '随机前往新地点'}>
@@ -116,6 +139,7 @@ export function Adventure() {
             </p>
           )}
         </Section>
+        )}
       </TabsContent>}
 
       <TabsContent value="survival">
@@ -130,7 +154,7 @@ export function Adventure() {
           >
             {s.hunger < 5 && <p className="notice">饱食低于 5，采集和移动冷却延长 25%。</p>}
             <div className="actions">
-              <Btn cd="rest" disabled={busy || (s.hp >= 20 && s.hunger >= 8)} onClick={s.rest}
+              <Btn cd="rest" disabled={s.submerged || busy || (s.hp >= 20 && s.hunger >= 8)} onClick={s.rest}
                 sub={camp ? '回复 10 生命 · 补至 8 饱食' : '回复 4 生命 · 补至 8 饱食'}>休整</Btn>
               {foods.length === 0 && <span className="dim sm">没有可以吃的东西。</span>}
               {foods.map((f) => (
@@ -147,7 +171,7 @@ export function Adventure() {
           </Section>
         )}
 
-        {s.flags.explore && s.homeId === null && canCampHere(loc) && (
+        {s.flags.explore && !s.submerged && s.homeId === null && canCampHere(loc) && (
           <Section title="安家">
             {loc.biome === 'village' ? (
               <div className="actions">

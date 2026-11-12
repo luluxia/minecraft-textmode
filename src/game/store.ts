@@ -1,6 +1,6 @@
 import {
-  BARTER_COST, BARTER_OFFERS, EXCAVATION_COST, EXPEDITIONS, LINES, NETHER_COST, OFFLINE_LIMIT, PLANTS,
-  RESPAWN_COST, ROUTES, SURVEY_COST, TRIAL_VAULTS, WITHER_COST, seasonAt, type ExpeditionDef,
+  BARTER_COST, BARTER_OFFERS, EXCAVATION_COST, EXPEDITIONS, LINES, MAX_AIR, NETHER_COST, OFFLINE_LIMIT, PLANTS,
+  RESPAWN_COST, ROUTES, SURVEY_COST, TRIAL_VAULTS, WATER_BREATHING_SECONDS, WITHER_COST, seasonAt, type ExpeditionDef,
 } from './progression'
 import { decodeSave, encodeSave, normalizeSave, SAVE_KEY, SAVE_VERSION, snapshot } from './save'
 import { current } from 'immer'
@@ -35,6 +35,8 @@ export interface GameState {
   seen: Record<string, boolean>
   hp: number
   hunger: number
+  air: number
+  submerged: boolean
   xp: number
   level: number
   autoEat: boolean
@@ -90,6 +92,9 @@ export interface GameActions {
   block(): void
   barter(): void
   drink(item?: PotionId): void
+  dive(): void
+  surface(): void
+  drinkWaterBreathing(): void
   act(id: string): void
   explore(): void
   travel(id: number): void
@@ -140,10 +145,15 @@ export const isNight = (minute: number) => { const h = hourOf(minute); return h 
 export const dayOf = (minute: number) => Math.floor(minute / 1440) + 1
 export const xpNeed = (level: number) => 10 + level * 5
 export const curLoc = (s: GameState) => s.locs[s.locId]
-export const atHome = (s: GameState) => s.homeId !== null && s.homeId === s.locId
+export const atHome = (s: GameState) => !s.submerged && s.homeId !== null && s.homeId === s.locId
+export const canDiveHere = (s: GameState) => !!s.flags.explore && curLoc(s).biome === 'coast'
+export const hasConduitPower = (s: GameState) => count(s, 'conduit') > 0 && !!s.village?.buildings.harbor
+export const waterBreathingLeft = (s: GameState) => Math.max(0, Math.ceil(((s.cds.water_breathing?.until ?? 0) - Date.now()) / 1000))
+export const canBreatheUnderwater = (s: GameState) => hasConduitPower(s) || waterBreathingLeft(s) > 0
 export const inNether = (loc: Loc) => !!BIOMES[loc.biome].nether
 export const canCampHere = (loc: Loc) => !inNether(loc) && !['altar', 'trial_chamber', 'ancient_city'].includes(loc.biome)
 export const travelAllowed = (s: GameState, target: Loc) => {
+  if (s.submerged) return false
   if (!s.flags.nether || s.homeId === null || inNether(curLoc(s)) === inNether(target)) return true
   return inNether(target) ? atHome(s) : target.id === s.homeId
 }
@@ -203,12 +213,13 @@ export const lineLimit = (s: GameState) => (s.village?.buildings.redstone ?? 0) 
 export const activeLines = (s: GameState) => LINES.filter((line) => line.id in s.lines).length
 export const actionAllowed = (s: GameState, id: string) =>
   BIOMES[curLoc(s).biome].actions.includes(id) &&
+  s.submerged === (ACTIONS[id].diveAir !== undefined) &&
   (s.flags.explore || id === 'chop' || (s.flags.inv && id === 'grass'))
 export const routeReady = (s: GameState, route: typeof ROUTES[number]) =>
   pickTier(s) >= route.pick && (!route.tool || count(s, route.tool) > 0)
 export const scoutAllowed = (s: GameState, biome: string) => {
   const route = ROUTES.find((entry) => entry.biome === biome)
-  return !!route && !!s.flags.explore && !!route.nether === inNether(curLoc(s)) && routeReady(s, route) &&
+  return !!route && !s.submerged && !!s.flags.explore && !!route.nether === inNether(curLoc(s)) && routeReady(s, route) &&
     !Object.values(s.locs).some((loc) => loc.biome === biome && (loc.saved || loc.shelter))
 }
 
@@ -218,6 +229,7 @@ export const actionLock = (s: GameState, action: typeof ACTIONS[string]) => {
   if (tool) return '需要' + ITEMS[tool].name
   if (action.enchant && !s.ench[action.enchant]) return '需要精准采集'
   if (action.finite && (curLoc(s).res[action.finite] ?? 0) <= 0) return '已枯竭'
+  if (action.diveAir && s.air < action.diveAir && !canBreatheUnderwater(s)) return '空气不足，先上浮换气'
   if (action.cost && !canAfford(s, action.cost)) {
     return '需要 ' + Object.entries(action.cost).map(([id, n]) => ITEMS[id].name + ' ×' + n).join('、')
   }
@@ -311,7 +323,7 @@ const startCombat = (s: GameState, mobId: string, boss = false) => {
   s.combat = { mob: mobId, hp: m.hp, boss, crystals: mobId === 'dragon' ? 3 : undefined, lines: [`${m.name}出现了！`], turn: 0 }
 }
 const maybeEncounter = (s: GameState) => {
-  if (!s.flags.explore || s.combat) return
+  if (!s.flags.explore || s.combat || s.submerged) return
   const loc = curLoc(s)
   const night = isNight(s.minute)
   const underground = loc.biome === 'cave' || inNether(loc)
@@ -331,6 +343,8 @@ const maybeEncounter = (s: GameState) => {
 const die = (s: GameState, cause: string) => {
   s.stats.deaths++
   s.combat = null
+  s.submerged = false
+  s.air = MAX_AIR
   for (const k of count(s, 'recovery_compass') ? ['wheat'] : ['wood', 'cobble', 'wheat', 'coal']) {
     if (s.inv[k]) s.inv[k] -= Math.min(12, Math.floor(s.inv[k] * 0.08))
   }
@@ -482,8 +496,22 @@ const combatLine = (c: Combat, line: string) => {
   c.lines.unshift(line)
   if (c.lines.length > 6) c.lines.length = 6
 }
+const surface = (s: GameState, message: string) => {
+  if (!s.submerged) return
+  s.submerged = false
+  s.combat = null
+  pushLog(s, message)
+}
 const advancePlayer = (s: GameState) => {
-  if (!s.combat && s.hunger >= 8 && s.hp < 20) s.hp = Math.min(20, s.hp + (atHome(s) ? 0.5 : 0.2))
+  if (!s.submerged || canBreatheUnderwater(s)) s.air = Math.min(MAX_AIR, s.air + 5)
+  else if (s.air > 0) {
+    s.air--
+    if (s.air === 5) pushLog(s, '空气所剩无几，该上浮了。', 'bad')
+  } else {
+    s.hp -= 2
+    if (s.hp <= 0) { die(s, '你在海底溺水了。'); return }
+  }
+  if (!s.submerged && !s.combat && s.hunger >= 8 && s.hp < 20) s.hp = Math.min(20, s.hp + (atHome(s) ? 0.5 : 0.2))
   if (s.autoEat && s.hunger <= 12 && !s.combat && !onCd(s, 'eat')) {
     const foods = ITEM_LIST.filter((item) => item.food && item.id !== 'rotten' && count(s, item.id) > 0)
     const food = foods.sort((a, b) => b.food! - a.food!).find((item) => item.food! <= 20 - s.hunger)
@@ -517,6 +545,8 @@ export const initial = (): GameState => ({
   seen: {},
   hp: 20,
   hunger: 20,
+  air: MAX_AIR,
+  submerged: false,
   xp: 0,
   level: 0,
   autoEat: false,
@@ -565,12 +595,17 @@ export const useGame = create<Game>()(
           draft.lastTick = now
         }
         const elapsed = Math.floor((now - draft.lastTick) / 1000)
-        if (elapsed <= 0) return
+        if (elapsed <= 0) {
+          if (background) surface(draft, '你已在离开时返回水面。')
+          return
+        }
         const offline = background || elapsed > 3
         // Long catch-up uses a plain copy to avoid per-second proxy overhead.
         const s = offline && elapsed > 3 ? structuredClone(snapshot(current(draft), defaults)) : draft
+        if (offline && s.submerged) surface(s, '你已在离开时返回水面。')
         s.lastTick = now - ((now - s.lastTick) % 1000)
         const seconds = Math.min(elapsed, OFFLINE_LIMIT)
+        if (offline) s.air = Math.min(MAX_AIR, s.air + seconds * 5)
         const before = offline ? { ...s.inv } : null
         const villagers = s.village?.villagers ?? 0
         const expedition = s.expedition?.id
@@ -606,6 +641,25 @@ export const useGame = create<Game>()(
       },
       dismissOffline: () => set((s) => { s.offline = null }),
 
+      dive: () => set((s) => {
+        if (!canDiveHere(s) || s.submerged || s.combat || s.air < MAX_AIR) return
+        s.submerged = true
+        pushLog(s, '你潜入海底。留意空气槽，随时可以上浮。', 'event')
+      }),
+
+      surface: () => set((s) => surface(s, '你回到水面，重新开始换气。')),
+
+      drinkWaterBreathing: () => set((s) => {
+        if (!canDiveHere(s) || !count(s, 'water_breathing') || hasConduitPower(s) ||
+          onCd(s, 'drink') || canBreatheUnderwater(s)) return
+        pay(s, { water_breathing: 1 })
+        give(s, 'bottle', 1)
+        setCd(s, 'drink', 8, true)
+        setCd(s, 'water_breathing', WATER_BREATHING_SECONDS, true)
+        s.air = MAX_AIR
+        pushLog(s, '水肺药水生效，暂时可以在水下呼吸。', 'good')
+      }),
+
       scout: (biome) => set((s) => {
         if (s.combat || onCd(s, 'move') || !scoutAllowed(s, biome)) return
         const current = curLoc(s)
@@ -639,7 +693,7 @@ export const useGame = create<Game>()(
       }),
 
       rest: () => set((s) => {
-        if (s.combat || onCd(s, 'rest') || !s.flags.status || (s.hp >= 20 && s.hunger >= 8)) return
+        if (s.submerged || s.combat || onCd(s, 'rest') || !s.flags.status || (s.hp >= 20 && s.hunger >= 8)) return
         const camp = atHome(s) && count(s, 'campfire') > 0
         s.hp = Math.min(20, s.hp + (camp ? 10 : 4))
         s.hunger = Math.max(8, s.hunger)
@@ -820,6 +874,7 @@ export const useGame = create<Game>()(
         if (!a || s.combat || onCd(s, id) || !actionAllowed(s, id)) return
         const loc = curLoc(s)
         if (actionLock(s, a)) return
+        if (a.diveAir && !canBreatheUnderwater(s)) s.air -= a.diveAir
         if (a.cost) pay(s, a.cost)
         let cd = a.cd
         if (a.kind === 'mine') cd *= Math.max(0.58, 1 - 0.14 * (pickTier(s) - (a.pick ?? 1)))
@@ -847,7 +902,7 @@ export const useGame = create<Game>()(
       }),
 
       explore: () => set((s) => {
-        if (!s.flags.explore || s.combat || onCd(s, 'move')) return
+        if (!s.flags.explore || s.combat || s.submerged || onCd(s, 'move')) return
         const old = curLoc(s)
         if (s.flags.nether && inNether(old)) return
         if (!old.saved && !old.shelter && !s.flags.lostHint) {
@@ -879,7 +934,7 @@ export const useGame = create<Game>()(
       }),
 
       saveLoc: () => set((s) => {
-        if (!s.flags.waypoint || s.combat || curLoc(s).saved || Object.keys(s.locs).length > 48) return
+        if (!s.flags.waypoint || s.submerged || s.combat || curLoc(s).saved || Object.keys(s.locs).length > 48) return
         curLoc(s).saved = true
         pushLog(s, `你在地图上标记了${curLoc(s).name}。`, 'good')
       }),
@@ -972,7 +1027,7 @@ export const useGame = create<Game>()(
       }),
 
       buildShelter: () => set((s) => {
-        if (!s.flags.explore || s.combat || s.homeId !== null || !canCampHere(curLoc(s)) || !canAfford(s, SHELTER_COST)) return
+        if (!s.flags.explore || s.submerged || s.combat || s.homeId !== null || !canCampHere(curLoc(s)) || !canAfford(s, SHELTER_COST)) return
         pay(s, SHELTER_COST)
         const loc = curLoc(s)
         loc.shelter = true
@@ -1080,6 +1135,7 @@ export const useGame = create<Game>()(
       flee: () => set((s) => {
         const c = s.combat
         if (!c || onCd(s, 'flee')) return
+        if (s.submerged) { surface(s, '你游出守卫者的攻击范围，返回了水面。'); return }
         setCd(s, 'flee', 5, true)
         s.combat = null
         s.hunger = Math.max(0, s.hunger - 1)
