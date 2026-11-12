@@ -12,11 +12,12 @@ interface BtnProps {
   children: ReactNode
   sub?: ReactNode
   title?: string
+  'aria-label'?: string
   className?: string
 }
 
 /** 带冷却遮罩的按钮：cd 为 store 中的冷却键 */
-export function Btn({ cd, onClick, disabled, children, sub, title, className = '' }: BtnProps) {
+export function Btn({ cd, onClick, disabled, children, sub, title, 'aria-label': ariaLabel, className = '' }: BtnProps) {
   const info = useGame((s) => (cd ? s.cds[cd] : undefined))
   const mask = useRef<HTMLSpanElement>(null)
   const [, refresh] = useState(0)
@@ -51,6 +52,7 @@ export function Btn({ cd, onClick, disabled, children, sub, title, className = '
       disabled={disabled || cooling}
       onClick={onClick}
       title={title}
+      aria-label={ariaLabel}
       overlay={cooling && (
         <span ref={mask} key={info.until} className="btn-cd" aria-hidden="true" style={{ animationDuration: `${info.dur}ms` }} />
       )}

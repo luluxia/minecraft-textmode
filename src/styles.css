@@ -258,7 +258,7 @@ body, button, input, select, textarea,
 .main-scroll .actions .btn-label { gap: 0; }
 .main-scroll .actions .btn-sub { line-height: 20px; }
 .jobs-grid .content-entry > .spread { flex-wrap: wrap; }
-.main-scroll .stepper .btn { padding: 2px 6px; }
+.main-scroll .stepper .btn { width: 28px; height: 28px; padding: 2px; }
 .main-scroll .stepper { flex-shrink: 0; }
 .main-scroll .section { margin-top: 14px; }
 .main-scroll .section:first-child { margin-top: 0; }

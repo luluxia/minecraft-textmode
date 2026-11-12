@@ -131,9 +131,9 @@ export function Village() {
                     <div className="spread">
                       <span className="icon-text"><Texture src={j.icon} /> {j.name}</span>
                       <div className="stepper">
-                        <Btn className="mini" disabled={!control || n <= 0} onClick={() => s.assign(j.id, -1)} title={`减少${j.name}`}>减少</Btn>
+                        <Btn className="mini" disabled={!control || n <= 0} onClick={() => s.assign(j.id, -1)} title={`减少${j.name}`} aria-label={`减少${j.name}`}>−</Btn>
                         <b>{n}/{slots}</b>
-                        <Btn className="mini" disabled={!control || free <= 0 || n >= slots} onClick={() => s.assign(j.id, 1)} title={`增加${j.name}`}>增加</Btn>
+                        <Btn className="mini" disabled={!control || free <= 0 || n >= slots} onClick={() => s.assign(j.id, 1)} title={`增加${j.name}`} aria-label={`增加${j.name}`}>+</Btn>
                       </div>
                     </div>
                     <span className="sm dim">{slots === 0 ? '需要先建造对应建筑。' : `${j.desc}。${out ? `每人每秒 ${out}` : ''}`}</span>
