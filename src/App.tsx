@@ -89,13 +89,15 @@ export function App() {
               ))}
             </TabsList>
           )}
-          <Card className="panel main-panel">
-            <ScrollArea key={cur + worldRevision} className="main-scroll" tabIndex={0} aria-label="滚动主区域">
-            <OfflineReport />
-            <TabsContent value="adventure"><Adventure /></TabsContent>
-            <TabsContent value="crafting"><Crafting /></TabsContent>
-            <TabsContent value="village"><Village /></TabsContent>
-            </ScrollArea>
+          <Card key={worldRevision} className="panel main-panel">
+            {tabs.map(([id]) => (
+              <TabsContent key={id} value={id} keepMounted className="main-tab-content">
+                <ScrollArea className="main-scroll" tabIndex={0} aria-label="滚动主区域">
+                  <OfflineReport />
+                  {id === 'adventure' ? <Adventure /> : id === 'crafting' ? <Crafting /> : <Village />}
+                </ScrollArea>
+              </TabsContent>
+            ))}
           </Card>
         </Tabs>
         {(flags.status || showAir) && <PlayerHud />}
