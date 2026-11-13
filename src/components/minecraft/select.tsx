@@ -396,7 +396,9 @@ const SelectContent = ({
   );
 
   return (
-    <SelectPrimitive.Portal>
+    <SelectPrimitive.Portal
+      className={alignItemWithTrigger ? undefined : "mc-select-anchor-portal"}
+    >
       <ListContext.Provider value={listContext}>
         <SelectPrimitive.Positioner
           data-mc-positioner=""

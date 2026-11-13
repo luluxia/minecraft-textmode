@@ -28,6 +28,16 @@
     white-space: nowrap;
     line-height: inherit;
   }
+  /* Give floating menus a measurable offset parent under document zoom. */
+  .mc-select-anchor-portal {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+  }
+  .mc-select-anchor-portal > .mc-select-positioner,
+  .mc-select-anchor-portal > [data-base-ui-inert] {
+    pointer-events: auto;
+  }
   .mc-select-positioner {
     z-index: 51;
   }
