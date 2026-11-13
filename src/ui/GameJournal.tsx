@@ -7,38 +7,34 @@ import { GameDialog } from './GameDialog'
 import { useScrollReset } from './ScrollArea'
 import { ITEM_CATEGORIES, ITEM_LIST } from '../game/data'
 import { EXPEDITIONS } from '../game/progression'
-import { COMPLETED_MONUMENT, EXPLORATION, MONUMENT_GOAL, PROJECTS, STORY, type GoalHint, type GoalTerm } from '../game/advancements'
+import { EXPLORATION, PROJECTS, STORY, TUTORIAL, getAchievement, getCompletedAchievements, type GoalHint, type GoalTerm } from '../game/advancements'
 import { dayOf, useGame } from '../game/store'
 import { Texture } from './Texture'
-import { Btn, ItemName, Section } from './kit'
+import { Bar, Btn, EntryHeader, ItemName, Section } from './kit'
 import { UI_SCALES, useInterfaceSettings } from './interfaceSettings'
 
 const JOURNAL_TITLES = { catalog: '图鉴', achievements: '成就', stats: '统计', settings: '设置' } as const
 export type GameMenu = keyof typeof JOURNAL_TITLES
 
 const ACHIEVEMENT_TABS = [
-  { id: 'story', label: '生存与探索', steps: STORY },
-  { id: 'projects', label: '村庄与远征', steps: PROJECTS },
+  { id: 'story', label: '生存与维度', steps: STORY },
+  { id: 'projects', label: '村庄与末地', steps: PROJECTS },
   { id: 'exploration', label: '遗迹与远航', steps: EXPLORATION },
 ]
 
-export function CurrentGoal() {
-  const s = useGame()
-  const step = STORY.find((entry) => !entry.complete(s))
-  const goal = s.village?.buildings.monument
-    ? COMPLETED_MONUMENT
-    : s.flags.won
-      ? MONUMENT_GOAL
-      : step
-  if (!s.flags.inv || !goal) return null
+export function CurrentGoal({ onOpenAchievements }: { onOpenAchievements: () => void }) {
+  const goal = useGame((s) => s.homeId === null ? TUTORIAL.find((entry) => !entry.complete(s)) : undefined)
 
   return (
     <Card className="panel current-goal" role="region" aria-labelledby="current-goal-heading">
-      <div>
-        <h3 id="current-goal-heading">当前目标</h3>
+      <h3 id="current-goal-heading">{goal ? '当前目标' : '安家完成'}</h3>
+      {goal ? <>
         <p><GoalLabel term={goal.icon} label={goal.title} /></p>
         <p className="sm dim"><GoalText hint={goal.hint} /></p>
-      </div>
+      </> : <>
+        <p className="sm dim">接下来可以自由探索，也可以在成就菜单追踪目标。</p>
+        <Btn className="mini" onClick={onOpenAchievements}>打开成就</Btn>
+      </>}
     </Card>
   )
 }
@@ -63,7 +59,7 @@ export function JournalModal({ menu, onClose, onDebug }: {
 }) {
   const s = useGame()
   const title = JOURNAL_TITLES[menu]
-  const dialogClass = menu === 'catalog' || menu === 'settings' ? `${menu}-dialog` : undefined
+  const dialogClass = menu === 'stats' ? undefined : `${menu}-dialog`
   return (
     <GameDialog label={title} onClose={onClose} className={dialogClass}>
       <h2>{title}</h2>
@@ -136,29 +132,68 @@ function ItemCatalog() {
 function Achievements() {
   const s = useGame()
   const resetScroll = useScrollReset()
+  const completed = getCompletedAchievements(s)
+  const tracked = s.trackedAchievement ? getAchievement(s.trackedAchievement) : undefined
+  const [initialTab] = useState(() =>
+    ACHIEVEMENT_TABS.find(({ steps }) => steps.some((entry) => entry.id === tracked?.id))?.id ?? 'story',
+  )
+  const trackedDone = tracked ? completed.has(tracked.id) : false
 
   return (
-    <Tabs defaultValue="story" onValueChange={() => resetScroll()}>
+    <Tabs defaultValue={initialTab} onValueChange={() => resetScroll()}>
+      {tracked && (
+        <section className="content-entry achievement-tracking" aria-label="追踪目标">
+          <EntryHeader actions={<Btn className="mini" onClick={() => s.trackAchievement(null)}>取消追踪</Btn>}>
+            <h3 className="icon-text"><Texture src={tracked.icon.icon} />{tracked.title}</h3>
+            <span className={`sm ${trackedDone ? 'good' : 'gold'}`}>{trackedDone ? '已完成' : '追踪中'}</span>
+          </EntryHeader>
+          <p className="sm dim"><GoalText hint={tracked.hint} /></p>
+        </section>
+      )}
       <TabsList className="subtabs" aria-label="成就分类">
         {ACHIEVEMENT_TABS.map(({ id, label }) => (
           <TabsTrigger key={id} value={id} aria-label={label}>{label}</TabsTrigger>
         ))}
       </TabsList>
-      {ACHIEVEMENT_TABS.map(({ id, steps }) => {
-        const entries = steps.map((entry) => ({ ...entry, done: entry.complete(s) }))
+      {ACHIEVEMENT_TABS.map(({ id, label, steps }) => {
+        const count = steps.filter((entry) => completed.has(entry.id)).length
         return (
           <TabsContent key={id} value={id}>
-            <p className="achievement-progress sm dim">已完成 {entries.filter((entry) => entry.done).length}/{entries.length}</p>
+            <div className="achievement-progress">
+              <Bar value={count} max={steps.length} color="#6fae3a" label={label + '成就进度'}
+                valueText={`已完成 ${count}/${steps.length}`} />
+              <span className="sm dim" aria-hidden="true">{count}/{steps.length}</span>
+            </div>
             <ul className="achievement-list">
-              {entries.map(({ title, icon, hint, done }) => (
-                <li key={title}>
-                  <strong>
-                    <span className="achievement-status" data-complete={done} role="img" aria-label={done ? '已完成' : '未完成'} />
-                    <GoalLabel term={icon} label={title} />
-                  </strong>
-                  {!done && <span className="dim"><GoalText hint={hint} /></span>}
-                </li>
-              ))}
+              {steps.map((entry) => {
+                const done = completed.has(entry.id)
+                const pending = entry.requires?.filter((id) => !completed.has(id)) ?? []
+                const locked = pending.length > 0
+                const isTracked = tracked?.id === entry.id
+                const canTrack = !done && !locked && !isTracked
+                return (
+                  <li key={entry.id} className="content-entry">
+                    <EntryHeader
+                      actions={canTrack ? (
+                        <Btn className="mini" aria-label={`追踪${entry.title}`}
+                          onClick={() => { s.trackAchievement(entry.id); resetScroll() }}>
+                          追踪
+                        </Btn>
+                      ) : (
+                        <span className={`tag${done ? ' g' : isTracked ? ' y' : ''}`}>
+                          {done ? '已完成' : locked ? '未解锁' : '追踪中'}
+                        </span>
+                      )}
+                    >
+                      <h3 className="icon-text"><Texture src={entry.icon.icon} />{entry.title}</h3>
+                    </EntryHeader>
+                    <p className="sm dim"><GoalText hint={entry.hint} /></p>
+                    {locked && (
+                      <p className="sm dim">需先完成{pending.map((id) => `「${getAchievement(id)?.title}」`).join('、')}</p>
+                    )}
+                  </li>
+                )
+              })}
             </ul>
           </TabsContent>
         )

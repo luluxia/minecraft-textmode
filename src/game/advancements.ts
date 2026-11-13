@@ -1,4 +1,4 @@
-import { BIOMES, BUILDING_MAP, ITEMS, JOB_MAP, MOBS } from './data'
+import { BIOMES, BUILDING_MAP, ITEMS, JOB_MAP, MOBS, PICKS } from './data'
 import type { GameState } from './store'
 
 type GoalTone = 'material' | 'equipment' | 'place' | 'danger' | 'project' | 'special'
@@ -18,6 +18,8 @@ interface Goal {
 }
 
 interface Milestone extends Goal {
+  id: string
+  requires?: readonly string[]
   complete: (state: GameState) => boolean
 }
 
@@ -84,58 +86,49 @@ const wither = mob('wither')
 const dragon = mob('dragon')
 const monumentRequirements: GoalHint = ['成为', mayor, '、点亮', beacon, '并完成', outerIslands]
 
-export const MONUMENT_GOAL: Goal = {
-  title: '方块纪元纪念碑', icon: monument,
-  hint: [dragon, '已被击败。', ...monumentRequirements, '，即可建造。'],
-}
-
-export const COMPLETED_MONUMENT: Goal = {
-  title: '方块纪元纪念碑已落成', icon: monument, hint: ['村庄产出额外提高 25%。'],
-}
-
 export const STORY: Milestone[] = [
-  { title: '徒手伐木', icon: wood, hint: ['收集', wood, '。'], complete: (s) => !!s.seen.wood },
+  { id: 'wood', title: '徒手伐木', icon: wood, hint: ['收集', wood, '。'], complete: (s) => !!s.seen.wood },
   {
-    title: '工作台', icon: table, hint: ['在制造页把', wood, '做成', plank, '，再用 4 块木板合成', table, '。'],
+    id: 'table', requires: ['wood'], title: '工作台', icon: table, hint: ['在制造页把', wood, '做成', plank, '，再用 4 块木板合成', table, '。'],
     complete: (s) => !!s.seen.table,
   },
   {
-    title: '石器时代', icon: stonePick,
-    hint: ['用', plank, '和', stick, '做一把', woodPick, '，在', forest, '挖', cobble, '，换上', stonePick, '。'],
-    complete: (s) => !!s.seen.pick_stone || !!s.seen.pick_iron || !!s.seen.pick_diamond,
-  },
-  {
-    title: '安家', icon: shelter,
-    hint: ['在生存页建立', shelter, '，也可以从地图页寻找', village, '，再到生存页定居。'],
+    id: 'home', requires: ['table'], title: '安家', icon: shelter,
+    hint: ['在生存页用 6 根原木和 12 块木板建立', shelter, '，也可以从地图页寻找', village, '，再到生存页定居。'],
     complete: (s) => s.homeId !== null,
   },
   {
-    title: '获得升级', icon: ironPick,
+    id: 'stone-age', requires: ['table'], title: '石器时代', icon: stonePick,
+    hint: ['用', plank, '和', stick, '做一把', woodPick, '，在', forest, '挖', cobble, '，换上', stonePick, '。'],
+    complete: (s) => PICKS.slice(1).some((id) => s.seen[id]),
+  },
+  {
+    id: 'iron-pick', requires: ['stone-age'], title: '获得升级', icon: ironPick,
     hint: ['用', stonePick, '开采', ironOre, '。合成', furnace, '、添加燃料，熔出 3 块', iron, '制作', ironPick, '。'],
-    complete: (s) => !!s.seen.pick_iron || !!s.seen.pick_diamond,
+    complete: (s) => PICKS.slice(2).some((id) => s.seen[id]),
   },
   {
-    title: '钻石！', icon: diamond,
+    id: 'diamond-pick', requires: ['iron-pick'], title: '钻石！', icon: diamond,
     hint: ['勘察', cave, '，用', ironPick, '开采', diamond, '，再做一把', diamondPick, '。', torch, '可以降低遇敌概率并补充矿脉。'],
-    complete: (s) => !!s.seen.pick_diamond,
+    complete: (s) => PICKS.slice(3).some((id) => s.seen[id]),
   },
   {
-    title: '勇往直下', icon: netherPortal,
+    id: 'nether', requires: ['home', 'diamond-pick'], title: '勇往直下', icon: netherPortal,
     hint: ['用', diamondPick, '开采', obsidian, '，回家在维度页用 10 块黑曜石和 1 块', iron, '搭建', netherPortal, '。'],
     complete: (s) => !!s.flags.nether || !!s.flags.altar,
   },
   {
-    title: '跟随末影之眼', icon: eye,
+    id: 'stronghold', requires: ['nether'], title: '跟随末影之眼', icon: eye,
     hint: ['前往', fortress, '和', warpedForest, '，收集', blazeRod, '和', pearl, '。合成 3 只', eye, '后，回到', overworld, '从维度页投掷。'],
     complete: (s) => !!s.flags.altar,
   },
   {
-    title: '末地传送门', icon: endPortal,
+    id: 'end-portal', requires: ['stronghold'], title: '末地传送门', icon: endPortal,
     hint: ['从地图页前往', stronghold, '，在维度页嵌入 12 只', eye, '。'],
     complete: (s) => !!s.flags.portal,
   },
   {
-    title: '解放末地', icon: dragon,
+    id: 'dragon', requires: ['end-portal'], title: '解放末地', icon: dragon,
     hint: ['带上', armor, '、', shield, '与', food, '。进入', end, '后先击碎 3 座', crystal, '，再攻击', dragon, '。'],
     complete: (s) => !!s.flags.won,
   },
@@ -143,40 +136,40 @@ export const STORY: Milestone[] = [
 
 export const PROJECTS: Milestone[] = [
   {
-    title: '村庄的第一班岗', icon: villager, hint: ['在村庄页为一位', villager, '安排工作。'],
+    id: 'first-job', requires: ['home'], title: '村庄的第一班岗', icon: villager, hint: ['在村庄页为一位', villager, '安排工作。'],
     complete: (s) => !!s.flags.firstJob || Object.values(s.village?.jobs ?? {}).some((n) => n > 0),
   },
   {
-    title: '有备而来', icon: watchtower, hint: ['造起', watchtower, '，安排', guard, '后在村庄概况敲钟迎击袭击。'],
+    id: 'raid', requires: ['home'], title: '有备而来', icon: watchtower, hint: ['造起', watchtower, '，安排', guard, '后在村庄概况敲钟迎击袭击。'],
     complete: (s) => !!s.expeditions.raid,
   },
   {
-    title: '自动化时代', icon: workshop, hint: ['建造', workshop, '，启用任意一条产线。'],
+    id: 'automation', requires: ['home'], title: '自动化时代', icon: workshop, hint: ['建造', workshop, '，启用任意一条产线。'],
     complete: (s) => !!s.flags.automation,
   },
   {
-    title: '你就是村长', icon: mayor, hint: ['把人口发展到 8 人，并累积 60 声望。'],
+    id: 'mayor', requires: ['home'], title: '你就是村长', icon: mayor, hint: ['把人口发展到 8 人，并累积 60 声望。'],
     complete: (s) => !!s.village?.mayor,
   },
   {
-    title: '信标工程', icon: beacon,
+    id: 'beacon', requires: ['nether'], title: '信标工程', icon: beacon,
     hint: ['击败', wither, '取得', netherStar, '，再收集', glass, '、', obsidian, '和', iron, '点亮', beacon, '。'],
     complete: (s) => !!s.village?.buildings.beacon,
   },
   {
-    title: '在游戏尽头的城市', icon: endShip, hint: ['战胜', dragon, '后，在村庄组织一次', endShip, '。'],
+    id: 'end-city', requires: ['dragon'], title: '在游戏尽头的城市', icon: endShip, hint: ['战胜', dragon, '后，在村庄组织一次', endShip, '。'],
     complete: (s) => !!s.expeditions.city,
   },
   {
-    title: '越过虚空', icon: elytra, hint: ['用', shell, '制作', elytra, '，并完成一次', outerIslands, '。'],
+    id: 'end-flight', requires: ['dragon'], title: '越过虚空', icon: elytra, hint: ['用', shell, '制作', elytra, '，并完成一次', outerIslands, '。'],
     complete: (s) => !!s.expeditions.flight,
   },
   {
-    title: '方块纪元', icon: monument, hint: [...monumentRequirements, '，再建成', monument, '。'],
+    id: 'monument', requires: ['mayor', 'beacon', 'end-flight'], title: '方块纪元', icon: monument, hint: [...monumentRequirements, '，再建成', monument, '。'],
     complete: (s) => !!s.village?.buildings.monument,
   },
   {
-    title: '潜影仓库', icon: shulkerStore, hint: ['把远征所得的', shell, '用于扩建', shulkerStore, '。'],
+    id: 'shulker-store', requires: ['dragon'], title: '潜影仓库', icon: shulkerStore, hint: ['把远征所得的', shell, '用于扩建', shulkerStore, '。'],
     complete: (s) => !!s.village?.buildings.shulker_store,
   },
 ]
@@ -218,63 +211,80 @@ const endStore = building('end_store')
 
 export const EXPLORATION: Milestone[] = [
   {
-    title: '蜂巢下的烟火', icon: apiary,
+    id: 'apiary', requires: ['home'], title: '蜂巢下的烟火', icon: apiary,
     hint: ['带上', campfire, '与', shears, '，到白桦森林或平原采', honeycomb, '，再建起', apiary, '。'],
     complete: (s) => !!s.village?.buildings.apiary,
   },
   {
-    title: '古陶复原', icon: pot,
+    id: 'pottery', requires: ['table'], title: '古陶复原', icon: pot,
     hint: ['制作', brush, '，在', ruin, '和暖水海底废墟收集陶片，再制作', pot, '。'],
     complete: (s) => !!s.seen.pot,
   },
   {
-    title: '远望地下', icon: spyglass,
+    id: 'trial-chamber', requires: ['iron-pick'], title: '远望地下', icon: spyglass,
     hint: ['熔出', copper, '，采收', amethyst, '，合成', spyglass, '，用铁镐勘察', trial, '。'],
-    complete: (s) => Object.values(s.locs).some((loc) => loc.biome === 'trial_chamber') || !!s.flags.trialVault,
+    complete: (s) => !!s.flags.trialVisited || !!s.flags.trialVault ||
+      Object.values(s.locs).some((loc) => loc.biome === 'trial_chamber'),
   },
   {
-    title: '珍藏密敛', icon: trialKey,
+    id: 'trial-vault', requires: ['trial-chamber'], title: '珍藏密敛', icon: trialKey,
     hint: ['在', trial, '挑战', breeze, '，用获得的', trialKey, '开启宝库。'],
     complete: (s) => !!s.flags.trialVault,
   },
   {
-    title: '天赐良击', icon: mace,
+    id: 'mace', requires: ['trial-vault'], title: '天赐良击', icon: mace,
     hint: ['用', ominousBottle, '开启强化试炼，取出沉重核心，合成', mace, '并在战斗中配合', windCharge, '使用。'],
     complete: (s) => !!s.flags.maceLeap,
   },
   {
-    title: '故地重寻', icon: compass,
+    id: 'recovery-compass', requires: ['diamond-pick'], title: '故地重寻', icon: compass,
     hint: ['用羊毛在', city, '潜行搜寻', echoShard, '，制作', compass, '。'],
     complete: (s) => !!s.seen.recovery_compass,
   },
   {
-    title: '海洋之心', icon: heart,
+    id: 'heart-of-sea', requires: ['home'], title: '海洋之心', icon: heart,
     hint: ['造一艘', boat, '，在村庄派队打捞沉船，再凭', treasureMap, '找到', heart, '。'],
     complete: (s) => !!s.seen.heart_of_sea,
   },
   {
-    title: '潮涌能量', icon: conduit,
+    id: 'conduit', requires: ['heart-of-sea'], title: '潮涌能量', icon: conduit,
     hint: ['用', heart, '和 8 个', shellNautilus, '制作', conduit, '，再完成一次海底神殿远征。'],
     complete: (s) => !!s.seen.conduit && !!s.expeditions.ocean_monument,
   },
   {
-    title: '播种过往', icon: torchflower,
+    id: 'sniffer', requires: ['home'], title: '播种过往', icon: torchflower,
     hint: ['考察暖水海底废墟，带回并孵化', snifferEgg, '，然后在营地种下', torchflower, '。'],
     complete: (s) => !!s.seen.torchflower,
   },
   {
-    title: '残骸裹身', icon: netherite,
+    id: 'netherite', requires: ['nether'], title: '残骸裹身', icon: netherite,
     hint: ['在', wasteland, '采', debris, '，前往', bastion, '取得模板，再用', smithing, '升级钻石胸甲。'],
     complete: (s) => !!s.seen.armor_netherite,
   },
   {
-    title: '末地补给线', icon: enderChest,
+    id: 'end-supply', requires: ['end-flight'], title: '末地补给线', icon: enderChest,
     hint: ['制作', enderChest, '，绘制紫颂林地图，并建成', endStore, '。'],
     complete: (s) => !!s.expeditions.chorus_grove && !!s.village?.buildings.end_store,
   },
   {
-    title: '结束了……再一次', icon: dragon,
+    id: 'dragon-again', requires: ['dragon'], title: '结束了……再一次', icon: dragon,
     hint: ['在要塞传送门房间使用 4 座', endCrystal, '，复活并再次击败', dragon, '。'],
     complete: (s) => !!s.flags.dragonAgain,
   },
 ]
+
+const achievements = [...STORY, ...PROJECTS, ...EXPLORATION]
+const achievementsById = new Map(achievements.map((entry) => [entry.id, entry]))
+
+export const getAchievement = (id: string) => achievementsById.get(id)
+export const TUTORIAL = STORY.filter(({ id }) => ['wood', 'table', 'home'].includes(id))
+
+export function getCompletedAchievements(state: GameState) {
+  // Evaluate each prerequisite before its dependent achievements.
+  const completed = new Set<string>()
+  for (const entry of achievements) {
+    if (entry.requires?.some((id) => !completed.has(id))) continue
+    if (entry.complete(state)) completed.add(entry.id)
+  }
+  return completed
+}

@@ -77,7 +77,7 @@ export function App() {
       <div ref={layoutRef} className={`layout ${early ? 'early' : ''}`} tabIndex={0} aria-label="游戏区域，可左右滚动查看日志、冒险和物资">
         <div className="sidebar-column sidebar-left">
           {flags.explore && <Clock />}
-          <CurrentGoal />
+          <CurrentGoal onOpenAchievements={() => setMenu('achievements')} />
           <LogPanel />
         </div>
         <main className="main"><Tabs value={cur} onValueChange={(value) => setTab(String(value))}>

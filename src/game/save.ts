@@ -1,11 +1,12 @@
 import { BIOMES, BUILDING_MAP, ENCHANTS, EYES_NEEDED, ITEMS, JOB_MAP, MOBS, SMELTS, type Bag } from './data'
+import { getAchievement } from './advancements'
 import { LOG_LIMIT, LOG_TEXT_LIMIT, logOfflineSettlement } from './log'
 import { migrateMinecraftNames } from './migrate'
 import { EXPEDITIONS, LINES, MAX_AIR, PLANTS } from './progression'
 import type { GameState, Loc } from './store'
 
 export const SAVE_KEY = 'block-idle-save'
-export const SAVE_VERSION = 6
+export const SAVE_VERSION = 7
 export type SaveSnapshot = GameState
 
 type Fields = Record<string, unknown>
@@ -79,6 +80,8 @@ export function normalizeSave(input: unknown, version: number, defaults: GameSta
     !s.log.every((entry) => record(entry) && integer(entry.id) &&
       typeof entry.text === 'string' && entry.text.length <= LOG_TEXT_LIMIT &&
       typeof entry.kind === 'string' && ['info', 'good', 'bad', 'event'].includes(entry.kind))) return null
+  if (s.trackedAchievement !== null &&
+    (typeof s.trackedAchievement !== 'string' || !getAchievement(s.trackedAchievement))) return null
   if (!record(s.stats) || ![s.stats.actions, s.stats.kills, s.stats.deaths, s.stats.explored].every((n) => integer(n))) return null
   if (!bag(s.ench, (key) => ENCHANTS.some((entry) => entry.id === key), (n) => integer(n, 5))) return null
   if (!integer(s.eyesThrown, 3) || !integer(s.altarEyes, EYES_NEEDED)) return null
@@ -111,6 +114,10 @@ export function normalizeSave(input: unknown, version: number, defaults: GameSta
     for (const loc of Object.values(s.locs)) {
       for (const [id, [min]] of Object.entries(BIOMES[loc.biome].res)) loc.res[id] ??= min
     }
+  }
+  if (version < 7) {
+    if (Object.values(s.locs).some((loc) => loc.biome === 'trial_chamber')) s.flags.trialVisited = true
+    if (Object.values(s.village?.jobs ?? {}).some((count) => count > 0)) s.flags.firstJob = true
   }
   if (version < 3 && s.combat) {
     s.combat.lines = s.combat.lines.slice(0, 6)

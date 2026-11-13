@@ -2,6 +2,7 @@ import {
   BARTER_COST, BARTER_OFFERS, EXCAVATION_COST, EXPEDITIONS, LINES, MAX_AIR, NETHER_COST, OFFLINE_LIMIT, PLANTS,
   RESPAWN_COST, ROUTES, SURVEY_COST, TRIAL_VAULTS, WATER_BREATHING_SECONDS, WITHER_COST, seasonAt, type ExpeditionDef,
 } from './progression'
+import { getAchievement, getCompletedAchievements } from './advancements'
 import { decodeSave, encodeSave, normalizeSave, SAVE_KEY, SAVE_VERSION, snapshot } from './save'
 import { LOG_LIMIT, logOfflineSettlement, pushLog, type LogEntry } from './log'
 import { current } from 'immer'
@@ -48,6 +49,7 @@ export interface GameState {
   cds: Record<string, { until: number; dur: number }>
   log: LogEntry[]
   logId: number
+  trackedAchievement: string | null
   flags: Record<string, boolean>
   combat: Combat | null
   furnace: { fuel: number; job: { r: string; left: number; prog: number } | null }
@@ -69,6 +71,7 @@ export interface GameActions {
   tick(background?: boolean): void
   backup(): string
   restore(text: string): string | null
+  trackAchievement(id: string | null): void
   scout(biome: string): void
   survey(): void
   buildNether(): void
@@ -555,6 +558,7 @@ export const initial = (): GameState => ({
     { id: 0, text: '你在一片陌生的森林中醒来，两手空空。', kind: 'event' },
   ],
   logId: 2,
+  trackedAchievement: null,
   flags: {},
   combat: null,
   furnace: { fuel: 0, job: null },
@@ -633,6 +637,15 @@ export const useGame = create<Game>()(
         set(() => saved)
         return null
       },
+      trackAchievement: (id) => set((s) => {
+        if (id !== null) {
+          const entry = getAchievement(id)
+          if (!entry) return
+          const completed = getCompletedAchievements(s)
+          if (completed.has(id) || entry.requires?.some((required) => !completed.has(required))) return
+        }
+        s.trackedAchievement = id
+      }),
 
       dive: () => set((s) => {
         if (!canDiveHere(s) || s.submerged || s.combat || s.air < MAX_AIR) return
@@ -660,6 +673,7 @@ export const useGame = create<Game>()(
         if (loc !== current) leaveLoc(s)
         loc.saved = true
         s.locId = loc.id
+        if (biome === 'trial_chamber') s.flags.trialVisited = true
         s.stats.explored++
         gainXp(s, 2)
         setCd(s, 'move', moveTime(s, 5))
@@ -1036,6 +1050,7 @@ export const useGame = create<Game>()(
         loc.shelter = true
         s.homeId = loc.id
         s.village = { villagers: 4, jobs: { farmer: 2 }, buildings: { house: 3, farm: 1 }, rep: 0, founded: false, mayor: false }
+        s.flags.firstJob = true
         pushLog(s, '你在村庄边缘住了下来。村民们还不太信任你。', 'good')
         unlock(s, 'village', '多与村民交谈、交易，赢得他们的信任。')
       }),
