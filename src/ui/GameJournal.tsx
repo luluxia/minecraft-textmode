@@ -21,20 +21,31 @@ const ACHIEVEMENT_TABS = [
   { id: 'projects', label: '村庄与末地', steps: PROJECTS },
   { id: 'exploration', label: '遗迹与远航', steps: EXPLORATION },
 ]
+const ACHIEVEMENT_COUNT = ACHIEVEMENT_TABS.reduce((total, { steps }) => total + steps.length, 0)
 
 export function CurrentGoal({ onOpenAchievements }: { onOpenAchievements: () => void }) {
-  const goal = useGame((s) => s.homeId === null ? TUTORIAL.find((entry) => !entry.complete(s)) : undefined)
+  const tracked = useGame((s) => {
+    if (!s.trackedAchievement && s.homeId === null) return undefined
+    const completed = getCompletedAchievements(s)
+    if (completed.size === ACHIEVEMENT_COUNT) return 'all-complete'
+    const entry = s.trackedAchievement ? getAchievement(s.trackedAchievement) : undefined
+    if (!entry || completed.has(entry.id) || entry.requires?.some((id) => !completed.has(id))) return undefined
+    return entry
+  })
+  const tutorial = useGame((s) => s.homeId === null ? TUTORIAL.find((entry) => !entry.complete(s)) : undefined)
+  const allComplete = tracked === 'all-complete'
+  const goal = allComplete ? undefined : tracked ?? tutorial
 
   return (
-    <Card className="panel current-goal" role="region" aria-labelledby="current-goal-heading">
-      <h3 id="current-goal-heading">{goal ? '当前目标' : '安家完成'}</h3>
+    <Card className="panel current-goal" role="region" aria-label={goal ? '当前目标' : '自由探索'}>
       {goal ? <>
+        <h3>当前目标</h3>
         <p><GoalLabel term={goal.icon} label={goal.title} /></p>
         <p className="sm dim"><GoalText hint={goal.hint} /></p>
       </> : <>
-        <p className="sm dim">接下来可以自由探索，也可以在成就菜单追踪目标。</p>
-        <Btn className="mini" onClick={onOpenAchievements}>打开成就</Btn>
+        <p className="sm dim">{allComplete ? '已完成当前版本所有成就，请自由探索' : '接下来可以自由探索，也可以在成就菜单追踪目标。'}</p>
       </>}
+      {!allComplete && (tracked || !goal) && <Btn className="mini" onClick={onOpenAchievements}>打开成就</Btn>}
     </Card>
   )
 }
