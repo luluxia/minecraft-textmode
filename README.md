@@ -17,6 +17,22 @@ pnpm build   # 类型检查与生产打包
 pnpm preview # 预览生产构建
 ```
 
+## 部署到 CapRover
+
+应用地址：http://mc.llx.life（不启用 HTTPS）。容器通过 Nginx 的 80 端口提供静态文件，存档仍保存在玩家浏览器中。
+
+先在本地测试和构建，再将产物连同部署配置打包上传（需要 CapRover CLI）：
+
+```sh
+pnpm test
+pnpm build
+mkdir -p .cache
+tar -cf .cache/mc-deploy.tar captain-definition Dockerfile nginx.conf dist
+caprover deploy -u https://captain.llx.life -a mc -t .cache/mc-deploy.tar
+```
+
+按 CLI 提示输入密码。`Dockerfile` 使用本地生成的 `dist`，每次部署前都需要重新构建；不要使用不包含 `dist` 的 Git 分支直接部署。
+
 ## 主要玩法
 
 - **生存与制造**：采集、种植、烹饪、合成、熔炼和附魔，升级装备并建立营地。
