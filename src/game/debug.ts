@@ -1,5 +1,5 @@
 import type { PersistStorage } from 'zustand/middleware'
-import { BIOMES, EYES_NEEDED, type Bag } from './data'
+import { BIOMES, EYES_NEEDED, ITEM_LIST, type Bag } from './data'
 import { initial, useGame, type Game, type GameState } from './store'
 
 export const DEBUG_SCENARIOS = [
@@ -9,6 +9,7 @@ export const DEBUG_SCENARIOS = [
   { id: 'nether', label: '下界探索', detail: '下界门已建成 · 从家出发' },
   { id: 'stronghold', label: '末影龙战前', detail: '传送门房间 · 门已开启' },
   { id: 'endgame', label: '通关后经营', detail: '末地远征 · 纪念碑条件' },
+  { id: 'complete', label: '全部成就与图鉴', detail: '全部成就已完成 · 全部物资已收录' },
 ] as const
 
 export type DebugScenario = typeof DEBUG_SCENARIOS[number]['id']
@@ -77,12 +78,18 @@ export function loadDebugScenario(id: DebugScenario) {
   }
 
   addStock(s, { pick_diamond: 1, sword_diamond: 1, armor_diamond: 1, diamond: 24, potion: 4, brewing_stand: 1 })
-  if (id === 'endgame') {
+  if (id === 'endgame' || id === 'complete') {
     addStock(s, { dragon_egg: 1, nether_star: 1, shulker_shell: 12, pearl: 8, elytra: 1 })
     s.village.villagers = 8
     s.village.rep = 80
     s.village.mayor = true
     s.expeditions.city = 1
+  }
+  if (id === 'complete') {
+    for (const item of ITEM_LIST) s.seen[item.id] = true
+    Object.assign(s.flags, { trialVault: true, maceLeap: true, dragonAgain: true })
+    Object.assign(s.village.buildings, { beacon: 1, monument: 1, shulker_store: 1, apiary: 1, end_store: 1 })
+    Object.assign(s.expeditions, { raid: 1, flight: 1, ocean_monument: 1, chorus_grove: 1 })
   }
   useGame.setState(s)
   useGame.getState().buildNether()
