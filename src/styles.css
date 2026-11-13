@@ -1,4 +1,7 @@
 :root {
+  --ui-scale: 1;
+  --ui-vw: calc(100vw / var(--ui-scale));
+  --ui-vh: calc(100dvh / var(--ui-scale));
   --bg: #16150f;
   --panel: #24221b;
   --panel-2: #2e2b22;
@@ -15,7 +18,8 @@
   --font: 'Fusion Pixel 12px Proportional SC', 'Microsoft YaHei', monospace;
 }
 * { box-sizing: border-box; }
-html, body, #root { height: 100%; }
+html { zoom: var(--ui-scale); }
+html, body, #root { min-height: var(--ui-vh); }
 body {
   margin: 0;
   background: var(--bg);
@@ -45,18 +49,18 @@ h1, h2, h3, p { margin: 0; font-weight: normal; }
 .sky { position: relative; height: 8px; border: 1px solid var(--lo); transition: background 2s; }
 .sky-marker { position: absolute; top: 50%; width: 16px; height: 16px; background: url('/textures/minecraft/sun.png') center / contain no-repeat; mix-blend-mode: screen; transform: translate(-50%, -50%); transition: left 1s linear; }
 .sky-marker[data-night="true"] { background-image: url('/textures/minecraft/moon_phases.png'); background-size: 400% 200%; background-position: 66.6667% 0; }
-.layout { --layout-height: max(240px, calc(100dvh - 32px)); --column-heading-height: 48px; display: grid; grid-template-columns: 270px minmax(0, 1fr) 300px; gap: 12px; align-items: start; align-content: start; flex: 1; }
+.layout { --layout-height: max(240px, calc(var(--ui-vh) - 32px)); --column-heading-height: 48px; display: grid; grid-template-columns: 270px minmax(0, 1fr) 300px; gap: 12px; align-items: start; align-content: start; flex: 1; }
 .sidebar-column { display: flex; flex-direction: column; gap: 12px; min-width: 0; max-height: var(--layout-height); }
 .toolbar { display: flex; gap: 6px; width: 100%; justify-content: center; }
 .btn.toolbar-button { width: var(--column-heading-height); height: var(--column-heading-height); min-width: 0; min-height: 0; padding: 0; }
-.layout.early { --layout-height: max(240px, calc(100dvh - 100px)); grid-template-columns: minmax(0, 420px); justify-content: center; padding-top: 12vh; }
+.layout.early { --layout-height: max(240px, calc(var(--ui-vh) - 100px)); grid-template-columns: minmax(0, 420px); justify-content: center; padding-top: calc(var(--ui-vh) * .12); }
 .layout.early .sidebar-right { order: -1; }
 .layout.early .sidebar-left { order: 3; }
-.layout.early .log { max-height: 40vh; }
-@media (max-width: 960px) {
+.layout.early .log { max-height: calc(var(--ui-vh) * .4); }
+:root[data-ui-compact="true"] {
   .app { padding: 8px; }
   .layout, .layout.early {
-    --layout-height: max(240px, calc(100dvh - 16px));
+    --layout-height: max(240px, calc(var(--ui-vh) - 16px));
     grid-template-columns: repeat(3, 100%);
     justify-content: start;
     width: 100%;
@@ -75,7 +79,7 @@ h1, h2, h3, p { margin: 0; font-weight: normal; }
   .layout .log, .layout .side, .layout.early .log { flex: 1; max-height: none; }
   .layout .scroll-area { overscroll-behavior-x: auto; }
 }
-@media (width > 960px) {
+:root[data-ui-compact="false"] {
   .layout:not(.early) :is(.clock, .mc-tabs-list.tabs) { min-height: var(--column-heading-height); }
 }
 
@@ -125,6 +129,21 @@ h1, h2, h3, p { margin: 0; font-weight: normal; }
 @keyframes button-cooldown { from { transform: scaleX(1); } to { transform: scaleX(0); } }
 @media (prefers-reduced-motion: reduce) { .btn-cd { animation: none; } }
 .actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.settings-group { display: grid; gap: 8px; container-type: inline-size; }
+.settings-group > h3 { color: var(--dim); font-size: 14px; }
+.settings-controls { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.settings-controls > .btn { width: 100%; min-width: 0; min-height: 44px; padding: 8px 6px; }
+.settings-confirmation.mc-card { min-width: 0; gap: 8px; padding: 12px; }
+.settings-dialog .modal > .actions { justify-content: flex-end; }
+.settings-scale-options {
+  width: var(--anchor-width);
+  max-width: calc(var(--ui-vw) - 20px);
+  height: calc(116 * var(--mc-pixel));
+  font: 16px/1.5 var(--font);
+}
+@container (max-width: 220px) {
+  .settings-controls { grid-template-columns: minmax(0, 1fr); }
+}
 
 /* ---------- 进度条 ---------- */
 .bar, .combat-health { width: min(100%, 364px); }
@@ -189,23 +208,23 @@ body { background: linear-gradient(#0009, #0009), url('/textures/minecraft/dirt.
 .toolbar-button .texture { width: 32px; height: 32px; }
 .cost .texture { width: 18px; height: 18px; }
 .mob-icon .texture { width: 80px; height: 80px; }
-.mob-icon .combat-mob { width: min(176px, 100%); height: 112px; }
+.mob-icon .combat-mob { width: min(264px, 100%); height: 120px; }
 .mc-tabs-list.tabs, .mc-tabs-list.subtabs { width: 100%; margin-bottom: 12px; border: 0; gap: 0; }
 .mc-tabs-content { padding: 0; background: transparent; }
 .mc-tabs-trigger { cursor: pointer; }
-.game-dialog { width: min(500px, calc(100vw - 24px)); max-height: 90dvh; padding: 12px; overflow: hidden; font-family: var(--font); line-height: 1.5; }
+.game-dialog { width: min(500px, calc(var(--ui-vw) - 24px)); max-width: calc(var(--ui-vw) - 24px); max-height: calc(var(--ui-vh) * .9); padding: 12px; overflow: hidden; font-family: var(--font); line-height: 1.5; }
 .dialog-scroll { flex: 0 1 auto; min-height: 0; width: 100%; max-height: 720px; overflow-wrap: anywhere; }
-.catalog-dialog { height: min(720px, 90dvh); }
-.catalog-dialog .dialog-scroll { flex: 1; max-height: none; }
-.combat-dialog { height: min(640px, 90dvh); }
+:is(.catalog-dialog, .achievements-dialog) { height: min(720px, calc(var(--ui-vh) * .9)); }
+:is(.catalog-dialog, .achievements-dialog) .dialog-scroll { flex: 1; max-height: none; }
+.combat-dialog { height: min(640px, calc(var(--ui-vh) * .9)); }
 .game-dialog .modal { padding: 0; width: 100%; }
 .game-dialog .modal > .section { margin-top: 0; }
 .game-dialog .modal > .mc-surface { display: none; }
-.combat-dialog .modal { flex: 1; min-height: 0; align-items: stretch; justify-content: space-between; gap: 8px; overflow: hidden; overflow-wrap: anywhere; }
+.combat-dialog .modal { flex: 1; min-height: 0; align-items: stretch; justify-content: space-between; gap: 8px; overflow-x: hidden; overflow-y: auto; overflow-wrap: anywhere; }
 .combat-dialog .modal > * { flex-shrink: 0; }
 .combat-dialog .combat-health { width: 100%; }
 .combat-dialog .mob-icon { width: 100%; }
-.combat-dialog .combat-mob { display: block; height: 80px; margin-inline: auto; }
+.combat-dialog .combat-mob { display: block; margin-inline: auto; }
 .combat-dialog .combat-health > .spread { flex-wrap: wrap; }
 .combat-dialog .combat-health > .spread > .sm { white-space: nowrap; }
 .combat-mob-health { min-height: 44px; padding: 8px 12px; border: 2px solid #76a957; background-color: #1d2918; background-image: linear-gradient(#3f702b, #3f702b); background-repeat: no-repeat; }
@@ -215,16 +234,16 @@ body { background: linear-gradient(#0009, #0009), url('/textures/minecraft/dirt.
 .combat-dialog .combat-lines > .scroll-content { display: flex; flex-direction: column; gap: 6px; }
 .combat-dialog .actions { width: 100%; display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 112px), 1fr)); gap: 8px; }
 .combat-dialog .actions > .btn { width: 100%; min-width: 0; padding: 8px; }
-@media (max-height: 700px) {
+:root[data-ui-short="true"] {
   .combat-dialog .modal { gap: 6px; }
-  .combat-dialog .combat-mob { height: 48px; }
+  .combat-dialog .combat-mob { height: 72px; }
   .combat-dialog .player-status { padding-block: 6px; }
   .combat-dialog .actions { gap: 6px; }
   .combat-dialog .actions > .btn { padding: 4px 6px; }
   .combat-dialog .btn-sub { font-size: 12px; line-height: 16px; }
 }
 .main, .panel, .card { min-width: 0; }
-@media (max-width: 480px) { .cards { grid-template-columns: minmax(0,1fr); } }
+:root[data-ui-narrow="true"] { .cards { grid-template-columns: minmax(0,1fr); } }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; } }
 
 .mc-tabs { width: 100%; min-width: 0; font-family: var(--font); line-height: 1.5; }
@@ -255,7 +274,7 @@ body, button, input, select, textarea,
 .inv-name { overflow-wrap: anywhere; }
 .inv-values { display: inline-flex; align-items: center; justify-content: flex-end; gap: 6px; flex-shrink: 0; margin-left: auto; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .inv-row .rate { display: inline; margin-left: 0; }
-@media (max-width: 480px) {
+:root[data-ui-narrow="true"] {
   .mc-tabs-trigger { font-size: var(--text-sm); }
 }
 
@@ -263,6 +282,8 @@ body, button, input, select, textarea,
 .main { height: var(--layout-height); min-height: 0; display: flex; flex-direction: column; gap: 16px; container-type: inline-size; }
 .main > .mc-tabs { flex: 1; min-height: 0; }
 .main-panel { flex: 1; min-height: 0; overflow: hidden; }
+.main-tab-content { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.main-tab-content[hidden] { display: none; }
 .main-scroll { flex: 1; min-height: 0; }
 
 /* Native HUD sprites; text continues to use the application typography. */
@@ -350,34 +371,18 @@ body, button, input, select, textarea,
 .scroll-area[data-scroll-below="true"] { --scroll-fade-bottom: 22px; }
 .scroll-content { min-width: 0; display: flow-root; }
 
-.offline-report { margin-bottom: 8px; }
-.offline-report p { margin: 4px 0 0; overflow-wrap: anywhere; }
-.achievement-progress { margin-bottom: 6px; }
 .catalog-grid { --entry-width: 144px; margin: 0; padding: 0; list-style: none; }
+.achievement-progress { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+.achievement-progress > .bar { flex: 1; }
 .achievement-list { display: grid; gap: 8px; padding: 0; margin: 0; list-style: none; }
-.achievement-list li { display: grid; gap: 2px; border-bottom: 1px solid var(--line); padding: 4px 0; }
-.achievement-status {
-  position: relative;
-  display: inline-block;
-  width: 16px;
-  height: 16px;
-  margin-inline-end: 6px;
-  border: 2px solid currentColor;
-  color: var(--faint);
-  vertical-align: -0.15em;
-}
-.achievement-status[data-complete="true"] { color: var(--green); }
-.achievement-status[data-complete="true"]::after {
-  content: '';
-  position: absolute;
-  top: 2px;
-  left: 1px;
-  width: 2px;
-  height: 2px;
-  box-shadow: 0 4px, 2px 6px, 4px 4px, 6px 2px, 8px 0;
-}
+.achievement-tracking { margin-bottom: 10px; }
+.achievements-dialog .modal h2, .achievements-dialog .entry-heading h3 { font: inherit; }
+.achievements-dialog .modal > .actions { justify-content: flex-end; }
 
 .current-goal { flex-shrink: 0; overflow-wrap: anywhere; }
+.mc-card.current-goal { gap: 4px; }
+.current-goal h3 { margin-bottom: 0; }
+.current-goal > .btn { align-self: flex-start; margin-top: 4px; }
 .goal-term { display: inline-block; max-width: 100%; vertical-align: baseline; }
 .goal-term .texture { width: 16px; height: 16px; margin-inline-end: 3px; vertical-align: -0.15em; }
 .goal-term[data-tone="material"] { color: #e8bf80; }
@@ -387,7 +392,7 @@ body, button, input, select, textarea,
 .goal-term[data-tone="project"] { color: #adc8ff; }
 .goal-term[data-tone="special"] { color: #d8b6ff; }
 
-@media (max-width: 960px) {
+:root[data-ui-compact="true"] {
   .mc-card.panel { padding: 20px; }
   .content-entry { padding: 12px; gap: 8px; }
   .entry-grid, .main-scroll .actions { gap: 10px; }

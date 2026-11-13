@@ -1,10 +1,12 @@
 import { BIOMES, BUILDING_MAP, ENCHANTS, EYES_NEEDED, ITEMS, JOB_MAP, MOBS, SMELTS, type Bag } from './data'
+import { getAchievement } from './advancements'
+import { LOG_LIMIT, LOG_TEXT_LIMIT, logOfflineSettlement } from './log'
 import { migrateMinecraftNames } from './migrate'
 import { EXPEDITIONS, LINES, MAX_AIR, PLANTS } from './progression'
 import type { GameState, Loc } from './store'
 
 export const SAVE_KEY = 'block-idle-save'
-export const SAVE_VERSION = 5
+export const SAVE_VERSION = 7
 export type SaveSnapshot = GameState
 
 type Fields = Record<string, unknown>
@@ -74,9 +76,12 @@ export function normalizeSave(input: unknown, version: number, defaults: GameSta
 
   if (!fields(s.cds, (cd, key) => safeKey(key) && record(cd) &&
     number(cd.until, Number.MAX_SAFE_INTEGER) && number(cd.dur, 3600000))) return null
-  if (!Array.isArray(s.log) || s.log.length > 80 || !integer(s.logId) ||
-    !s.log.every((entry) => record(entry) && integer(entry.id) && shortText(entry.text) &&
+  if (!Array.isArray(s.log) || s.log.length > LOG_LIMIT || !integer(s.logId) ||
+    !s.log.every((entry) => record(entry) && integer(entry.id) &&
+      typeof entry.text === 'string' && entry.text.length <= LOG_TEXT_LIMIT &&
       typeof entry.kind === 'string' && ['info', 'good', 'bad', 'event'].includes(entry.kind))) return null
+  if (s.trackedAchievement !== null &&
+    (typeof s.trackedAchievement !== 'string' || !getAchievement(s.trackedAchievement))) return null
   if (!record(s.stats) || ![s.stats.actions, s.stats.kills, s.stats.deaths, s.stats.explored].every((n) => integer(n))) return null
   if (!bag(s.ench, (key) => ENCHANTS.some((entry) => entry.id === key), (n) => integer(n, 5))) return null
   if (!integer(s.eyesThrown, 3) || !integer(s.altarEyes, EYES_NEEDED)) return null
@@ -104,17 +109,15 @@ export function normalizeSave(input: unknown, version: number, defaults: GameSta
       (trip.total === undefined || (integer(trip.total, entry.seconds) && trip.total >= trip.left))) ||
       (trip.returnBottle !== undefined && !boolean(trip.returnBottle))) return null
   }
-  if (s.offline !== null) {
-    const report = s.offline
-    if (!record(report) || !integer(report.seconds) || !integer(report.villagers) ||
-      !bag(report.items, known(ITEMS), (n) => typeof n === 'number' && integer(Math.abs(n))) ||
-      (report.expedition !== null && !EXPEDITIONS.some((trip) => trip.id === report.expedition))) return null
-  }
   if (version < 2) migrateMinecraftNames(s)
   if (version < 5) {
     for (const loc of Object.values(s.locs)) {
       for (const [id, [min]] of Object.entries(BIOMES[loc.biome].res)) loc.res[id] ??= min
     }
+  }
+  if (version < 7) {
+    if (Object.values(s.locs).some((loc) => loc.biome === 'trial_chamber')) s.flags.trialVisited = true
+    if (Object.values(s.village?.jobs ?? {}).some((count) => count > 0)) s.flags.firstJob = true
   }
   if (version < 3 && s.combat) {
     s.combat.lines = s.combat.lines.slice(0, 6)
@@ -131,6 +134,20 @@ export function normalizeSave(input: unknown, version: number, defaults: GameSta
     const offset = s.lastTick - defaults.lastTick
     for (const cd of Object.values(s.cds)) cd.until = Math.max(0, cd.until - offset)
     s.lastTick = defaults.lastTick
+  }
+  if (version < 6 && input.offline != null) {
+    const report = input.offline
+    if (!record(report) || !integer(report.seconds) || !integer(report.villagers) ||
+      !bag(report.items, known(ITEMS), (n) => typeof n === 'number' && integer(Math.abs(n))) ||
+      (report.expedition !== null && (typeof report.expedition !== 'string' ||
+        !EXPEDITIONS.some((trip) => trip.id === report.expedition)))) return null
+    s.log = [...s.log]
+    logOfflineSettlement(s, {
+      seconds: report.seconds,
+      items: report.items as Bag,
+      villagers: report.villagers,
+      expedition: report.expedition,
+    })
   }
   return s
 }

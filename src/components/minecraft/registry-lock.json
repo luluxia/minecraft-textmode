@@ -30,7 +30,19 @@
       "name": "hud",
       "url": "https://grasscn.dev/r/hud.json",
       "sha256": "110c7fb4e3b283eae436fa556ff1b67b840057330fffd7ed7d2118ad428ca24b"
+    },
+    {
+      "name": "select",
+      "url": "https://grasscn.dev/r/select.json",
+      "sha256": "6056a9beea1e7f4f89614e14c92af5d2aeb0c282a51fb6725c99434364a0c936",
+      "retrieved": "2026-11-13"
+    },
+    {
+      "name": "switch",
+      "url": "https://grasscn.dev/r/switch.json",
+      "sha256": "bb4684bb6cd1b7584f80e736319b732e789817134901821d7a973f72c05619cd",
+      "retrieved": "2026-11-13"
     }
   ],
-  "adaptation": "utils imports use ../../lib/utils; button/tab/card/dialog text uses DOM and Fusion Pixel instead of bitmap/Canvas glyphs; textures, sound and Base UI interactions retained."
+  "adaptation": "utils imports use ../../lib/utils; button/tab/card/dialog/select/switch text uses DOM and Fusion Pixel instead of bitmap/Canvas glyphs; textures, sound and Base UI interactions retained."
 }

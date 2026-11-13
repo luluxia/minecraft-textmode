@@ -12,7 +12,7 @@ import { PlayerHud } from './ui/PlayerHud'
 import { Crafting } from './ui/Crafting'
 import { Village } from './ui/Village'
 import { Btn } from './ui/kit'
-import { CurrentGoal, JournalModal, OfflineReport, type GameMenu } from './ui/GameJournal'
+import { CurrentGoal, JournalModal, type GameMenu } from './ui/GameJournal'
 import { MAX_AIR, seasonAt } from './game/progression'
 import { DebugPanel } from './ui/DebugPanel'
 
@@ -42,8 +42,9 @@ export function App() {
     const centerMain = () => {
       const layout = layoutRef.current
       const main = layout?.querySelector<HTMLElement>(':scope > .main')
-      if (!layout || !main || !window.matchMedia('(max-width: 960px)').matches) return
-      layout.scrollLeft += main.getBoundingClientRect().left - layout.getBoundingClientRect().left
+      if (!layout || !main || document.documentElement.dataset.uiCompact !== 'true') return
+      const zoom = main.getBoundingClientRect().width / main.offsetWidth
+      layout.scrollLeft += (main.getBoundingClientRect().left - layout.getBoundingClientRect().left) / zoom
         - (layout.clientWidth - main.clientWidth) / 2
     }
     centerMain()
@@ -76,7 +77,7 @@ export function App() {
       <div ref={layoutRef} className={`layout ${early ? 'early' : ''}`} tabIndex={0} aria-label="游戏区域，可左右滚动查看日志、冒险和物资">
         <div className="sidebar-column sidebar-left">
           {flags.explore && <Clock />}
-          <CurrentGoal />
+          <CurrentGoal onOpenAchievements={() => setMenu('achievements')} />
           <LogPanel />
         </div>
         <main className="main"><Tabs value={cur} onValueChange={(value) => setTab(String(value))}>
@@ -89,13 +90,14 @@ export function App() {
               ))}
             </TabsList>
           )}
-          <Card className="panel main-panel">
-            <ScrollArea key={cur + worldRevision} className="main-scroll" tabIndex={0} aria-label="滚动主区域">
-            <OfflineReport />
-            <TabsContent value="adventure"><Adventure /></TabsContent>
-            <TabsContent value="crafting"><Crafting /></TabsContent>
-            <TabsContent value="village"><Village /></TabsContent>
-            </ScrollArea>
+          <Card key={worldRevision} className="panel main-panel">
+            {tabs.map(([id]) => (
+              <TabsContent key={id} value={id} keepMounted className="main-tab-content">
+                <ScrollArea className="main-scroll" tabIndex={0} aria-label="滚动主区域">
+                  {id === 'adventure' ? <Adventure /> : id === 'crafting' ? <Crafting /> : <Village />}
+                </ScrollArea>
+              </TabsContent>
+            ))}
           </Card>
         </Tabs>
         {(flags.status || showAir) && <PlayerHud />}

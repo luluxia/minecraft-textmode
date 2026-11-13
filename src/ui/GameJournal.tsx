@@ -1,41 +1,40 @@
 import { useRef, useState, type ChangeEvent } from 'react'
 import { Card } from '../components/minecraft/card'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/minecraft/select'
+import { Switch } from '../components/minecraft/switch'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/minecraft/tabs'
 import { GameDialog } from './GameDialog'
 import { useScrollReset } from './ScrollArea'
-import { ITEM_CATEGORIES, ITEM_LIST, ITEMS } from '../game/data'
-import { EXPEDITIONS, OFFLINE_LIMIT } from '../game/progression'
-import { COMPLETED_MONUMENT, EXPLORATION, MONUMENT_GOAL, PROJECTS, STORY, type GoalHint, type GoalTerm } from '../game/advancements'
+import { ITEM_CATEGORIES, ITEM_LIST } from '../game/data'
+import { EXPEDITIONS } from '../game/progression'
+import { EXPLORATION, PROJECTS, STORY, TUTORIAL, getAchievement, getCompletedAchievements, type GoalHint, type GoalTerm } from '../game/advancements'
 import { dayOf, useGame } from '../game/store'
 import { Texture } from './Texture'
-import { Btn, ItemName, Section } from './kit'
+import { Bar, Btn, EntryHeader, ItemName, Section } from './kit'
+import { UI_SCALES, useInterfaceSettings } from './interfaceSettings'
 
 const JOURNAL_TITLES = { catalog: '图鉴', achievements: '成就', stats: '统计', settings: '设置' } as const
 export type GameMenu = keyof typeof JOURNAL_TITLES
 
 const ACHIEVEMENT_TABS = [
-  { id: 'story', label: '生存与探索', steps: STORY },
-  { id: 'projects', label: '村庄与远征', steps: PROJECTS },
+  { id: 'story', label: '生存与维度', steps: STORY },
+  { id: 'projects', label: '村庄与末地', steps: PROJECTS },
   { id: 'exploration', label: '遗迹与远航', steps: EXPLORATION },
 ]
 
-export function CurrentGoal() {
-  const s = useGame()
-  const step = STORY.find((entry) => !entry.complete(s))
-  const goal = s.village?.buildings.monument
-    ? COMPLETED_MONUMENT
-    : s.flags.won
-      ? MONUMENT_GOAL
-      : step
-  if (!s.flags.inv || !goal) return null
+export function CurrentGoal({ onOpenAchievements }: { onOpenAchievements: () => void }) {
+  const goal = useGame((s) => s.homeId === null ? TUTORIAL.find((entry) => !entry.complete(s)) : undefined)
 
   return (
     <Card className="panel current-goal" role="region" aria-labelledby="current-goal-heading">
-      <div>
-        <h3 id="current-goal-heading">当前目标</h3>
+      <h3 id="current-goal-heading">{goal ? '当前目标' : '安家完成'}</h3>
+      {goal ? <>
         <p><GoalLabel term={goal.icon} label={goal.title} /></p>
         <p className="sm dim"><GoalText hint={goal.hint} /></p>
-      </div>
+      </> : <>
+        <p className="sm dim">接下来可以自由探索，也可以在成就菜单追踪目标。</p>
+        <Btn className="mini" onClick={onOpenAchievements}>打开成就</Btn>
+      </>}
     </Card>
   )
 }
@@ -53,30 +52,6 @@ function GoalText({ hint }: { hint: GoalHint }) {
   return hint.map((part, index) => typeof part === 'string' ? part : <GoalLabel key={index} term={part} />)
 }
 
-export function OfflineReport() {
-  const report = useGame((s) => s.offline)
-  const dismiss = useGame((s) => s.dismissOffline)
-  if (!report) return null
-  const changes = Object.entries(report.items).filter(([, n]) => n)
-  const trip = EXPEDITIONS.find((entry) => entry.id === report.expedition)
-  const hours = Math.floor(report.seconds / 3600)
-  const minutes = Math.floor((report.seconds % 3600) / 60)
-  const seconds = report.seconds % 60
-  const duration = [hours && hours + ' 小时', minutes && minutes + ' 分钟', seconds && seconds + ' 秒'].filter(Boolean).join(' ')
-  return (
-    <aside className="notice offline-report" aria-label="离线结算">
-      <div className="spread">
-        <strong>离线结算 · {duration}</strong>
-        <Btn className="mini" onClick={dismiss}>收起</Btn>
-      </div>
-      {changes.length > 0 && <p>{changes.map(([id, n]) => ITEMS[id].name + ' ' + (n > 0 ? '+' : '') + n).join('，')}</p>}
-      {report.villagers > 0 && <p>新搬入的村民 +{report.villagers}</p>}
-      {trip && <p>{trip.region === 'camp' ? '孵化完成' : '远征归来'} · {trip.name}</p>}
-      {!changes.length && !report.villagers && !trip && <p>这段时间没有物资变化。</p>}
-    </aside>
-  )
-}
-
 export function JournalModal({ menu, onClose, onDebug }: {
   menu: GameMenu
   onClose: () => void
@@ -84,8 +59,9 @@ export function JournalModal({ menu, onClose, onDebug }: {
 }) {
   const s = useGame()
   const title = JOURNAL_TITLES[menu]
+  const dialogClass = menu === 'stats' ? undefined : `${menu}-dialog`
   return (
-    <GameDialog label={title} onClose={onClose} className={menu === 'catalog' ? 'catalog-dialog' : undefined}>
+    <GameDialog label={title} onClose={onClose} className={dialogClass}>
       <h2>{title}</h2>
       {menu === 'catalog' && <ItemCatalog />}
       {menu === 'settings' && <SaveSettings onClose={onClose} onDebug={onDebug} />}
@@ -156,29 +132,68 @@ function ItemCatalog() {
 function Achievements() {
   const s = useGame()
   const resetScroll = useScrollReset()
+  const completed = getCompletedAchievements(s)
+  const tracked = s.trackedAchievement ? getAchievement(s.trackedAchievement) : undefined
+  const [initialTab] = useState(() =>
+    ACHIEVEMENT_TABS.find(({ steps }) => steps.some((entry) => entry.id === tracked?.id))?.id ?? 'story',
+  )
+  const trackedDone = tracked ? completed.has(tracked.id) : false
 
   return (
-    <Tabs defaultValue="story" onValueChange={() => resetScroll()}>
+    <Tabs defaultValue={initialTab} onValueChange={() => resetScroll()}>
+      {tracked && (
+        <section className="content-entry achievement-tracking" aria-label="追踪目标">
+          <EntryHeader actions={<Btn className="mini" onClick={() => s.trackAchievement(null)}>取消追踪</Btn>}>
+            <h3 className="icon-text"><Texture src={tracked.icon.icon} />{tracked.title}</h3>
+            <span className={`sm ${trackedDone ? 'good' : 'gold'}`}>{trackedDone ? '已完成' : '追踪中'}</span>
+          </EntryHeader>
+          <p className="sm dim"><GoalText hint={tracked.hint} /></p>
+        </section>
+      )}
       <TabsList className="subtabs" aria-label="成就分类">
         {ACHIEVEMENT_TABS.map(({ id, label }) => (
           <TabsTrigger key={id} value={id} aria-label={label}>{label}</TabsTrigger>
         ))}
       </TabsList>
-      {ACHIEVEMENT_TABS.map(({ id, steps }) => {
-        const entries = steps.map((entry) => ({ ...entry, done: entry.complete(s) }))
+      {ACHIEVEMENT_TABS.map(({ id, label, steps }) => {
+        const count = steps.filter((entry) => completed.has(entry.id)).length
         return (
           <TabsContent key={id} value={id}>
-            <p className="achievement-progress sm dim">已完成 {entries.filter((entry) => entry.done).length}/{entries.length}</p>
+            <div className="achievement-progress">
+              <Bar value={count} max={steps.length} color="#6fae3a" label={label + '成就进度'}
+                valueText={`已完成 ${count}/${steps.length}`} />
+              <span className="sm dim" aria-hidden="true">{count}/{steps.length}</span>
+            </div>
             <ul className="achievement-list">
-              {entries.map(({ title, icon, hint, done }) => (
-                <li key={title}>
-                  <strong>
-                    <span className="achievement-status" data-complete={done} role="img" aria-label={done ? '已完成' : '未完成'} />
-                    <GoalLabel term={icon} label={title} />
-                  </strong>
-                  {!done && <span className="dim"><GoalText hint={hint} /></span>}
-                </li>
-              ))}
+              {steps.map((entry) => {
+                const done = completed.has(entry.id)
+                const pending = entry.requires?.filter((id) => !completed.has(id)) ?? []
+                const locked = pending.length > 0
+                const isTracked = tracked?.id === entry.id
+                const canTrack = !done && !locked && !isTracked
+                return (
+                  <li key={entry.id} className="content-entry">
+                    <EntryHeader
+                      actions={canTrack ? (
+                        <Btn className="mini" aria-label={`追踪${entry.title}`}
+                          onClick={() => { s.trackAchievement(entry.id); resetScroll() }}>
+                          追踪
+                        </Btn>
+                      ) : (
+                        <span className={`tag${done ? ' g' : isTracked ? ' y' : ''}`}>
+                          {done ? '已完成' : locked ? '未解锁' : '追踪中'}
+                        </span>
+                      )}
+                    >
+                      <h3 className="icon-text"><Texture src={entry.icon.icon} />{entry.title}</h3>
+                    </EntryHeader>
+                    <p className="sm dim"><GoalText hint={entry.hint} /></p>
+                    {locked && (
+                      <p className="sm dim">需先完成{pending.map((id) => `「${getAchievement(id)?.title}」`).join('、')}</p>
+                    )}
+                  </li>
+                )
+              })}
             </ul>
           </TabsContent>
         )
@@ -188,6 +203,10 @@ function Achievements() {
 }
 
 function SaveSettings({ onClose, onDebug }: { onClose: () => void; onDebug?: () => void }) {
+  const scale = useInterfaceSettings((s) => s.scale)
+  const setScale = useInterfaceSettings((s) => s.setScale)
+  const componentSound = useInterfaceSettings((s) => s.componentSound)
+  const setComponentSound = useInterfaceSettings((s) => s.setComponentSound)
   const backup = useGame((s) => s.backup)
   const restore = useGame((s) => s.restore)
   const reset = useGame((s) => s.reset)
@@ -228,29 +247,51 @@ function SaveSettings({ onClose, onDebug }: { onClose: () => void; onDebug?: () 
   }
   return (
     <>
-      <p className="sm dim">进度自动保存在此浏览器。离开后最多结算 {OFFLINE_LIMIT / 3600} 小时，战斗暂停。</p>
-      <input ref={fileInput} type="file" accept=".json,application/json" hidden onChange={chooseSave} />
-      <div className="actions">
-        <Btn onClick={exportSave}>导出存档</Btn>
-        <Btn onClick={() => fileInput.current?.click()}>选择存档文件</Btn>
-        <Btn className="danger" onClick={() => { setConfirm(true); setSelected(null) }}>重置存档</Btn>
-        {onDebug && <Btn onClick={onDebug}>Debug</Btn>}
-      </div>
-      {selected && <div className="notice">
-        <p>用「{selected.name}」覆盖当前进度？</p>
-        <div className="actions">
-          <Btn className="danger" onClick={importSave}>确认载入</Btn>
-          <Btn onClick={() => setSelected(null)}>取消</Btn>
+      <section className="settings-group">
+        <h3 id="settings-scale">界面缩放</h3>
+        <div className="settings-controls">
+          <Select<number> value={scale} onValueChange={(value) => { if (value !== null) setScale(value) }}>
+            <SelectTrigger className="btn" aria-labelledby="settings-scale">
+              <SelectValue>{`${scale}%`}</SelectValue>
+            </SelectTrigger>
+            <SelectContent className="settings-scale-options" alignItemWithTrigger={false} sideOffset={4}>
+              {UI_SCALES.map((value) => <SelectItem key={value} value={value}>{`${value}%`}</SelectItem>)}
+            </SelectContent>
+          </Select>
+          <Btn disabled={scale === 100} onClick={() => setScale(100)}>恢复默认</Btn>
         </div>
-      </div>}
-      {confirm && <div className="notice">
-        <p>清除当前进度，从初生森林重新开始？</p>
-        <div className="actions">
-          <Btn className="danger" onClick={() => { reset(); onClose() }}>确认重置</Btn>
-          <Btn onClick={() => setConfirm(false)}>取消</Btn>
+      </section>
+      <section className="settings-group">
+        <h3 id="settings-component-sound">组件音效</h3>
+        <div className="settings-controls">
+          <Switch className="btn" aria-labelledby="settings-component-sound" checked={componentSound} onCheckedChange={setComponentSound} />
         </div>
-      </div>}
-      {status && <p role="status">{status}</p>}
+      </section>
+      <section className="settings-group">
+        <h3>存档</h3>
+        <input ref={fileInput} type="file" accept=".json,application/json" hidden onChange={chooseSave} />
+        <div className="settings-controls">
+          <Btn onClick={exportSave}>导出存档</Btn>
+          <Btn onClick={() => fileInput.current?.click()}>载入存档</Btn>
+          <Btn className="danger" onClick={() => { setConfirm(true); setSelected(null) }}>重置存档</Btn>
+          {onDebug && <Btn onClick={onDebug}>Debug</Btn>}
+        </div>
+        {selected && <Card className="settings-confirmation">
+          <p>用「{selected.name}」覆盖当前进度？</p>
+          <div className="settings-controls">
+            <Btn className="danger" onClick={importSave}>确认载入</Btn>
+            <Btn onClick={() => setSelected(null)}>取消</Btn>
+          </div>
+        </Card>}
+        {confirm && <Card className="settings-confirmation">
+          <p>清除当前进度，从初生森林重新开始？</p>
+          <div className="settings-controls">
+            <Btn className="danger" onClick={() => { reset(); onClose() }}>确认重置</Btn>
+            <Btn onClick={() => setConfirm(false)}>取消</Btn>
+          </div>
+        </Card>}
+        {status && <p className="sm" role="status">{status}</p>}
+      </section>
     </>
   )
 }

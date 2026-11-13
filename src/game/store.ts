@@ -2,7 +2,9 @@ import {
   BARTER_COST, BARTER_OFFERS, EXCAVATION_COST, EXPEDITIONS, LINES, MAX_AIR, NETHER_COST, OFFLINE_LIMIT, PLANTS,
   RESPAWN_COST, ROUTES, SURVEY_COST, TRIAL_VAULTS, WATER_BREATHING_SECONDS, WITHER_COST, seasonAt, type ExpeditionDef,
 } from './progression'
+import { getAchievement, getCompletedAchievements } from './advancements'
 import { decodeSave, encodeSave, normalizeSave, SAVE_KEY, SAVE_VERSION, snapshot } from './save'
+import { LOG_LIMIT, logOfflineSettlement, pushLog, type LogEntry } from './log'
 import { current } from 'immer'
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
@@ -15,8 +17,6 @@ import {
 
 export interface Loc { id: number; biome: string; name: string; res: Bag; saved: boolean; shelter: boolean }
 export interface Village { villagers: number; jobs: Bag; buildings: Bag; rep: number; founded: boolean; mayor: boolean }
-export type LogKind = 'info' | 'good' | 'bad' | 'event'
-export interface LogEntry { id: number; text: string; kind: LogKind }
 export interface Combat {
   mob: string
   hp: number
@@ -49,6 +49,7 @@ export interface GameState {
   cds: Record<string, { until: number; dur: number }>
   log: LogEntry[]
   logId: number
+  trackedAchievement: string | null
   flags: Record<string, boolean>
   combat: Combat | null
   furnace: { fuel: number; job: { r: string; left: number; prog: number } | null }
@@ -64,14 +65,13 @@ export interface GameState {
   lines: Bag
   expedition: { id: string; left: number; total?: number; returnBottle?: boolean } | null
   expeditions: Bag
-  offline: { seconds: number; items: Bag; villagers: number; expedition: string | null } | null
 }
 
 export interface GameActions {
   tick(background?: boolean): void
   backup(): string
   restore(text: string): string | null
-  dismissOffline(): void
+  trackAchievement(id: string | null): void
   scout(biome: string): void
   survey(): void
   buildNether(): void
@@ -268,10 +268,6 @@ export const enchantCost = (s: GameState, id: string) => {
 
 // ---------- 内部辅助（作用于 immer draft） ----------
 const rand = (a: number, b: number) => a + Math.floor(Math.random() * (b - a + 1))
-const pushLog = (s: GameState, text: string, kind: LogKind = 'info') => {
-  s.log.unshift({ id: s.logId++, text, kind })
-  if (s.log.length > 80) s.log.length = 80
-}
 const give = (s: GameState, item: string, n: number) => {
   if (n <= 0) return
   s.inv[item] = (s.inv[item] ?? 0) + n
@@ -562,6 +558,7 @@ export const initial = (): GameState => ({
     { id: 0, text: '你在一片陌生的森林中醒来，两手空空。', kind: 'event' },
   ],
   logId: 2,
+  trackedAchievement: null,
   flags: {},
   combat: null,
   furnace: { fuel: 0, job: null },
@@ -577,7 +574,6 @@ export const initial = (): GameState => ({
   lines: {},
   expedition: null,
   expeditions: {},
-  offline: null,
 })
 
 const defaults = initial()
@@ -600,8 +596,9 @@ export const useGame = create<Game>()(
           return
         }
         const offline = background || elapsed > 3
-        // Long catch-up uses a plain copy to avoid per-second proxy overhead.
-        const s = offline && elapsed > 3 ? structuredClone(snapshot(current(draft), defaults)) : draft
+        // Simulate long catch-up on a plain copy and keep the existing log if no entries are added.
+        const previous = offline && elapsed > 3 ? snapshot(current(draft), defaults) : null
+        const s: GameState = previous ? structuredClone({ ...previous, log: [] }) : draft
         if (offline && s.submerged) surface(s, '你已在离开时返回水面。')
         s.lastTick = now - ((now - s.lastTick) % 1000)
         const seconds = Math.min(elapsed, OFFLINE_LIMIT)
@@ -613,23 +610,24 @@ export const useGame = create<Game>()(
           advanceEconomy(s, !offline)
           if (!offline) advancePlayer(s)
         }
-        if (before && ((elapsed >= 5 && (s.flags.inv || s.village)) || s.offline)) {
-          const items: Bag = { ...s.offline?.items }
-          for (const [id, n] of Object.entries(s.inv)) {
+        if (before) {
+          const items: Bag = {}
+          for (const id of new Set([...Object.keys(before), ...Object.keys(s.inv)])) {
             const change = count(s, id) - Math.floor((before[id] ?? 0) + 1e-9)
-            if (change) items[id] = (items[id] ?? 0) + change
+            if (change) items[id] = change
           }
-          const arrivals = (s.village?.villagers ?? 0) - villagers
-          const completed = expedition && !s.expedition ? expedition : s.offline?.expedition ?? null
-          s.offline = {
-            seconds: (s.offline?.seconds ?? 0) + seconds,
+          logOfflineSettlement(s, {
+            seconds,
             items,
-            villagers: (s.offline?.villagers ?? 0) + arrivals,
-            expedition: completed,
-          }
+            villagers: (s.village?.villagers ?? 0) - villagers,
+            expedition: expedition && !s.expedition ? expedition : null,
+          })
         }
         checkUnlocks(s)
-        if (s !== draft) return s
+        if (previous) {
+          s.log = s.log.length ? [...s.log, ...previous.log].slice(0, LOG_LIMIT) : previous.log
+          return s
+        }
       }),
 
       backup: () => encodeSave(get(), defaults),
@@ -639,7 +637,15 @@ export const useGame = create<Game>()(
         set(() => saved)
         return null
       },
-      dismissOffline: () => set((s) => { s.offline = null }),
+      trackAchievement: (id) => set((s) => {
+        if (id !== null) {
+          const entry = getAchievement(id)
+          if (!entry) return
+          const completed = getCompletedAchievements(s)
+          if (completed.has(id) || entry.requires?.some((required) => !completed.has(required))) return
+        }
+        s.trackedAchievement = id
+      }),
 
       dive: () => set((s) => {
         if (!canDiveHere(s) || s.submerged || s.combat || s.air < MAX_AIR) return
@@ -667,6 +673,7 @@ export const useGame = create<Game>()(
         if (loc !== current) leaveLoc(s)
         loc.saved = true
         s.locId = loc.id
+        if (biome === 'trial_chamber') s.flags.trialVisited = true
         s.stats.explored++
         gainXp(s, 2)
         setCd(s, 'move', moveTime(s, 5))
@@ -1043,6 +1050,7 @@ export const useGame = create<Game>()(
         loc.shelter = true
         s.homeId = loc.id
         s.village = { villagers: 4, jobs: { farmer: 2 }, buildings: { house: 3, farm: 1 }, rep: 0, founded: false, mayor: false }
+        s.flags.firstJob = true
         pushLog(s, '你在村庄边缘住了下来。村民们还不太信任你。', 'good')
         unlock(s, 'village', '多与村民交谈、交易，赢得他们的信任。')
       }),

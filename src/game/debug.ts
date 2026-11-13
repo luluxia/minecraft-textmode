@@ -132,7 +132,6 @@ export function simulateDebugOffline(seconds: number) {
   const elapsed = seconds * 1000
   useGame.setState((s) => {
     s.lastTick = Date.now() - elapsed
-    s.offline = null
     for (const cd of Object.values(s.cds)) cd.until = Math.max(0, cd.until - elapsed)
   })
   useGame.getState().tick(true)

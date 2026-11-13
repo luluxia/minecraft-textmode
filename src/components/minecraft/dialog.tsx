@@ -151,11 +151,12 @@ const placeBackground = (element: HTMLElement) => {
   }
 
   const placed = background.getBoundingClientRect();
+  const zoom = bounds.width / element.offsetWidth || 1;
 
   const left =
-    Number(background.dataset.mcLeft ?? 0) + bounds.left - placed.left;
+    Number(background.dataset.mcLeft ?? 0) + (bounds.left - placed.left) / zoom;
 
-  const top = Number(background.dataset.mcTop ?? 0) + bounds.top - placed.top;
+  const top = Number(background.dataset.mcTop ?? 0) + (bounds.top - placed.top) / zoom;
 
   background.dataset.mcLeft = String(left);
   background.dataset.mcTop = String(top);
@@ -205,14 +206,15 @@ const DialogContent = ({
       // oxlint-disable-next-line react/immutability -- This layout-effect painter owns committed DOM measurement/readiness/style updates, not React state or props.
       const logicalWidth = element.offsetWidth / scale;
       const logicalHeight = element.offsetHeight / scale;
+      const zoom = element.getBoundingClientRect().width / element.offsetWidth || 1;
 
       element.style.setProperty(
         "--mc-dialog-left",
-        `${Math.floor((Math.ceil(innerWidth / scale) - logicalWidth) / 2) * scale}px`
+        `${Math.floor((Math.ceil(innerWidth / zoom / scale) - logicalWidth) / 2) * scale}px`
       );
       element.style.setProperty(
         "--mc-dialog-top",
-        `${Math.floor((Math.ceil(innerHeight / scale) - logicalHeight) / 2) * scale}px`
+        `${Math.floor((Math.ceil(innerHeight / zoom / scale) - logicalHeight) / 2) * scale}px`
       );
 
       const bounds = placeBackground(element);
@@ -239,10 +241,10 @@ const DialogContent = ({
 
         const next =
           previous +
-          bounds.left +
+          bounds.left / zoom +
           insetLeft +
-          Math.floor((inside - rect.width / scale) / 2) * scale -
-          rect.left;
+          Math.floor((inside - rect.width / zoom / scale) / 2) * scale -
+          rect.left / zoom;
 
         node.dataset.mcDialogShift = String(next);
         node.style.setProperty("--mc-dialog-item-x", `${next}px`);
