@@ -1,0 +1,15 @@
+{
+  "pack": "Icons Essential Pack",
+  "version": "1.2",
+  "author": "Crusenho (Agus Hennihuno)",
+  "source": "https://crusenho.itch.io/icons-essential-pack-free-icons",
+  "license": "CC BY 4.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by/4.0/",
+  "changes": "Original PNG files, unmodified; displayed at 2x size with pixelated rendering.",
+  "icons": {
+    "Book.png": "图鉴",
+    "Trophy.png": "成就",
+    "Document.png": "统计",
+    "Gear.png": "设置"
+  }
+}

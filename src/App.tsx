@@ -93,16 +93,16 @@ export function App() {
               <Btn className="toolbar-button on" onClick={() => setMenu('debug')}>Debug</Btn>
             )}
             <Button className="btn toolbar-button" aria-label="图鉴" title="图鉴" onClick={() => setMenu('catalog')}>
-              <Texture src={ITEMS.book.icon} />
+              <Texture src="/textures/icons-essential/Book.png" />
             </Button>
             <Button className="btn toolbar-button" aria-label="成就" title="成就" onClick={() => setMenu('achievements')}>
-              <Texture src="/textures/minecraft/challenge_frame_obtained.png" />
+              <Texture src="/textures/icons-essential/Trophy.png" />
             </Button>
             <Button className="btn toolbar-button" aria-label="统计" title="统计" onClick={() => setMenu('stats')}>
-              <Texture src="/textures/minecraft/writable_book.png" />
+              <Texture src="/textures/icons-essential/Document.png" />
             </Button>
             <Button className="btn toolbar-button" aria-label="设置" title="设置" onClick={() => setMenu('settings')}>
-              <Texture src="/textures/minecraft/icon_setting.png" />
+              <Texture src="/textures/icons-essential/Gear.png" />
             </Button>
           </div>
           {!early && <Sidebar />}

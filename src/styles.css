@@ -95,6 +95,14 @@ h1, h2, h3, p { margin: 0; font-weight: normal; }
 /* ---------- 按钮 ---------- */
 .btn { position: relative; overflow: hidden; width: auto; height: auto; min-height: 40px; min-width: 112px; padding: 10px 14px; font-family: var(--font); line-height: 1.5; }
 .btn.mini { min-width: 0; min-height: 28px; padding: 4px 8px; font-size: 14px; }
+.recipe-filters .btn[aria-pressed="true"] .mc-button-label { color: #c0ff94; }
+.recipe-filters .btn[aria-pressed="true"]::after {
+  content: '';
+  position: absolute;
+  inset: 2px;
+  border: 2px solid #c0ff94;
+  pointer-events: none;
+}
 .mc-button { position: relative; display: inline-flex; justify-content: center; align-items: center; }
 .btn.primary .btn-label, .btn.on .btn-label { color: #c0ff94; }
 .btn.danger .btn-label { color: #ffb3a8; }
@@ -167,6 +175,7 @@ body { background: linear-gradient(#0009, #0009), url('/textures/minecraft/dirt.
 .mc-card.panel { padding: 18px; gap: 12px; }
 .mc-card.card { padding: 14px; gap: 8px; }
 .texture { display: inline-block; width: 24px; height: 24px; vertical-align: middle; object-fit: contain; image-rendering: pixelated; flex-shrink: 0; }
+.toolbar-button .texture { width: 32px; height: 32px; }
 .cost .texture { width: 18px; height: 18px; }
 .mob-icon .texture { width: 80px; height: 80px; }
 .mob-icon .combat-mob { width: min(176px, 100%); height: 112px; }
