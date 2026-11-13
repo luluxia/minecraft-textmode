@@ -42,8 +42,9 @@ export function App() {
     const centerMain = () => {
       const layout = layoutRef.current
       const main = layout?.querySelector<HTMLElement>(':scope > .main')
-      if (!layout || !main || !window.matchMedia('(max-width: 960px)').matches) return
-      layout.scrollLeft += main.getBoundingClientRect().left - layout.getBoundingClientRect().left
+      if (!layout || !main || document.documentElement.dataset.uiCompact !== 'true') return
+      const zoom = main.getBoundingClientRect().width / main.offsetWidth
+      layout.scrollLeft += (main.getBoundingClientRect().left - layout.getBoundingClientRect().left) / zoom
         - (layout.clientWidth - main.clientWidth) / 2
     }
     centerMain()

@@ -9,6 +9,7 @@ import { COMPLETED_MONUMENT, EXPLORATION, MONUMENT_GOAL, PROJECTS, STORY, type G
 import { dayOf, useGame } from '../game/store'
 import { Texture } from './Texture'
 import { Btn, ItemName, Section } from './kit'
+import { UI_SCALES, useInterfaceSettings } from './interfaceSettings'
 
 const JOURNAL_TITLES = { catalog: '图鉴', achievements: '成就', stats: '统计', settings: '设置' } as const
 export type GameMenu = keyof typeof JOURNAL_TITLES
@@ -188,6 +189,8 @@ function Achievements() {
 }
 
 function SaveSettings({ onClose, onDebug }: { onClose: () => void; onDebug?: () => void }) {
+  const scale = useInterfaceSettings((s) => s.scale)
+  const setScale = useInterfaceSettings((s) => s.setScale)
   const backup = useGame((s) => s.backup)
   const restore = useGame((s) => s.restore)
   const reset = useGame((s) => s.reset)
@@ -228,6 +231,16 @@ function SaveSettings({ onClose, onDebug }: { onClose: () => void; onDebug?: () 
   }
   return (
     <>
+      <Section title="界面缩放" extra={`${scale}%`}>
+        <div className="ui-scale-control">
+          <select className="ui-scale-select" value={scale} aria-label="界面缩放"
+            onChange={(event) => setScale(Number(event.currentTarget.value))}>
+            {UI_SCALES.map((value) => <option key={value} value={value}>{value}%{value === 100 ? '（默认）' : ''}</option>)}
+          </select>
+          <Btn disabled={scale === 100} onClick={() => setScale(100)}>恢复默认</Btn>
+        </div>
+        <p className="sm dim">调整文字、图像和按钮大小，立即生效并自动记住。</p>
+      </Section>
       <p className="sm dim">进度自动保存在此浏览器。离开后最多结算 {OFFLINE_LIMIT / 3600} 小时，战斗暂停。</p>
       <input ref={fileInput} type="file" accept=".json,application/json" hidden onChange={chooseSave} />
       <div className="actions">
