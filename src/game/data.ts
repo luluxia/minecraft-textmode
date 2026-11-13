@@ -494,13 +494,6 @@ export const BIOMES: Record<string, BiomeDef> = {
   nether_wastes: { id: 'nether_wastes', name: '下界荒地', icon: '/textures/minecraft/netherrack.png', desc: '下界岩下藏着远古残骸，空中传来恶魂的回声。', actions: ['mine_netherrack', 'mine_quartz', 'mine_ancient', 'gather_glowstone', 'hunt_ghast', 'hunt_magma'], res: { quartz: [9, 18], ancient_debris: [6, 10] }, danger: 1.2, weight: 0, nether: true },
   bastion: { id: 'bastion', name: '堡垒遗迹', icon: '/textures/minecraft/blackstone.png', desc: '黑石堆砌的遗迹由猪灵蛮兵驻守。', actions: ['mine_blackstone', 'mine_gold', 'hunt_brute', 'hunt_magma'], res: { gold: [7, 12] }, danger: 0.8, weight: 0, nether: true },
 }
-export const RES_NAMES: Record<string, string> = {
-  seabed: '海床', sunken_sand: '水下可疑的沙子',
-  pig: '猪', cow: '牛', sheep: '羊', coal: '煤矿', iron: '铁矿', gold: '金矿', lapis: '青金石',
-  chicken: '鸡', eggs: '鸡蛋', fleece: '羊毛', nectar: '成熟蜂巢', vegetables: '菜地', jungle_fruit: '丛林果实',
-  berries: '甜浆果', pumpkin: '南瓜', mushrooms: '蘑菇', copper: '铜矿', amethyst: '紫水晶簇', suspicious: '可疑的沙子',
-  quartz: '下界石英矿', ancient_debris: '远古残骸', nether_wart: '下界疣', redstone: '红石', diamond: '钻石', emerald: '绿宝石', obsidian: '黑曜石', wheat: '麦田',
-}
 const NAME_A = ['寂静', '迷雾', '晨曦', '落日', '苍翠', '风鸣', '荒芜', '幽暗', '回声', '霜白', '赤红', '遗忘']
 export const randomLocName = (biome: string) =>
   NAME_A[Math.floor(Math.random() * NAME_A.length)] + BIOMES[biome].name

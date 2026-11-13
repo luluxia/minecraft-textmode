@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/minecraft/tabs'
 import { Button } from '../components/minecraft/button'
 import { Texture } from './Texture'
-import { ACTIONS, BIOMES, EYES_NEEDED, ITEM_LIST, RES_NAMES, ITEMS } from '../game/data'
+import { ACTIONS, BIOMES, EYES_NEEDED, ITEM_LIST, ITEMS } from '../game/data'
 import { BARTER_COST, EXCAVATION_COST, MAX_AIR, NETHER_COST, PLANTS, RESPAWN_COST, ROUTES, SURVEY_COST, TRIAL_VAULTS, WATER_BREATHING_SECONDS, WITHER_COST } from '../game/progression'
 import {
   CAMP_COOK, SHELTER_COST, actionAllowed, actionLock, atHome, canAfford, canBreatheUnderwater, canCampHere, canDiveHere, canSurvey, count, curLoc, hasConduitPower, inNether,
@@ -39,7 +39,6 @@ export function Adventure() {
   const camp = atHome(s) && count(s, 'campfire') > 0
   const foods = ITEM_LIST.filter((i) => i.food && count(s, i.id) > 0)
   const places = Object.values(s.locs).filter((l) => l.id !== s.locId)
-  const resLeft = Object.entries(loc.res)
   const tabs = [
     { id: 'gather', label: '采集', available: true },
     { id: 'map', label: '地图', available: s.flags.explore },
@@ -63,13 +62,6 @@ export function Adventure() {
               {night && !loc.shelter && <span className="tag">夜晚</span>}
             </div>
             <p className="dim sm" style={{ marginTop: 4 }}>{s.submerged ? '沙层间埋着贝壳和沉没的遗物。' : biome.desc}</p>
-            {resLeft.length > 0 && (
-              <div className="row sm" style={{ marginTop: 6 }}>
-                {resLeft.map(([k, n]) => (
-                  <span key={k} className={`tag ${n > 0 ? '' : 'bad'}`}>{RES_NAMES[k] ?? k} 剩余 {n}</span>
-                ))}
-              </div>
-            )}
           </Section>
         )}
 
@@ -95,9 +87,11 @@ export function Adventure() {
             {actions.map((id) => {
               const a = ACTIONS[id]
               const lock = actionLock(s, a)
+              const quantity = a.finite ? `剩余 ${loc.res[a.finite] ?? 0}` : '无限'
+              const detail = lock || (a.diveAir && !breathing ? `空气 −${a.diveAir}` : '')
               return (
                 <Btn key={id} cd={id} disabled={busy || !!lock} onClick={() => s.act(id)}
-                  sub={lock || (a.diveAir && !breathing ? '空气 −' + a.diveAir : undefined)}>
+                  sub={detail ? `${quantity} · ${detail}` : quantity}>
                   {a.name}
                 </Btn>
               )
