@@ -3,16 +3,15 @@ import { TabCard, Tabs, TabsList, TabsTrigger, TabsContent } from './components/
 import { GameDialog } from './ui/GameDialog'
 import { Card } from './components/minecraft/card'
 import { Button } from './components/minecraft/button'
-import { AdventureImage } from './components/minecraft/minecraft-adventure-image'
 import { Texture } from './ui/Texture'
-import { useEffect, useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { ITEM_CATEGORIES, ITEM_LIST, ITEMS, MOBS, villageLevel } from './game/data'
 import { canBreatheUnderwater, combatMaxHp, count, dayOf, hourOf, isNight, production, useGame, villageCap } from './game/store'
 import { Adventure } from './ui/Adventure'
-import { AirStatus, PlayerHud } from './ui/PlayerHud'
+import { PlayerHud } from './ui/PlayerHud'
 import { Crafting } from './ui/Crafting'
 import { Village } from './ui/Village'
-import { Bar, Btn } from './ui/kit'
+import { Btn } from './ui/kit'
 import { CurrentGoal, JournalModal, OfflineReport, type GameMenu } from './ui/GameJournal'
 import { MAX_AIR, seasonAt } from './game/progression'
 import { DebugPanel } from './ui/DebugPanel'
@@ -24,6 +23,7 @@ const WEATHER = {
 } as const
 
 export function App() {
+  const layoutRef = useRef<HTMLDivElement>(null)
   const flags = useGame((s) => s.flags)
   const villagers = useGame((s) => s.village?.villagers ?? null)
   const showAir = useGame((s) => s.submerged || s.air < MAX_AIR)
@@ -37,6 +37,19 @@ export function App() {
     setWorldRevision((revision) => revision + 1)
     closeMenu()
   }
+
+  useLayoutEffect(() => {
+    const centerMain = () => {
+      const layout = layoutRef.current
+      const main = layout?.querySelector<HTMLElement>(':scope > .main')
+      if (!layout || !main || !window.matchMedia('(max-width: 960px)').matches) return
+      layout.scrollLeft += main.getBoundingClientRect().left - layout.getBoundingClientRect().left
+        - (layout.clientWidth - main.clientWidth) / 2
+    }
+    centerMain()
+    window.addEventListener('resize', centerMain)
+    return () => window.removeEventListener('resize', centerMain)
+  }, [])
 
   useEffect(() => {
     const tick = (background: boolean) => useGame.getState().tick(background)
@@ -60,7 +73,7 @@ export function App() {
 
   return (
     <div className="app">
-      <div className={`layout ${early ? 'early' : ''}`}>
+      <div ref={layoutRef} className={`layout ${early ? 'early' : ''}`} tabIndex={0} aria-label="游戏区域，可左右滚动查看日志、冒险和物资">
         <div className="sidebar-column sidebar-left">
           {flags.explore && <Clock />}
           <CurrentGoal />
@@ -208,29 +221,25 @@ function CombatModal() {
   const food = ITEM_LIST.filter((i) => i.food && i.id !== 'rotten' && count(s, i.id) > 0).sort((a, b) => b.food! - a.food!)[0]
   const maxHp = combatMaxHp(c)
   const mobHealth = `${Math.max(0, c.hp)} / ${maxHp}`
-  const playerHealth = `${Math.ceil(s.hp)} / 20`
+  const mobHp = Math.min(maxHp, Math.max(0, c.hp))
   const interval = c.boss ? 4 : 3
   const fireWard = (s.cds.fire_ward?.until ?? 0) > Date.now()
   return (
-    <GameDialog label="战斗">
-      <div key={c.hp} className="mob-icon shake"><Texture src={m.icon} className="combat-mob" /></div>
+    <GameDialog label="战斗" className="combat-dialog" scrollable={false}>
       <div className="combat-health">
-        <div className="spread">
+        <div className="combat-mob-health spread" role="meter" aria-label={`${m.name}生命值`}
+          aria-valuemin={0} aria-valuemax={maxHp} aria-valuenow={mobHp} aria-valuetext={mobHealth}
+          style={{ backgroundSize: `${mobHp / maxHp * 100}% 100%` }}>
           <div className="row"><h2>{m.name}</h2>{c.boss && <span className="tag y">首领</span>}</div>
           <span className="sm">{mobHealth}</span>
         </div>
-        <Bar value={c.hp} max={maxHp} color="#8d3fbf" label={`${m.name}生命值`} valueText={mobHealth} />
-        {m.atk > 0 && <p className="sm dim">距下一次攻击 {interval - (c.turn % interval)} 秒</p>}
       </div>
-      <div className="combat-health">
-        <div className="spread sm">
-          <span className="icon-text"><AdventureImage texture="gui/sprites/hud/heart/full" scale={2} /> 你</span>
-          <span>{playerHealth}</span>
-        </div>
-        <Bar value={s.hp} max={20} color="#c8402f" label="玩家生命值" valueText={playerHealth} />
-        {s.submerged && <AirStatus state={s} />}
-      </div>
-      <div className="combat-lines">{c.lines.map((l, i) => <p key={c.lines.length - i}>{l}</p>)}</div>
+      <div key={c.hp} className="mob-icon shake"><Texture src={m.icon} className="combat-mob" /></div>
+      {m.atk > 0 && <p className="sm dim">距下一次攻击 {interval - (c.turn % interval)} 秒</p>}
+      <PlayerHud />
+      <ScrollArea className="combat-lines" tabIndex={0} role="region" aria-label="战斗日志">
+        {c.lines.map((l, i) => <p key={c.lines.length - i}>{l}</p>)}
+      </ScrollArea>
       <div className="actions">
         <Btn cd="attack" className="primary" onClick={c.crystals ? s.breakCrystal : s.attack}
           sub={c.crystals ? '剩余 ' + c.crystals + ' 座' : undefined}>{c.crystals ? '击碎末地水晶' : '攻击'}</Btn>
