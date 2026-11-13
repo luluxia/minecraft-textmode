@@ -57,12 +57,12 @@ h1, h2, h3, p { margin: 0; font-weight: normal; }
   .app { padding: 8px; }
   .layout, .layout.early {
     --layout-height: max(240px, calc(100dvh - 16px));
-    grid-template-columns: repeat(3, 100%);
+    grid-template-columns: repeat(3, calc(100vw - 32px));
     justify-content: start;
     width: 100%;
     height: var(--layout-height);
     flex: none;
-    padding: 0;
+    padding: 0 8px;
     overflow-x: auto;
     overflow-y: hidden;
     scroll-snap-type: x mandatory;
