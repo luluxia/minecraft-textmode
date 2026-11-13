@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 
 const SCALE_KEY = 'block-idle-ui-scale'
+const COMPONENT_SOUND_KEY = 'block-idle-component-sound'
 export const UI_SCALES = [75, 90, 100, 110, 125, 150] as const
 export const UI_SCALE_MIN = UI_SCALES[0]
 export const UI_SCALE_MAX = UI_SCALES[UI_SCALES.length - 1]
@@ -16,15 +17,30 @@ function readScale() {
   }
 }
 
+function readComponentSound() {
+  try {
+    return localStorage.getItem(COMPONENT_SOUND_KEY) !== 'off'
+  } catch {
+    return true
+  }
+}
+
 export const useInterfaceSettings = create<{
   scale: number
   setScale: (scale: number) => void
+  componentSound: boolean
+  setComponentSound: (enabled: boolean) => void
 }>((set) => ({
   scale: readScale(),
   setScale: (scale) => {
     if (!validScale(scale)) return
     set({ scale })
     try { localStorage.setItem(SCALE_KEY, String(scale)) } catch { /* Still apply when storage is unavailable. */ }
+  },
+  componentSound: readComponentSound(),
+  setComponentSound: (enabled) => {
+    set({ componentSound: enabled })
+    try { localStorage.setItem(COMPONENT_SOUND_KEY, enabled ? 'on' : 'off') } catch { /* Still apply when storage is unavailable. */ }
   },
 }))
 

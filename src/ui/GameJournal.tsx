@@ -1,10 +1,12 @@
 import { useRef, useState, type ChangeEvent } from 'react'
 import { Card } from '../components/minecraft/card'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/minecraft/select'
+import { Switch } from '../components/minecraft/switch'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/minecraft/tabs'
 import { GameDialog } from './GameDialog'
 import { useScrollReset } from './ScrollArea'
 import { ITEM_CATEGORIES, ITEM_LIST, ITEMS } from '../game/data'
-import { EXPEDITIONS, OFFLINE_LIMIT } from '../game/progression'
+import { EXPEDITIONS } from '../game/progression'
 import { COMPLETED_MONUMENT, EXPLORATION, MONUMENT_GOAL, PROJECTS, STORY, type GoalHint, type GoalTerm } from '../game/advancements'
 import { dayOf, useGame } from '../game/store'
 import { Texture } from './Texture'
@@ -85,8 +87,9 @@ export function JournalModal({ menu, onClose, onDebug }: {
 }) {
   const s = useGame()
   const title = JOURNAL_TITLES[menu]
+  const dialogClass = menu === 'catalog' || menu === 'settings' ? `${menu}-dialog` : undefined
   return (
-    <GameDialog label={title} onClose={onClose} className={menu === 'catalog' ? 'catalog-dialog' : undefined}>
+    <GameDialog label={title} onClose={onClose} className={dialogClass}>
       <h2>{title}</h2>
       {menu === 'catalog' && <ItemCatalog />}
       {menu === 'settings' && <SaveSettings onClose={onClose} onDebug={onDebug} />}
@@ -191,6 +194,8 @@ function Achievements() {
 function SaveSettings({ onClose, onDebug }: { onClose: () => void; onDebug?: () => void }) {
   const scale = useInterfaceSettings((s) => s.scale)
   const setScale = useInterfaceSettings((s) => s.setScale)
+  const componentSound = useInterfaceSettings((s) => s.componentSound)
+  const setComponentSound = useInterfaceSettings((s) => s.setComponentSound)
   const backup = useGame((s) => s.backup)
   const restore = useGame((s) => s.restore)
   const reset = useGame((s) => s.reset)
@@ -231,39 +236,51 @@ function SaveSettings({ onClose, onDebug }: { onClose: () => void; onDebug?: () 
   }
   return (
     <>
-      <Section title="界面缩放" extra={`${scale}%`}>
-        <div className="ui-scale-control">
-          <select className="ui-scale-select" value={scale} aria-label="界面缩放"
-            onChange={(event) => setScale(Number(event.currentTarget.value))}>
-            {UI_SCALES.map((value) => <option key={value} value={value}>{value}%{value === 100 ? '（默认）' : ''}</option>)}
-          </select>
+      <section className="settings-group">
+        <h3 id="settings-scale">界面缩放</h3>
+        <div className="settings-controls">
+          <Select<number> value={scale} onValueChange={(value) => { if (value !== null) setScale(value) }}>
+            <SelectTrigger className="btn" aria-labelledby="settings-scale">
+              <SelectValue>{`${scale}%`}</SelectValue>
+            </SelectTrigger>
+            <SelectContent className="settings-scale-options" alignItemWithTrigger={false} sideOffset={4}>
+              {UI_SCALES.map((value) => <SelectItem key={value} value={value}>{`${value}%`}</SelectItem>)}
+            </SelectContent>
+          </Select>
           <Btn disabled={scale === 100} onClick={() => setScale(100)}>恢复默认</Btn>
         </div>
-        <p className="sm dim">调整文字、图像和按钮大小，立即生效并自动记住。</p>
-      </Section>
-      <p className="sm dim">进度自动保存在此浏览器。离开后最多结算 {OFFLINE_LIMIT / 3600} 小时，战斗暂停。</p>
-      <input ref={fileInput} type="file" accept=".json,application/json" hidden onChange={chooseSave} />
-      <div className="actions">
-        <Btn onClick={exportSave}>导出存档</Btn>
-        <Btn onClick={() => fileInput.current?.click()}>选择存档文件</Btn>
-        <Btn className="danger" onClick={() => { setConfirm(true); setSelected(null) }}>重置存档</Btn>
-        {onDebug && <Btn onClick={onDebug}>Debug</Btn>}
-      </div>
-      {selected && <div className="notice">
-        <p>用「{selected.name}」覆盖当前进度？</p>
-        <div className="actions">
-          <Btn className="danger" onClick={importSave}>确认载入</Btn>
-          <Btn onClick={() => setSelected(null)}>取消</Btn>
+      </section>
+      <section className="settings-group">
+        <h3 id="settings-component-sound">组件音效</h3>
+        <div className="settings-controls">
+          <Switch className="btn" aria-labelledby="settings-component-sound" checked={componentSound} onCheckedChange={setComponentSound} />
         </div>
-      </div>}
-      {confirm && <div className="notice">
-        <p>清除当前进度，从初生森林重新开始？</p>
-        <div className="actions">
-          <Btn className="danger" onClick={() => { reset(); onClose() }}>确认重置</Btn>
-          <Btn onClick={() => setConfirm(false)}>取消</Btn>
+      </section>
+      <section className="settings-group">
+        <h3>存档</h3>
+        <input ref={fileInput} type="file" accept=".json,application/json" hidden onChange={chooseSave} />
+        <div className="settings-controls">
+          <Btn onClick={exportSave}>导出存档</Btn>
+          <Btn onClick={() => fileInput.current?.click()}>载入存档</Btn>
+          <Btn className="danger" onClick={() => { setConfirm(true); setSelected(null) }}>重置存档</Btn>
+          {onDebug && <Btn onClick={onDebug}>Debug</Btn>}
         </div>
-      </div>}
-      {status && <p role="status">{status}</p>}
+        {selected && <Card className="settings-confirmation">
+          <p>用「{selected.name}」覆盖当前进度？</p>
+          <div className="settings-controls">
+            <Btn className="danger" onClick={importSave}>确认载入</Btn>
+            <Btn onClick={() => setSelected(null)}>取消</Btn>
+          </div>
+        </Card>}
+        {confirm && <Card className="settings-confirmation">
+          <p>清除当前进度，从初生森林重新开始？</p>
+          <div className="settings-controls">
+            <Btn className="danger" onClick={() => { reset(); onClose() }}>确认重置</Btn>
+            <Btn onClick={() => setConfirm(false)}>取消</Btn>
+          </div>
+        </Card>}
+        {status && <p className="sm" role="status">{status}</p>}
+      </section>
     </>
   )
 }
