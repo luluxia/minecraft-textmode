@@ -371,8 +371,6 @@ body, button, input, select, textarea,
 .scroll-area[data-scroll-below="true"] { --scroll-fade-bottom: 22px; }
 .scroll-content { min-width: 0; display: flow-root; }
 
-.offline-report { margin-bottom: 8px; }
-.offline-report p { margin: 4px 0 0; overflow-wrap: anywhere; }
 .achievement-progress { margin-bottom: 6px; }
 .catalog-grid { --entry-width: 144px; margin: 0; padding: 0; list-style: none; }
 .achievement-list { display: grid; gap: 8px; padding: 0; margin: 0; list-style: none; }

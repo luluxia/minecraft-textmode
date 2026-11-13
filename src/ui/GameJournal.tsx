@@ -5,7 +5,7 @@ import { Switch } from '../components/minecraft/switch'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/minecraft/tabs'
 import { GameDialog } from './GameDialog'
 import { useScrollReset } from './ScrollArea'
-import { ITEM_CATEGORIES, ITEM_LIST, ITEMS } from '../game/data'
+import { ITEM_CATEGORIES, ITEM_LIST } from '../game/data'
 import { EXPEDITIONS } from '../game/progression'
 import { COMPLETED_MONUMENT, EXPLORATION, MONUMENT_GOAL, PROJECTS, STORY, type GoalHint, type GoalTerm } from '../game/advancements'
 import { dayOf, useGame } from '../game/store'
@@ -54,30 +54,6 @@ function GoalLabel({ term, label = term.name }: { term: GoalTerm; label?: string
 
 function GoalText({ hint }: { hint: GoalHint }) {
   return hint.map((part, index) => typeof part === 'string' ? part : <GoalLabel key={index} term={part} />)
-}
-
-export function OfflineReport() {
-  const report = useGame((s) => s.offline)
-  const dismiss = useGame((s) => s.dismissOffline)
-  if (!report) return null
-  const changes = Object.entries(report.items).filter(([, n]) => n)
-  const trip = EXPEDITIONS.find((entry) => entry.id === report.expedition)
-  const hours = Math.floor(report.seconds / 3600)
-  const minutes = Math.floor((report.seconds % 3600) / 60)
-  const seconds = report.seconds % 60
-  const duration = [hours && hours + ' 小时', minutes && minutes + ' 分钟', seconds && seconds + ' 秒'].filter(Boolean).join(' ')
-  return (
-    <aside className="notice offline-report" aria-label="离线结算">
-      <div className="spread">
-        <strong>离线结算 · {duration}</strong>
-        <Btn className="mini" onClick={dismiss}>收起</Btn>
-      </div>
-      {changes.length > 0 && <p>{changes.map(([id, n]) => ITEMS[id].name + ' ' + (n > 0 ? '+' : '') + n).join('，')}</p>}
-      {report.villagers > 0 && <p>新搬入的村民 +{report.villagers}</p>}
-      {trip && <p>{trip.region === 'camp' ? '孵化完成' : '远征归来'} · {trip.name}</p>}
-      {!changes.length && !report.villagers && !trip && <p>这段时间没有物资变化。</p>}
-    </aside>
-  )
 }
 
 export function JournalModal({ menu, onClose, onDebug }: {

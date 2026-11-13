@@ -12,7 +12,7 @@ import { PlayerHud } from './ui/PlayerHud'
 import { Crafting } from './ui/Crafting'
 import { Village } from './ui/Village'
 import { Btn } from './ui/kit'
-import { CurrentGoal, JournalModal, OfflineReport, type GameMenu } from './ui/GameJournal'
+import { CurrentGoal, JournalModal, type GameMenu } from './ui/GameJournal'
 import { MAX_AIR, seasonAt } from './game/progression'
 import { DebugPanel } from './ui/DebugPanel'
 
@@ -94,7 +94,6 @@ export function App() {
             {tabs.map(([id]) => (
               <TabsContent key={id} value={id} keepMounted className="main-tab-content">
                 <ScrollArea className="main-scroll" tabIndex={0} aria-label="滚动主区域">
-                  <OfflineReport />
                   {id === 'adventure' ? <Adventure /> : id === 'crafting' ? <Crafting /> : <Village />}
                 </ScrollArea>
               </TabsContent>
