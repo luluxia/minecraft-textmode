@@ -15,6 +15,14 @@ export function Adventure() {
   const s = useGame()
   const [tab, setTab] = useState('gather')
   const resetScroll = useScrollReset()
+  const moveFromMap = (move: () => void) => {
+    const previousLocation = useGame.getState().locId
+    move()
+    if (useGame.getState().locId !== previousLocation) {
+      resetScroll()
+      setTab('gather')
+    }
+  }
   const loc = curLoc(s)
   const biome = BIOMES[loc.biome]
   const tier = pickTier(s)
@@ -111,11 +119,11 @@ export function Adventure() {
         </Section> : (
         <Section title="移动" extra={loc.name}>
           <div className="actions move-actions">
-            {!nether && <Btn cd="move" disabled={busy} onClick={s.explore} sub={!loc.saved && !loc.shelter ? '将丢失当前地点' : '随机前往新地点'}>
+            {!nether && <Btn cd="move" disabled={busy} onClick={() => moveFromMap(s.explore)} sub={!loc.saved && !loc.shelter ? '将丢失当前地点' : '随机前往新地点'}>
               探索
             </Btn>}
             {routes.map((route) => (
-              <Btn key={route.biome} cd="move" disabled={busy || !scoutAllowed(s, route.biome)} onClick={() => s.scout(route.biome)}
+              <Btn key={route.biome} cd="move" disabled={busy || !scoutAllowed(s, route.biome)} onClick={() => moveFromMap(() => s.scout(route.biome))}
                 sub={routeReady(s, route) ? '首次到达后记住路线' : '需要' + route.requirement}>
                 {route.name}
               </Btn>
@@ -124,7 +132,7 @@ export function Adventure() {
               <Btn onClick={s.saveLoc} sub="写入地图">记录地点</Btn>
             )}
             {places.filter((l) => !nether || l.shelter || inNether(l)).map((l) => (
-              <Btn key={l.id} cd="move" disabled={busy || !travelAllowed(s, l)} onClick={() => s.travel(l.id)}
+              <Btn key={l.id} cd="move" disabled={busy || !travelAllowed(s, l)} onClick={() => moveFromMap(() => s.travel(l.id))}
                 sub={l.shelter ? '回家' : !travelAllowed(s, l) ? '从家的传送门进入' : BIOMES[l.biome].name}>
                 <Texture src={BIOMES[l.biome].icon} /> {l.name}
               </Btn>

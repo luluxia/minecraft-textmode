@@ -85,7 +85,7 @@ export function JournalModal({ menu, onClose, onDebug }: {
   const s = useGame()
   const title = JOURNAL_TITLES[menu]
   return (
-    <GameDialog label={title} onClose={onClose}>
+    <GameDialog label={title} onClose={onClose} className={menu === 'catalog' ? 'catalog-dialog' : undefined}>
       <h2>{title}</h2>
       {menu === 'catalog' && <ItemCatalog />}
       {menu === 'settings' && <SaveSettings onClose={onClose} onDebug={onDebug} />}

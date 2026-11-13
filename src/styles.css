@@ -47,22 +47,33 @@ h1, h2, h3, p { margin: 0; font-weight: normal; }
 .sky-marker[data-night="true"] { background-image: url('/textures/minecraft/moon_phases.png'); background-size: 400% 200%; background-position: 66.6667% 0; }
 .layout { --layout-height: max(240px, calc(100dvh - 32px)); --column-heading-height: 48px; display: grid; grid-template-columns: 270px minmax(0, 1fr) 300px; gap: 12px; align-items: start; align-content: start; flex: 1; }
 .sidebar-column { display: flex; flex-direction: column; gap: 12px; min-width: 0; max-height: var(--layout-height); }
-.toolbar { display: flex; gap: 6px; align-self: end; justify-self: end; }
+.toolbar { display: flex; gap: 6px; width: 100%; justify-content: center; }
 .btn.toolbar-button { width: var(--column-heading-height); height: var(--column-heading-height); min-width: 0; min-height: 0; padding: 0; }
 .layout.early { --layout-height: max(240px, calc(100dvh - 100px)); grid-template-columns: minmax(0, 420px); justify-content: center; padding-top: 12vh; }
 .layout.early .sidebar-right { order: -1; }
 .layout.early .sidebar-left { order: 3; }
 .layout.early .log { max-height: 40vh; }
 @media (max-width: 960px) {
-  .layout, .layout.early { --layout-height: max(240px, calc(100dvh - 180px)); }
-  .layout { grid-template-columns: minmax(0, 1fr); }
-  .sidebar-column { max-height: none; }
-  .sidebar-right { display: contents; }
-  .toolbar { order: -1; }
-  .layout .main { order: 1; }
-  .layout .side { order: 2; }
-  .sidebar-left { order: 3; }
-  .layout .log { max-height: 280px; }
+  .app { padding: 8px; }
+  .layout, .layout.early {
+    --layout-height: max(240px, calc(100dvh - 16px));
+    grid-template-columns: repeat(3, calc(100vw - 32px));
+    justify-content: start;
+    width: 100%;
+    height: var(--layout-height);
+    flex: none;
+    padding: 0 8px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    scroll-snap-type: x mandatory;
+    overscroll-behavior-x: contain;
+    scrollbar-width: none;
+  }
+  .layout::-webkit-scrollbar { display: none; }
+  .layout > .main, .layout > .sidebar-column, .layout.early > .sidebar-column { order: 0; scroll-snap-align: center; }
+  .layout .sidebar-column { height: var(--layout-height); }
+  .layout .log, .layout .side, .layout.early .log { flex: 1; max-height: none; }
+  .layout .scroll-area { overscroll-behavior-x: auto; }
 }
 @media (width > 960px) {
   .layout:not(.early) :is(.clock, .mc-tabs-list.tabs) { min-height: var(--column-heading-height); }
@@ -182,13 +193,38 @@ body { background: linear-gradient(#0009, #0009), url('/textures/minecraft/dirt.
 .mc-tabs-list.tabs, .mc-tabs-list.subtabs { width: 100%; margin-bottom: 12px; border: 0; gap: 0; }
 .mc-tabs-content { padding: 0; background: transparent; }
 .mc-tabs-trigger { cursor: pointer; }
-.game-dialog { width: min(500px, calc(100vw - 24px)); max-height: 90dvh; overflow: hidden; font-family: var(--font); line-height: 1.5; }
+.game-dialog { width: min(500px, calc(100vw - 24px)); max-height: 90dvh; padding: 12px; overflow: hidden; font-family: var(--font); line-height: 1.5; }
 .dialog-scroll { flex: 0 1 auto; min-height: 0; width: 100%; max-height: 720px; overflow-wrap: anywhere; }
-.game-dialog .modal { padding: 8px; width: 100%; }
+.catalog-dialog { height: min(720px, 90dvh); }
+.catalog-dialog .dialog-scroll { flex: 1; max-height: none; }
+.combat-dialog { height: min(640px, 90dvh); }
+.game-dialog .modal { padding: 0; width: 100%; }
 .game-dialog .modal > .section { margin-top: 0; }
 .game-dialog .modal > .mc-surface { display: none; }
+.combat-dialog .modal { flex: 1; min-height: 0; align-items: stretch; justify-content: space-between; gap: 8px; overflow: hidden; overflow-wrap: anywhere; }
+.combat-dialog .modal > * { flex-shrink: 0; }
+.combat-dialog .combat-health { width: 100%; }
+.combat-dialog .mob-icon { width: 100%; }
+.combat-dialog .combat-mob { display: block; height: 80px; margin-inline: auto; }
+.combat-dialog .combat-health > .spread { flex-wrap: wrap; }
+.combat-dialog .combat-health > .spread > .sm { white-space: nowrap; }
+.combat-mob-health { min-height: 44px; padding: 8px 12px; border: 2px solid #76a957; background-color: #1d2918; background-image: linear-gradient(#3f702b, #3f702b); background-repeat: no-repeat; }
+.combat-dialog .player-status { width: 100%; }
+.combat-dialog .modal > p { text-align: center; }
+.combat-dialog .combat-lines { width: 100%; height: 72px; min-height: 0; flex: 0 0 72px; line-height: 20px; text-align: center; mask-image: none; }
+.combat-dialog .combat-lines > .scroll-content { display: flex; flex-direction: column; gap: 6px; }
+.combat-dialog .actions { width: 100%; display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 112px), 1fr)); gap: 8px; }
+.combat-dialog .actions > .btn { width: 100%; min-width: 0; padding: 8px; }
+@media (max-height: 700px) {
+  .combat-dialog .modal { gap: 6px; }
+  .combat-dialog .combat-mob { height: 48px; }
+  .combat-dialog .player-status { padding-block: 6px; }
+  .combat-dialog .actions { gap: 6px; }
+  .combat-dialog .actions > .btn { padding: 4px 6px; }
+  .combat-dialog .btn-sub { font-size: 12px; line-height: 16px; }
+}
 .main, .panel, .card { min-width: 0; }
-@media (max-width: 480px) { .app { padding: 8px; } .cards { grid-template-columns: minmax(0,1fr); } .mc-card.panel { padding: 12px; } }
+@media (max-width: 480px) { .cards { grid-template-columns: minmax(0,1fr); } }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; } }
 
 .mc-tabs { width: 100%; min-width: 0; font-family: var(--font); line-height: 1.5; }
@@ -243,6 +279,9 @@ body, button, input, select, textarea,
 .hud-level { position: absolute; inset: 0; display: grid; place-items: center; color: #80ff20; font-size: 20px; line-height: 20px; text-shadow: 2px 0 #102900, -2px 0 #102900, 0 2px #102900, 0 -2px #102900; pointer-events: none; }
 @container (max-width: 364px) {
   .player-hud { zoom: .75; }
+}
+@container (max-width: 273px) {
+  .player-hud { zoom: .625; }
 }
 
 /* One outer frame; compact records inside it that size to their content. */
@@ -347,3 +386,13 @@ body, button, input, select, textarea,
 .goal-term[data-tone="danger"] { color: #f0a89f; }
 .goal-term[data-tone="project"] { color: #adc8ff; }
 .goal-term[data-tone="special"] { color: #d8b6ff; }
+
+@media (max-width: 960px) {
+  .mc-card.panel { padding: 20px; }
+  .content-entry { padding: 12px; gap: 8px; }
+  .entry-grid, .main-scroll .actions { gap: 10px; }
+  .main-scroll .section { margin-top: 20px; }
+  .main-scroll .section:first-child { margin-top: 0; }
+  .main-scroll .section > h3 { margin-bottom: 10px; }
+  .inv-row { padding-block: 4px; }
+}

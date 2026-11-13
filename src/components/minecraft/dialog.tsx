@@ -5,7 +5,6 @@ import * as React from "react";
 
 import { Button } from "./button";
 import { minecraftCardSprite } from "./minecraft-card-sprite";
-import { MinecraftDialogBackdrop } from "./minecraft-dialog-backdrop";
 import {
   DialogLayoutContext,
   MinecraftDialogText,
@@ -121,13 +120,6 @@ const DialogOverlay = ({
   render,
   ...props
 }: MinecraftProps<typeof DialogPrimitive.Backdrop>) => {
-  const content = (
-    <>
-      <MinecraftDialogBackdrop />
-      {children}
-    </>
-  );
-
   return (
     <DialogPrimitive.Backdrop
       render={render}
@@ -135,7 +127,7 @@ const DialogOverlay = ({
       className={cn(`mc-dialog-overlay`, className)}
       {...props}
     >
-      {content}
+      {children}
     </DialogPrimitive.Backdrop>
   );
 };

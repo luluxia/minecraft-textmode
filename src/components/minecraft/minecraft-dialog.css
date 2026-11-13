@@ -9,9 +9,6 @@
       rgba(16, 16, 16, 0.8156862745098039)
     );
   }
-  .mc-dialog-overlay[data-mc-backdrop-ready="true"] {
-    background: transparent;
-  }
   .mc-dialog-content {
     --mc-pixel: calc(1px * var(--mc-scale, 2));
     position: fixed;
