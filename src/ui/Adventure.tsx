@@ -87,11 +87,11 @@ export function Adventure() {
             {actions.map((id) => {
               const a = ACTIONS[id]
               const lock = actionLock(s, a)
-              const quantity = a.finite ? `剩余 ${loc.res[a.finite] ?? 0}` : '无限'
+              const quantity = a.finite ? `剩余 ${loc.res[a.finite] ?? 0}` : ''
               const detail = lock || (a.diveAir && !breathing ? `空气 −${a.diveAir}` : '')
               return (
                 <Btn key={id} cd={id} disabled={busy || !!lock} onClick={() => s.act(id)}
-                  sub={detail ? `${quantity} · ${detail}` : quantity}>
+                  sub={[quantity, detail].filter(Boolean).join(' · ')}>
                   {a.name}
                 </Btn>
               )
