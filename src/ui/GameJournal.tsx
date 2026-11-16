@@ -70,10 +70,8 @@ export function JournalModal({ menu, onClose, onDebug }: {
 }) {
   const s = useGame()
   const title = JOURNAL_TITLES[menu]
-  const dialogClass = menu === 'stats' ? undefined : `${menu}-dialog`
   return (
-    <GameDialog label={title} onClose={onClose} className={dialogClass}>
-      <h2>{title}</h2>
+    <GameDialog label={title} onClose={onClose} className={`journal-dialog ${menu}-dialog`} showHeader>
       {menu === 'catalog' && <ItemCatalog />}
       {menu === 'settings' && <SaveSettings onClose={onClose} onDebug={onDebug} />}
       {menu === 'achievements' && <Achievements />}
@@ -90,7 +88,6 @@ export function JournalModal({ menu, onClose, onDebug }: {
           </div>
         ))}
       </dl>}
-      <div className="actions"><Btn onClick={onClose}>关闭</Btn></div>
     </GameDialog>
   )
 }

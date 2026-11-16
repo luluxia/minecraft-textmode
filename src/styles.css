@@ -53,10 +53,6 @@ h1, h2, h3, p { margin: 0; font-weight: normal; }
 .sidebar-column { display: flex; flex-direction: column; gap: 12px; min-width: 0; max-height: var(--layout-height); }
 .toolbar { display: flex; gap: 6px; width: 100%; justify-content: center; }
 .btn.toolbar-button { width: var(--column-heading-height); height: var(--column-heading-height); min-width: 0; min-height: 0; padding: 0; }
-.layout.early { --layout-height: max(240px, calc(var(--ui-vh) - 100px)); grid-template-columns: minmax(0, 420px); justify-content: center; padding-top: calc(var(--ui-vh) * .12); }
-.layout.early .sidebar-right { order: -1; }
-.layout.early .sidebar-left { order: 3; }
-.layout.early .log { max-height: calc(var(--ui-vh) * .4); }
 :root[data-ui-compact="true"] {
   .app { padding: 8px; }
   .layout, .layout.early {
@@ -134,7 +130,6 @@ h1, h2, h3, p { margin: 0; font-weight: normal; }
 .settings-controls { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
 .settings-controls > .btn { width: 100%; min-width: 0; min-height: 44px; padding: 8px 6px; }
 .settings-confirmation.mc-card { min-width: 0; gap: 8px; padding: 12px; }
-.settings-dialog .modal > .actions { justify-content: flex-end; }
 .settings-scale-options {
   width: var(--anchor-width);
   max-width: calc(var(--ui-vw) - 20px);
@@ -214,12 +209,25 @@ body { background: linear-gradient(#0009, #0009), url('/textures/minecraft/dirt.
 .mc-tabs-trigger { cursor: pointer; }
 .game-dialog { width: min(500px, calc(var(--ui-vw) - 24px)); max-width: calc(var(--ui-vw) - 24px); max-height: calc(var(--ui-vh) * .9); padding: 12px; overflow: hidden; font-family: var(--font); line-height: 1.5; }
 .dialog-scroll { flex: 0 1 auto; min-height: 0; width: 100%; max-height: 720px; overflow-wrap: anywhere; }
-:is(.catalog-dialog, .achievements-dialog) { height: min(720px, calc(var(--ui-vh) * .9)); }
-:is(.catalog-dialog, .achievements-dialog) .dialog-scroll { flex: 1; max-height: none; }
+.journal-dialog { height: min(720px, calc(var(--ui-vh) * .9)); gap: 16px; }
+.journal-dialog .dialog-scroll { flex: 1; max-height: none; }
+.game-dialog-header { display: flex; align-items: center; justify-content: space-between; gap: 16px; width: 100%; flex-shrink: 0; padding-bottom: 12px; border-bottom: 2px solid var(--line); }
+.game-dialog-header h2 { margin: 0; font-size: 20px; line-height: 1.5; overflow-wrap: anywhere; }
+.game-dialog-header .game-dialog-close { flex-shrink: 0; min-width: 72px; min-height: 44px; }
 .combat-dialog { height: min(640px, calc(var(--ui-vh) * .9)); }
 .game-dialog .modal { padding: 0; width: 100%; }
 .game-dialog .modal > .section { margin-top: 0; }
 .game-dialog .modal > .mc-surface { display: none; }
+.game-dialog.swipe-guide { left: 0; top: 0; width: var(--ui-vw); max-width: none; height: var(--ui-vh); max-height: none; padding: 24px; border: 0; background: var(--bg); overflow-y: auto; }
+.swipe-guide > .mc-dialog-background { display: none; }
+.swipe-guide .modal { min-height: 100%; align-items: center; justify-content: center; }
+.swipe-guide-content { width: min(420px, 100%); display: flex; flex-direction: column; align-items: center; gap: 16px; text-align: center; }
+.swipe-guide-map { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; width: 100%; margin-block: 8px; }
+.swipe-guide-map > span { display: flex; flex-direction: column; justify-content: center; min-height: 100px; border: 2px solid var(--line); background: var(--panel); color: var(--dim); }
+.swipe-guide-map > .swipe-guide-current { border-color: var(--gold); color: var(--text); }
+.swipe-guide-current small { font-size: 12px; color: var(--gold); }
+.swipe-guide-directions { display: flex; flex-direction: column; gap: 12px; }
+.swipe-guide-content > .btn { width: 100%; margin-top: 8px; }
 .combat-dialog .modal { flex: 1; min-height: 0; align-items: stretch; justify-content: space-between; gap: 8px; overflow-x: hidden; overflow-y: auto; overflow-wrap: anywhere; }
 .combat-dialog .modal > * { flex-shrink: 0; }
 .combat-dialog .combat-health { width: 100%; }
@@ -376,8 +384,7 @@ body, button, input, select, textarea,
 .achievement-progress > .bar { flex: 1; }
 .achievement-list { display: grid; gap: 8px; padding: 0; margin: 0; list-style: none; }
 .achievement-tracking { margin-bottom: 10px; }
-.achievements-dialog .modal h2, .achievements-dialog .entry-heading h3 { font: inherit; }
-.achievements-dialog .modal > .actions { justify-content: flex-end; }
+.achievements-dialog .entry-heading h3 { font: inherit; }
 
 .current-goal { flex-shrink: 0; overflow-wrap: anywhere; }
 .mc-card.current-goal { gap: 4px; }
