@@ -1,6 +1,10 @@
+![我的世界：文字模式](public/logo/readme-header.png)
+
 # 我的世界：文字模式
 
 Minecraft 题材的文字增量放置游戏，基于 React、Vite 和 Zustand。采集资源、制作装备、建立村庄，从初生森林一路探索下界与末地，挑战末影龙并建成纪念碑。
+
+**[在线试玩 →](https://mc.llx.life)**
 
 ## 开始运行
 
