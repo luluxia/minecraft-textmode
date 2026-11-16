@@ -11,7 +11,7 @@ import {
 import { Btn, Cost, EntryHeader, Section, bagText } from './kit'
 import { useScrollReset } from './ScrollArea'
 
-export function Adventure() {
+export function Adventure({ onFirstChop }: { onFirstChop?: () => void }) {
   const s = useGame()
   const [tab, setTab] = useState('gather')
   const resetScroll = useScrollReset()
@@ -90,7 +90,11 @@ export function Adventure() {
               const quantity = a.finite ? `剩余 ${loc.res[a.finite] ?? 0}` : ''
               const detail = lock || (a.diveAir && !breathing ? `空气 −${a.diveAir}` : '')
               return (
-                <Btn key={id} cd={id} disabled={busy || !!lock} onClick={() => s.act(id)}
+                <Btn key={id} cd={id} disabled={busy || !!lock} onClick={() => {
+                  const firstChop = id === 'chop' && !useGame.getState().flags.inv
+                  s.act(id)
+                  if (firstChop && useGame.getState().flags.inv) onFirstChop?.()
+                }}
                   sub={[quantity, detail].filter(Boolean).join(' · ')}>
                   {a.name}
                 </Btn>

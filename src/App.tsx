@@ -15,6 +15,7 @@ import { Btn } from './ui/kit'
 import { CurrentGoal, JournalModal, type GameMenu } from './ui/GameJournal'
 import { MAX_AIR, seasonAt } from './game/progression'
 import { DebugPanel } from './ui/DebugPanel'
+import { SwipeGuide } from './ui/SwipeGuide'
 
 const WEATHER = {
   clear: { label: '晴', icon: '/textures/minecraft/weather_clear.png' },
@@ -31,6 +32,7 @@ export function App() {
   const [menu, setMenu] = useState<GameMenu | 'debug' | null>(null)
   const [debugActive, setDebugActive] = useState(false)
   const [worldRevision, setWorldRevision] = useState(0)
+  const [showSwipeGuide, setShowSwipeGuide] = useState(false)
   const closeMenu = () => setMenu(null)
   const showAdventure = () => {
     setTab('adventure')
@@ -94,7 +96,9 @@ export function App() {
             {tabs.map(([id]) => (
               <TabsContent key={id} value={id} keepMounted className="main-tab-content">
                 <ScrollArea className="main-scroll" tabIndex={0} aria-label="滚动主区域">
-                  {id === 'adventure' ? <Adventure /> : id === 'crafting' ? <Crafting /> : <Village />}
+                  {id === 'adventure' ? <Adventure onFirstChop={() => {
+                    if (document.documentElement.dataset.uiCompact === 'true') setShowSwipeGuide(true)
+                  }} /> : id === 'crafting' ? <Crafting /> : <Village />}
                 </ScrollArea>
               </TabsContent>
             ))}
@@ -126,6 +130,7 @@ export function App() {
 
       <CombatModal />
       <WinModal />
+      {showSwipeGuide && <SwipeGuide onClose={() => setShowSwipeGuide(false)} />}
       {menu && menu !== 'debug' && <JournalModal menu={menu} onClose={closeMenu}
         onDebug={import.meta.env.DEV ? () => setMenu('debug') : undefined} />}
       {import.meta.env.DEV && menu === 'debug' && (
