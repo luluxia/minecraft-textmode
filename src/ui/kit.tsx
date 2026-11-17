@@ -2,7 +2,7 @@ import { Progress } from '../components/minecraft/progress'
 import { Button } from '../components/minecraft/button'
 import { Texture } from './Texture'
 import { useLayoutEffect, useRef, useState, type ReactNode } from 'react'
-import { ITEMS, type Bag } from '../game/data'
+import { ITEMS, type Bag, type IngredientAlternatives } from '../game/data'
 import { available, useGame } from '../game/store'
 
 interface BtnProps {
@@ -67,6 +67,10 @@ export function Btn({ cd, onClick, disabled, children, sub, title, 'aria-label':
   )
 }
 
+export function ActionTitle({ name, quantity }: { name: string; quantity?: number }) {
+  return <span>{name}{quantity !== undefined && <span className="action-quantity">({quantity})</span>}</span>
+}
+
 export function Bar({ value, max, color, label, valueText }: { value: number; max: number; color: string; label: string; valueText?: string }) {
   const safeMax = Math.max(1, max)
   const safeValue = Math.max(0, Math.min(safeMax, value))
@@ -78,15 +82,15 @@ export function Bar({ value, max, color, label, valueText }: { value: number; ma
   )
 }
 
-export function Cost({ cost }: { cost: Bag }) {
+export function Cost({ cost, alternatives }: { cost: Bag; alternatives?: IngredientAlternatives }) {
   const s = useGame()
   return (
     <div className="cost">
       {Object.entries(cost).map(([k, n]) => {
-        const have = available(s, k)
+        const have = available(s, k, alternatives)
         return (
           <span key={k} className={`tag material-tag icon-text${have >= n ? '' : ' bad'}`}>
-            <Texture src={ITEMS[k].icon} /> {ITEMS[k].name} {have}/{n}
+            <IngredientName id={k} choices={alternatives?.[k]} /> {have}/{n}
           </span>
         )
       })}
@@ -95,6 +99,12 @@ export function Cost({ cost }: { cost: Bag }) {
 }
 
 export const ItemName = ({ id }: { id: string }) => <span className="icon-text"><Texture src={ITEMS[id].icon} /> {ITEMS[id].name}</span>
+export function IngredientName({ id, choices }: { id: string; choices?: readonly string[] }) {
+  const name = choices?.map((item) => ITEMS[item].name).join('或') ??
+    (id === 'wood' ? '原木' : id === 'plank' ? '木板' : ITEMS[id].name)
+  return <span className="icon-text"><Texture src={ITEMS[id].icon} /> {name}</span>
+}
+
 export const bagText = (bag: Bag) => Object.entries(bag).map(([k, n]) => <span className="icon-text" key={k}><ItemName id={k} /> ×{n} </span>)
 
 export function EntryHeader({ children, actions }: { children: ReactNode; actions: ReactNode }) {

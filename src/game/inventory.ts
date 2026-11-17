@@ -1,4 +1,4 @@
-import { ITEMS, type Bag } from './data'
+import { ITEMS, type Bag, type IngredientAlternatives } from './data'
 
 export const PACK_LIMIT = 64
 export const CHEST_LIMIT = 160
@@ -9,19 +9,15 @@ const woodFamilies: Record<string, string[]> = {
   plank: ['plank', 'birch_plank', 'spruce_plank', 'jungle_plank', 'mangrove_plank', 'cherry_plank', 'poplar_plank'],
 }
 
-const familyIds = Object.fromEntries(Object.entries(woodFamilies).flatMap(
-  ([family, items]) => items.map((item) => [item, family]),
-))
-
-export const itemFamily = (item: string) => familyIds[item] ?? item
-export const materialOptions = (item: string) => woodFamilies[item] ?? [item]
+export const materialOptions = (item: string, alternatives?: IngredientAlternatives) =>
+  alternatives?.[item] ?? woodFamilies[item] ?? [item]
 export const quantity = (bag: Bag | undefined, item: string) => bag?.[item] ?? 0
-export const materialQuantity = (bag: Bag | undefined, item: string) =>
-  materialOptions(item).reduce((total, id) => total + quantity(bag, id), 0)
+export const materialQuantity = (bag: Bag | undefined, item: string, alternatives?: IngredientAlternatives) =>
+  materialOptions(item, alternatives).reduce((total, id) => total + quantity(bag, id), 0)
 export const whole = (n: number) => Math.floor(n + 1e-9)
 export const carriesLimit = (item: string) => !['gear', 'tool', 'special'].includes(ITEMS[item]?.cat)
 export const room = (bag: Bag | undefined, item: string, cap: number) =>
-  Math.max(0, cap - materialQuantity(bag, itemFamily(item)))
+  Math.max(0, cap - quantity(bag, item))
 export const hasStock = (bag: Bag | undefined) => Object.values(bag ?? {}).some((n) => n > 0)
 
 export function addStock(bag: Bag, item: string, n: number) {
@@ -37,15 +33,15 @@ export function takeStock(bag: Bag, item: string, n: number) {
   return amount
 }
 
-export function planPayment(cost: Bag, ...bags: Bag[]): Bag[] | null {
+export function planPayment(cost: Bag, bags: Bag[], alternatives?: IngredientAlternatives): Bag[] | null {
   const payments: Bag[] = bags.map(() => ({}))
   // Reserve exact variants before allocating interchangeable materials.
   const items = Object.entries(cost).sort(([a], [b]) =>
-    Number(materialOptions(a).length > 1) - Number(materialOptions(b).length > 1))
+    Number(materialOptions(a, alternatives).length > 1) - Number(materialOptions(b, alternatives).length > 1))
   for (const [item, amount] of items) {
     let needed = amount
     for (const [i, bag] of bags.entries()) {
-      for (const variant of materialOptions(item)) {
+      for (const variant of materialOptions(item, alternatives)) {
         const planned = Math.max(0, Math.min(needed, quantity(bag, variant) - quantity(payments[i], variant)))
         addStock(payments[i], variant, planned)
         needed -= planned

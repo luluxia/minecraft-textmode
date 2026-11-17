@@ -11,7 +11,7 @@ import {
   availableActions, canExploreNearby, canInviteVillager, expeditionLock, explorerMapChoices, foundSites, invitationCost, isNight, locationLeads,
   locationCap, mineResources, pickTier, retainedLocation, survivedIndependently, travelAllowed, useGame, villageCommission, villageLeadChoices, wildlifeLock, wildlifeVisible,
 } from '../game/store'
-import { Btn, Cost, EntryHeader, Section, bagText } from './kit'
+import { ActionTitle, Btn, Cost, EntryHeader, Section, bagText } from './kit'
 import { WILDLIFE } from '../game/wildlife'
 import { hasStock } from '../game/inventory'
 import { ActionGrid } from './ActionGrid'
@@ -378,10 +378,6 @@ export function Adventure({ onFirstChop }: { onFirstChop?: () => void }) {
       </TabsContent>
     </Tabs>
   )
-}
-
-function ActionTitle({ name, quantity }: { name: string; quantity?: number }) {
-  return <span>{name}{quantity !== undefined && <span className="action-quantity">({quantity})</span>}</span>
 }
 
 function SiteTasks() {

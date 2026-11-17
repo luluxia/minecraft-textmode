@@ -9,7 +9,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '../componen
 import { Input } from '../components/minecraft/input'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/minecraft/tabs'
 import { available, canAfford, outputRoom, useGame } from '../game/store'
-import { Btn, EntryHeader, ItemName, Section } from './kit'
+import { Btn, EntryHeader, IngredientName, ItemName, Section } from './kit'
 
 interface RecipeBookProps {
   initialItem?: string
@@ -105,35 +105,27 @@ function RecipeDetails({ item, needed, ancestors, onMake }: {
   onMake?: (target: RecipeTarget) => void
 }) {
   const s = useGame()
-  const [option, setOption] = useState(0)
-  const options = recipeOptions(s, item).filter((entry) =>
+  const step = recipeOptions(s, item).find((entry) =>
     !Object.keys(entry.cost).some((id) => id === item || ancestors.includes(id)))
-  const step = options[option] ?? options[0]
   const source = itemSources(s, item)
   const batches = step ? Math.ceil(needed / step.amount) : 0
   const cost = step ? Object.fromEntries(Object.entries(step.cost).map(([id, n]) => [id, n * batches])) : {}
   const canMake = step && !s.combat && !s.submerged && canUseStation(s, step.station) &&
-    canAfford(s, cost) && outputRoom(s, step.out) >= step.amount
+    canAfford(s, cost, step.alternatives) && outputRoom(s, step.out) >= step.amount
 
   return (
     <div className="recipe-details">
       {step && (
         <>
-          {options.length > 1 && <div className="actions" role="group" aria-label="配方选项">
-            {options.map((entry, index) => <Btn key={entry.kind + entry.id} className={'mini' + (step === entry ? ' on' : '')}
-              aria-pressed={step === entry} onClick={() => setOption(index)}>
-              {STATION_NAMES[entry.station]} · {Object.keys(entry.cost).map((id) => ITEMS[id].name).join('、')}
-            </Btn>)}
-          </div>}
           <EntryHeader actions={canMake && onMake ? <Btn onClick={() => onMake(step)}>前往制造</Btn> : undefined}>
             <span>{STATION_NAMES[step.station]} · 产出 {batches * step.amount}</span>
             {!canUseStation(s, step.station) && <span className="bad">缺少{STATION_NAMES[step.station]}</span>}
           </EntryHeader>
           <ul className="recipe-ingredients">
             {Object.entries(cost).map(([id, n]) => {
-              const have = available(s, id)
+              const have = available(s, id, step.alternatives)
               return <li key={id}><Ingredient item={id} needed={n} have={have}
-                ancestors={[...ancestors, item]} onMake={onMake} /></li>
+                choices={step.alternatives?.[id]} ancestors={[...ancestors, item]} onMake={onMake} /></li>
             })}
           </ul>
         </>
@@ -146,10 +138,11 @@ function RecipeDetails({ item, needed, ancestors, onMake }: {
   )
 }
 
-function Ingredient({ item, needed, have, ancestors, onMake }: {
+function Ingredient({ item, needed, have, choices, ancestors, onMake }: {
   item: string
   needed: number
   have: number
+  choices?: readonly string[]
   ancestors: string[]
   onMake?: (target: RecipeTarget) => void
 }) {
@@ -157,10 +150,15 @@ function Ingredient({ item, needed, have, ancestors, onMake }: {
   return (
     <Collapsible className="recipe-ingredient">
       <CollapsibleTrigger className="btn recipe-ingredient-trigger">
-        <ItemName id={item} /> <span className={missing ? 'bad' : 'good'}>{Math.min(needed, have)}/{needed}</span>
+        <IngredientName id={item} choices={choices} /> <span className={missing ? 'bad' : 'good'}>{Math.min(needed, have)}/{needed}</span>
       </CollapsibleTrigger>
       <CollapsibleContent className="recipe-ingredient-content">
-        <RecipeDetails item={item} needed={missing || needed} ancestors={ancestors} onMake={onMake} />
+        {choices ? choices.map((id) => (
+          <div key={id}>
+            <ItemName id={id} />
+            <RecipeDetails item={id} needed={missing || needed} ancestors={ancestors} onMake={onMake} />
+          </div>
+        )) : <RecipeDetails item={item} needed={missing || needed} ancestors={ancestors} onMake={onMake} />}
       </CollapsibleContent>
     </Collapsible>
   )

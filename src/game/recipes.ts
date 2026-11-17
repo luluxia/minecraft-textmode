@@ -1,4 +1,4 @@
-import { ACTIONS, BIOMES, RECIPES, SMELTS, type Bag, type Recipe } from './data'
+import { ACTIONS, BIOMES, RECIPES, SMELTS, type Bag, type IngredientAlternatives, type Recipe } from './data'
 import { materialOptions, whole } from './inventory'
 import { available, availableActions, recipeStationReady, retainedLocation, type GameState } from './store'
 
@@ -11,6 +11,7 @@ export interface RecipeStep extends RecipeTarget {
   out: string
   amount: number
   cost: Bag
+  alternatives?: IngredientAlternatives
   station: Recipe['station'] | 'furnace'
 }
 
@@ -19,8 +20,9 @@ export const STATION_NAMES: Record<RecipeStep['station'], string> = {
 }
 
 const steps: RecipeStep[] = [
-  ...RECIPES.filter((recipe) => !recipe.id.startsWith('stick_')).map((recipe): RecipeStep => ({
-    kind: 'craft', id: recipe.id, out: recipe.out, amount: recipe.n, cost: recipe.cost, station: recipe.station,
+  ...RECIPES.map((recipe): RecipeStep => ({
+    kind: 'craft', id: recipe.id, out: recipe.out, amount: recipe.n, cost: recipe.cost,
+    alternatives: recipe.alternatives, station: recipe.station,
   })),
   ...SMELTS.map((recipe): RecipeStep => ({
     kind: 'smelt', id: recipe.id, out: recipe.out, amount: 1, cost: { [recipe.from]: 1 }, station: 'furnace',
@@ -37,13 +39,13 @@ export function itemKnown(s: GameState, id: string) {
 }
 
 export function recipeKnown(s: GameState, step: RecipeStep) {
-  return itemKnown(s, step.out) || Object.keys(step.cost).every((id) => materialOptions(id).some((item) => s.seen[item]))
+  return itemKnown(s, step.out) || Object.keys(step.cost).every((id) => materialOptions(id, step.alternatives).some((item) => s.seen[item]))
 }
 
 export const recipeOptions = (s: GameState, item: string) =>
   steps.filter((step) => step.out === item && recipeKnown(s, step))
 export const recipeUses = (s: GameState, item: string) => [...new Set(steps
-  .filter((step) => Object.keys(step.cost).some((id) => materialOptions(id).includes(item)) && recipeKnown(s, step))
+  .filter((step) => Object.keys(step.cost).some((id) => materialOptions(id, step.alternatives).includes(item)) && recipeKnown(s, step))
   .map((step) => step.out))]
 export const canUseStation = (s: GameState, station: RecipeStep['station']) =>
   station === 'furnace' ? available(s, 'furnace') > 0 : recipeStationReady(s, station)

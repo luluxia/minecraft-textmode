@@ -6,6 +6,7 @@
   --panel: #24221b;
   --panel-2: #2e2b22;
   --line: #4a4638;
+  --entry-spacing: 8px;
   --hi: #6b6551;
   --lo: #0b0a07;
   --text: #e9e3cf;
@@ -310,10 +311,10 @@ body, button, input, select, textarea,
 
 /* One outer frame; compact records inside it that size to their content. */
 .main-scroll { --entry-width: 264px; --action-width: 136px; }
-.entry-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, var(--entry-width)), 1fr)); gap: 8px; }
-.recipe-filters { margin-bottom: 10px; }
-.trial-vaults { margin-top: 8px; }
-.content-entry { box-sizing: border-box; width: 100%; min-width: 0; padding: 8px 10px; display: flex; flex-direction: column; gap: 4px; border: 1px solid #555; background: #ffffff05; }
+.entry-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, var(--entry-width)), 1fr)); gap: var(--entry-spacing); }
+.recipe-filters { margin-bottom: var(--entry-spacing); }
+.trial-vaults { margin-top: var(--entry-spacing); }
+.content-entry { box-sizing: border-box; width: 100%; min-width: 0; padding: var(--entry-spacing); display: flex; flex-direction: column; gap: 4px; border: 1px solid #555; background: #ffffff05; }
 .content-entry > .spread { align-items: center; }
 .content-entry > .spread > span:first-child { min-width: 0; overflow-wrap: anywhere; }
 .content-entry .sm { line-height: 20px; }
@@ -349,8 +350,8 @@ body, button, input, select, textarea,
 .main-scroll .section > h3 { margin-bottom: 6px; align-items: center; }
 .main-scroll .notice { padding: 4px 10px; }
 :is(.main-scroll, .dialog-scroll) :where(.notice, .actions) + .actions:not(:empty),
-:is(.main-scroll, .dialog-scroll) .notice + :where(.entry-grid, .recipe-filters, .storage-list):not(:empty),
-:is(.main-scroll, .dialog-scroll) :where(.notice, .actions:not(.book-toolbar), .entry-grid, .storage-list, .section) + .notice,
+:is(.main-scroll, .dialog-scroll) .notice + :where(.entry-grid, .recipe-filters):not(:empty),
+:is(.main-scroll, .dialog-scroll) :where(.notice, .actions:not(.book-toolbar), .entry-grid, .section) + .notice,
 .game-dialog .modal > .notice + .section {
   margin-block-start: 10px;
 }
@@ -379,7 +380,7 @@ body, button, input, select, textarea,
 .catalog-grid { --entry-width: 144px; margin: 0; padding: 0; list-style: none; }
 .achievement-progress { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
 .achievement-progress > .bar { flex: 1; }
-.achievement-list { display: grid; gap: 8px; padding: 0; margin: 0; list-style: none; }
+.achievement-list { display: grid; gap: var(--entry-spacing); padding: 0; margin: 0; list-style: none; }
 .achievement-tracking { margin-bottom: 10px; }
 .achievements-dialog .entry-heading h3 { font: inherit; }
 
@@ -398,8 +399,8 @@ body, button, input, select, textarea,
 
 :root[data-ui-compact="true"] {
   .mc-card.panel { padding: 20px; }
-  .content-entry { padding: 12px; gap: 8px; }
-  .entry-grid, .main-scroll .actions:not(.action-grid) { gap: 10px; }
+  .content-entry { gap: 8px; }
+  .catalog-grid, .main-scroll .actions:not(.action-grid) { gap: 10px; }
   .main-scroll .section { margin-top: 20px; }
   .main-scroll .section:first-child { margin-top: 0; }
   .main-scroll .section > h3 { margin-bottom: 10px; }
@@ -408,20 +409,10 @@ body, button, input, select, textarea,
 
 .recipe-ingredient { width: 100%; }
 .recipe-ingredient .recipe-ingredient-content { padding: 0; }
-.storage-header { margin-block: 8px; }
-.storage-list { display: grid; }
-.storage-row {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(9em, auto) auto;
-  align-items: center;
-  gap: 4px 8px;
-  padding-block: 6px;
-  border-bottom: 1px solid var(--line);
-}
-.storage-row > :first-child { min-width: 0; overflow-wrap: anywhere; }
-.storage-row > :last-child { justify-self: end; }
+.storage-header { margin-block: var(--entry-spacing); }
+.storage-entry > .icon-text { align-self: flex-start; overflow-wrap: anywhere; }
+.storage-entry > .entry-actions { margin-top: auto; flex-wrap: wrap; }
 .storage-count { font-variant-numeric: tabular-nums; }
-.storage-pending-row { grid-template-columns: minmax(0, 1fr) auto auto; }
 .adventure .mc-tabs-trigger[data-storage-pending="true"]::after {
   content: "";
   position: absolute;
@@ -431,12 +422,7 @@ body, button, input, select, textarea,
   background: var(--gold);
   pointer-events: none;
 }
-@container (max-width: 380px) {
-  .storage-row:not(.storage-pending-row) { grid-template-columns: minmax(0, 1fr) auto; }
-  .storage-row:not(.storage-pending-row) > .entry-actions { grid-area: 1 / 2 / span 2; }
-  .storage-row:not(.storage-pending-row) > .storage-count { grid-area: 2 / 1; }
-}
-.village-commission { margin-top: 8px; }
+.village-commission { margin-top: var(--entry-spacing); }
 
 .book-search { display: grid; gap: 4px; margin-bottom: 8px; }
 .book-search .book-search-input { width: 100%; }
@@ -447,7 +433,7 @@ body, button, input, select, textarea,
 .recipe-ingredients { list-style: none; padding: 0; margin: 0; }
 .recipe-ingredients .recipe-ingredient-trigger .mc-button-label { width: 100%; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px; min-width: 0; }
 .recipe-uses { margin-top: 12px; }
-.recipe-focus { outline: 2px solid var(--green); outline-offset: -2px; }
+.recipe-focus { border-color: var(--green); }
 
 .location-heading, .location-status { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; }
 .location-heading > .loc-name { min-width: 0; overflow-wrap: anywhere; }

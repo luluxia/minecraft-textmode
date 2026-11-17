@@ -18,7 +18,7 @@ import { immer } from 'zustand/middleware/immer'
 import {
   ACTIONS, ARMORS, BIOMES, BUILDING_MAP, BUILDINGS, COST_RATIO, CONTROL_REP, ENCHANTS, EYES_NEEDED, FUELS,
   ITEMS, ITEM_LIST, JOBS, JOB_MAP, MAYOR_POP, MAYOR_REP, MOBS, PICKS, RECIPES, SMELTS, SWORDS, TALK_LINES,
-  TRADES, randomLocName, type Bag, type Drop, type Recipe,
+  TRADES, randomLocName, type Bag, type Drop, type IngredientAlternatives, type Recipe,
 } from './data'
 
 export interface Loc { id: number; biome: string; name: string; res: Bag; saved: boolean; shelter: boolean; sites?: string[]; leads?: string[]; discovered?: number; marked?: boolean; variant?: string; chest?: boolean; commissioned?: boolean; cleared?: boolean; lootTaken?: boolean; stock?: Bag; pending?: Bag }
@@ -166,13 +166,13 @@ export const mayBuildVillage = (s: GameState, id: string) =>
 // ---------- 纯函数（供界面与逻辑共用） ----------
 export const count = (s: GameState, item: string) => Math.floor((s.inv[item] ?? 0) + 1e-9)
 const stockHere = (s: GameState) => s.submerged ? undefined : curLoc(s).stock
-export const available = (s: GameState, item: string) =>
-  whole(materialQuantity(s.inv, item) + materialQuantity(stockHere(s), item))
+export const available = (s: GameState, item: string, alternatives?: IngredientAlternatives) =>
+  whole(materialQuantity(s.inv, item, alternatives) + materialQuantity(stockHere(s), item, alternatives))
 export const carryRoom = (s: GameState, item: string) =>
   carriesLimit(item) ? whole(room(s.inv, item, PACK_LIMIT)) : Infinity
-export const canAfford = (s: GameState, cost: Bag) => {
+export const canAfford = (s: GameState, cost: Bag, alternatives?: IngredientAlternatives) => {
   const local = stockHere(s)
-  return !!(local ? planPayment(cost, local, s.inv) : planPayment(cost, s.inv))
+  return !!planPayment(cost, local ? [local, s.inv] : [s.inv], alternatives)
 }
 export const pickTier = (s: GameState) => {
   for (let i = PICKS.length - 1; i >= 0; i--) if (count(s, PICKS[i]) > 0) return i + 1
@@ -311,7 +311,7 @@ export const lineIssue = (s: GameState, line: typeof LINES[number]) => {
   if (!v?.villagers) return '需要村民'
   const stock = villageStock(s)
   if (line.reserveWheat && quantity(stock, 'wheat') < line.input.wheat + wheatDemand(v) * 60) return '需预留村民口粮'
-  if (!planPayment(line.input, stock)) return '仓库原料不足'
+  if (!planPayment(line.input, [stock])) return '仓库原料不足'
   if (Object.entries(line.output).some(([item, n]) => room(stock, item, villageCap(s)) < n)) return '仓库已满'
   return ''
 }
@@ -401,10 +401,10 @@ const receive = (s: GameState, loc: Loc, item: string, n: number, toStock = fals
   if (n > 0) addStock((loc.pending ??= {}), item, n)
 }
 const give = (s: GameState, item: string, n: number) => receive(s, curLoc(s), item, n)
-const pay = (s: GameState, cost: Bag, carriedOnly = false, trackLocal = false) => {
+const pay = (s: GameState, cost: Bag, carriedOnly = false, trackLocal = false, alternatives?: IngredientAlternatives) => {
   const local = carriedOnly ? undefined : stockHere(s)
   const bags = local ? [local, s.inv] : [s.inv]
-  const payments = planPayment(cost, ...bags)
+  const payments = planPayment(cost, bags, alternatives)
   if (!payments) return false
   if (trackLocal && local && hasStock(payments[0])) s.flags.usedLocalStock = true
   applyPayment(payments, ...bags)
@@ -648,7 +648,7 @@ const advanceEconomy = (s: GameState, live: boolean) => {
       const ready = Math.min(line.seconds, s.lines[line.id] + 1)
       s.lines[line.id] = ready
       if (ready < line.seconds || lineIssue(s, line)) continue
-      const payment = planPayment(line.input, stock)
+      const payment = planPayment(line.input, [stock])
       if (!payment) continue
       applyPayment(payment, stock)
       for (const [item, n] of Object.entries(line.output)) {
@@ -1284,8 +1284,8 @@ export const useGame = create<Game>()(
         const unique = ['tool', 'gear'].includes(ITEMS[r.out].cat)
         if (unique && count(s, r.out)) return
         let made = 0
-        for (let i = 0; i < Math.min(unique ? 1 : 100, times) && canAfford(s, r.cost) && outputRoom(s, r.out) >= r.n; i++) {
-          pay(s, r.cost, false, true)
+        for (let i = 0; i < Math.min(unique ? 1 : 100, times) && outputRoom(s, r.out) >= r.n; i++) {
+          if (!pay(s, r.cost, false, true, r.alternatives)) break
           give(s, r.out, r.n)
           for (const [item, n] of Object.entries(r.returns ?? {})) give(s, item, n)
           made += r.n

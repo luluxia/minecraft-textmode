@@ -242,6 +242,8 @@ export const ARMORS: [string, number][] = [
 ]
 
 // ---------- 合成 ----------
+export type IngredientAlternatives = Partial<Record<string, readonly string[]>>
+
 export interface Recipe {
   id: string
   out: string
@@ -249,18 +251,19 @@ export interface Recipe {
   cost: Bag
   station: 'hand' | 'table' | 'brewing' | 'smithing'
   returns?: Bag
+  alternatives?: IngredientAlternatives
 }
 const rc = (out: string, n: number, cost: Bag, station: Recipe['station'] = 'table', returns?: Bag): Recipe => ({
   id: out, out, n, cost, station, returns,
 })
+const coalAlternatives = { coal: ['coal', 'charcoal'] } as const
 export const RECIPES: Recipe[] = [
   rc('wolf_armor', 1, { armadillo_scute: 6 }),
   rc('copper_golem', 1, { copper: 9, pumpkin: 1 }),
   rc('chest', 1, { plank: 8 }),
   rc('poplar_plank', 4, { poplar_log: 1 }, 'hand'),
   rc('plank', 4, { wood: 1 }, 'hand'),
-  rc('campfire', 1, { wood: 3, stick: 3, coal: 1 }, 'hand'),
-  { id: 'campfire_charcoal', out: 'campfire', n: 1, cost: { wood: 3, stick: 3, charcoal: 1 }, station: 'hand' },
+  { ...rc('campfire', 1, { wood: 3, stick: 3, coal: 1 }, 'hand'), alternatives: coalAlternatives },
   rc('stick', 4, { plank: 2 }, 'hand'),
   rc('table', 1, { plank: 4 }, 'hand'),
   rc('pick_wood', 1, { plank: 3, stick: 2 }),
@@ -269,8 +272,7 @@ export const RECIPES: Recipe[] = [
   rc('axe_stone', 1, { cobble: 3, stick: 2 }),
   rc('sword_stone', 1, { cobble: 2, stick: 1 }),
   rc('furnace', 1, { cobble: 8 }),
-  rc('torch', 4, { coal: 1, stick: 1 }),
-  { id: 'torch_charcoal', out: 'torch', n: 4, cost: { charcoal: 1, stick: 1 }, station: 'table' },
+  { ...rc('torch', 4, { coal: 1, stick: 1 }), alternatives: coalAlternatives },
   rc('bread', 1, { wheat: 3 }),
   rc('rod', 1, { stick: 3, string: 2 }),
   rc('bed', 1, { wool: 3, plank: 3 }),
@@ -340,15 +342,10 @@ export const RECIPES: Recipe[] = [
   rc('lingering_healing', 3, { splash_healing: 3, dragon_breath: 1 }, 'brewing'),
   rc('axe_diamond', 1, { diamond: 3, stick: 2 }),
   rc('birch_plank', 4, { birch_log: 1 }, 'hand'),
-  { id: 'stick_birch', out: 'stick', n: 4, cost: { birch_plank: 2 }, station: 'hand' },
   rc('spruce_plank', 4, { spruce_log: 1 }, 'hand'),
-  { id: 'stick_spruce', out: 'stick', n: 4, cost: { spruce_plank: 2 }, station: 'hand' },
   rc('jungle_plank', 4, { jungle_log: 1 }, 'hand'),
-  { id: 'stick_jungle', out: 'stick', n: 4, cost: { jungle_plank: 2 }, station: 'hand' },
   rc('mangrove_plank', 4, { mangrove_log: 1 }, 'hand'),
-  { id: 'stick_mangrove', out: 'stick', n: 4, cost: { mangrove_plank: 2 }, station: 'hand' },
   rc('cherry_plank', 4, { cherry_log: 1 }, 'hand'),
-  { id: 'stick_cherry', out: 'stick', n: 4, cost: { cherry_plank: 2 }, station: 'hand' },
 ]
 
 // ---------- 熔炼 ----------
