@@ -1,12 +1,14 @@
 import { BIOMES, BUILDING_MAP, ENCHANTS, EYES_NEEDED, ITEMS, JOB_MAP, MOBS, SMELTS, type Bag } from './data'
+import { LEADS, SITES, VARIANT_NAMES, nearbySites } from './exploration'
 import { getAchievement } from './advancements'
 import { LOG_LIMIT, LOG_TEXT_LIMIT, logOfflineSettlement } from './log'
 import { migrateMinecraftNames } from './migrate'
 import { EXPEDITIONS, LINES, MAX_AIR, PLANTS } from './progression'
+import { PACK_LIMIT, addStock, carriesLimit, room } from './inventory'
 import type { GameState, Loc } from './store'
 
 export const SAVE_KEY = 'block-idle-save'
-export const SAVE_VERSION = 7
+export const SAVE_VERSION = 8
 export type SaveSnapshot = GameState
 
 type Fields = Record<string, unknown>
@@ -60,13 +62,31 @@ export function normalizeSave(input: unknown, version: number, defaults: GameSta
 
   if (!fields(s.locs, (loc, key) => record(loc) && integer(loc.id) && String(loc.id) === key &&
     typeof loc.biome === 'string' && Object.hasOwn(BIOMES, loc.biome) && shortText(loc.name) &&
-    boolean(loc.saved) && boolean(loc.shelter) && bag(loc.res, known(BIOMES[loc.biome].res), integer))) return null
+    boolean(loc.saved) && boolean(loc.shelter) &&
+    (loc.marked === undefined || boolean(loc.marked)) &&
+    (loc.variant === undefined || (typeof loc.variant === 'string' && Object.hasOwn(VARIANT_NAMES, loc.variant))) &&
+    (loc.chest === undefined || boolean(loc.chest)) &&
+    (loc.commissioned === undefined || boolean(loc.commissioned)) &&
+    (loc.cleared === undefined || boolean(loc.cleared)) &&
+    (loc.lootTaken === undefined || boolean(loc.lootTaken)) &&
+    (loc.stock === undefined || bag(loc.stock, known(ITEMS))) &&
+    (loc.pending === undefined || bag(loc.pending, known(ITEMS))) &&
+    (loc.leads === undefined || (Array.isArray(loc.leads) && loc.leads.length <= Object.keys(LEADS).length &&
+      loc.leads.every((id) => typeof id === 'string' && Object.hasOwn(LEADS, id)))) &&
+    (loc.sites === undefined || (Array.isArray(loc.sites) && loc.sites.length <= 3 &&
+      loc.sites.every((id) => typeof id === 'string' && Object.hasOwn(SITES, id)))) &&
+    (loc.discovered === undefined || integer(loc.discovered, Array.isArray(loc.sites) ? loc.sites.length : 0)) &&
+    bag(loc.res, (id) => Object.hasOwn(BIOMES[loc.biome as string].res, id) ||
+      (Array.isArray(loc.sites) && loc.sites.some((site) => SITES[site]?.resource?.id === id)), integer))) return null
   if (!integer(s.locId) || !s.locs[s.locId] || !integer(s.nextId) ||
     Object.values(s.locs).some((loc: Loc) => loc.id >= s.nextId)) return null
+  if (s.allayTarget !== null && (typeof s.allayTarget !== 'string' || !Object.hasOwn(ITEMS, s.allayTarget))) return null
+  if (!bag(s.leads, known(LEADS), boolean) || !bag(s.seenPlaces, known(BIOMES), boolean) ||
+    (s.previousLocId !== null && (!integer(s.previousLocId) || !s.locs[s.previousLocId]))) return null
   if (!integer(s.air, MAX_AIR) || !boolean(s.submerged) ||
-    (s.submerged && (s.locs[s.locId].biome !== 'coast' || !s.flags.explore))) return null
+    (s.submerged && (!BIOMES[s.locs[s.locId].biome].diving || !s.flags.explore))) return null
   if (s.homeId !== null && (!integer(s.homeId) || !s.locs[s.homeId]?.shelter)) return null
-  if ((s.homeId === null) !== (s.village === null)) return null
+  if (s.homeId === null && s.village !== null) return null
   if (s.village !== null) {
     const v = s.village
     if (!record(v) || !integer(v.villagers, 1000) || !integer(v.rep) || !boolean(v.founded) ||
@@ -92,13 +112,14 @@ export function normalizeSave(input: unknown, version: number, defaults: GameSta
       c.lines.length > (version < 3 ? 1000 : 6) || !c.lines.every(shortText) ||
       (c.crystals !== undefined && !integer(c.crystals, 3)) ||
       (c.trial !== undefined && (c.mob !== 'breeze' || !['normal', 'ominous'].includes(c.trial))) ||
+      (c.heartLocated !== undefined && (c.mob !== 'creaking' || !boolean(c.heartLocated))) ||
       (c.breathTaken !== undefined && (c.mob !== 'dragon' || !boolean(c.breathTaken))) ||
-      (s.submerged !== (c.mob === 'guardian'))) return null
+      (s.submerged !== ['guardian', 'elder_guardian'].includes(c.mob))) return null
   }
   if (!record(s.furnace) || !integer(s.furnace.fuel)) return null
   if (s.furnace.job !== null) {
     const job = s.furnace.job
-    if (!record(job) || !integer(job.left) || job.left < 1 || !SMELTS.some((r) => r.id === job.r && integer(job.prog, r.time - 1))) return null
+    if (!record(job) || (job.locId !== undefined && (!integer(job.locId) || !s.locs[job.locId])) || !integer(job.left) || job.left < 1 || !SMELTS.some((r) => r.id === job.r && integer(job.prog, r.time - 1))) return null
   }
   if (!integer(s.crop, 120) || !PLANTS.some((plant) => plant.id === s.cropKind) || !integer(s.recruitment) || !bag(s.lines, (key) => LINES.some((entry) => entry.id === key), integer) ||
     !bag(s.expeditions, (key) => key === 'raid' || EXPEDITIONS.some((entry) => entry.id === key), integer)) return null
@@ -115,6 +136,48 @@ export function normalizeSave(input: unknown, version: number, defaults: GameSta
       for (const [id, [min]] of Object.entries(BIOMES[loc.biome].res)) loc.res[id] ??= min
     }
   }
+  if (version < 8) {
+    if (s.flags.spyglass) s.leads = { copper: true }
+    if (s.homeId !== null) {
+      s.flags.builtCamp = !!s.village?.founded
+      s.flags.joinedVillage = !!s.village && !s.village.founded
+      s.flags.preparedTrip = true
+      s.flags.harvestedFood = true
+    }
+    if (s.flags.nether) s.flags.enteredNether = true
+    if (s.village?.villagers) s.flags.firstJobOutput = true
+    if (s.village?.founded && s.village.villagers === 0) s.flags.metTraveler = true
+    if (s.village?.founded && s.village.villagers > 0) s.flags.invitedVillager = true
+    if (s.flags.automation) s.flags.legacyAutomation = true
+    else if (s.trackedAchievement === 'automation') s.trackedAchievement = 'first-line-output'
+    for (const loc of Object.values(s.locs)) {
+      loc.sites = nearbySites(loc.biome)
+      for (const id of loc.sites) {
+        const resource = SITES[id].resource
+        if (resource) loc.res[resource.id] ??= resource.range[0]
+      }
+      s.seenPlaces[loc.biome] = true
+      loc.discovered = 0
+    }
+    const destination = s.locs[s.homeId ?? s.locId]
+    const packed: Bag = {}
+    for (const [item, amount] of Object.entries(s.inv)) {
+      const toPack = carriesLimit(item) ? Math.min(amount, room(packed, item, PACK_LIMIT)) : amount
+      addStock(packed, item, toPack)
+      if (toPack < amount) {
+        destination.chest = true
+        destination.saved = true
+        addStock((destination.stock ??= {}), item, amount - toPack)
+      }
+    }
+    s.inv = packed
+  }
+  for (const loc of Object.values(s.locs)) {
+    if (loc.sites?.includes('campsite') && loc.res.camp_supplies === undefined) {
+      // Earlier saves awarded these supplies when the site was revealed.
+      loc.res.camp_supplies = loc.sites.indexOf('campsite') < (loc.discovered ?? 0) ? 0 : 1
+    }
+  }
   if (version < 7) {
     if (Object.values(s.locs).some((loc) => loc.biome === 'trial_chamber')) s.flags.trialVisited = true
     if (Object.values(s.village?.jobs ?? {}).some((count) => count > 0)) s.flags.firstJob = true
@@ -123,8 +186,8 @@ export function normalizeSave(input: unknown, version: number, defaults: GameSta
     s.combat.lines = s.combat.lines.slice(0, 6)
     if (s.combat.mob === 'dragon') s.combat.hp = Math.max(1, Math.ceil(s.combat.hp * MOBS.dragon.hp / 220))
   }
-  for (const [item, amount] of Object.entries(s.inv)) {
-    if (amount > 0) s.seen[item] = true
+  for (const bag of [s.inv, ...Object.values(s.locs).flatMap((loc) => [loc.stock, loc.pending])]) {
+    for (const [item, amount] of Object.entries(bag ?? {})) if (amount > 0) s.seen[item] = true
   }
   if (s.flags.won && !s.seen.dragon_egg) {
     s.inv.dragon_egg = 1

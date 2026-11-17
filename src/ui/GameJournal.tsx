@@ -1,19 +1,21 @@
 import { useRef, useState, type ChangeEvent } from 'react'
+import { ActionGrid } from './ActionGrid'
 import { Card } from '../components/minecraft/card'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/minecraft/select'
 import { Switch } from '../components/minecraft/switch'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/minecraft/tabs'
 import { GameDialog } from './GameDialog'
 import { useScrollReset } from './ScrollArea'
-import { ITEM_CATEGORIES, ITEM_LIST } from '../game/data'
 import { EXPEDITIONS } from '../game/progression'
-import { EXPLORATION, PROJECTS, STORY, TUTORIAL, getAchievement, getCompletedAchievements, type GoalHint, type GoalTerm } from '../game/advancements'
+import { EXPLORATION, PROJECTS, STORY, TUTORIAL, achievementVisible, getAchievement, getCompletedAchievements, type GoalHint, type GoalTerm } from '../game/advancements'
 import { dayOf, useGame } from '../game/store'
+import type { RecipeTarget } from '../game/recipes'
+import { RecipeBook } from './RecipeBook'
 import { Texture } from './Texture'
-import { Bar, Btn, EntryHeader, ItemName, Section } from './kit'
+import { Bar, Btn, EntryHeader } from './kit'
 import { UI_SCALES, useInterfaceSettings } from './interfaceSettings'
 
-const JOURNAL_TITLES = { catalog: '图鉴', achievements: '成就', stats: '统计', settings: '设置' } as const
+const JOURNAL_TITLES = { catalog: '配方书', achievements: '成就', stats: '统计', settings: '设置' } as const
 export type GameMenu = keyof typeof JOURNAL_TITLES
 
 const ACHIEVEMENT_TABS = [
@@ -21,31 +23,28 @@ const ACHIEVEMENT_TABS = [
   { id: 'projects', label: '村庄与末地', steps: PROJECTS },
   { id: 'exploration', label: '遗迹与远航', steps: EXPLORATION },
 ]
-const ACHIEVEMENT_COUNT = ACHIEVEMENT_TABS.reduce((total, { steps }) => total + steps.length, 0)
 
 export function CurrentGoal({ onOpenAchievements }: { onOpenAchievements: () => void }) {
-  const tracked = useGame((s) => {
-    if (!s.trackedAchievement && s.homeId === null) return undefined
-    const completed = getCompletedAchievements(s)
-    if (completed.size === ACHIEVEMENT_COUNT) return 'all-complete'
-    const entry = s.trackedAchievement ? getAchievement(s.trackedAchievement) : undefined
-    if (!entry || completed.has(entry.id) || entry.requires?.some((id) => !completed.has(id))) return undefined
-    return entry
-  })
-  const tutorial = useGame((s) => s.homeId === null ? TUTORIAL.find((entry) => !entry.complete(s)) : undefined)
-  const allComplete = tracked === 'all-complete'
-  const goal = allComplete ? undefined : tracked ?? tutorial
-
+  const s = useGame()
+  const completed = getCompletedAchievements(s)
+  const tracked = s.trackedAchievement ? getAchievement(s.trackedAchievement) : undefined
+  const goal = tracked && achievementVisible(tracked, s) && !completed.has(tracked.id) && !tracked.requires?.some((id) => !completed.has(id)) ? tracked : undefined
+  const suggestions = TUTORIAL.filter((entry) => !completed.has(entry.id) &&
+    !entry.requires?.some((id) => !completed.has(id)) &&
+    (entry.id !== 'cook-food' && entry.id !== 'nearby-discovery' || s.flags.explore)).slice(0, 3)
+  const allComplete = ACHIEVEMENT_TABS.every(({ steps }) => steps.every((entry) =>
+    completed.has(entry.id) || !achievementVisible(entry, s)))
   return (
     <Card className="panel current-goal" role="region" aria-label={goal ? '当前目标' : '自由探索'}>
       {goal ? <>
         <h3>当前目标</h3>
         <p><GoalLabel term={goal.icon} label={goal.title} /></p>
         <p className="sm dim"><GoalText hint={goal.hint} /></p>
-      </> : <>
-        <p className="sm dim">{allComplete ? '已完成当前版本所有成就，请自由探索' : '接下来可以自由探索，也可以在成就菜单追踪目标。'}</p>
-      </>}
-      {!allComplete && (tracked || !goal) && <Btn className="mini" onClick={onOpenAchievements}>打开成就</Btn>}
+      </> : !allComplete && suggestions.length > 0 ? <>
+        <h3>可选目标</h3>
+        {suggestions.map((entry) => <p key={entry.id}><GoalLabel term={entry.icon} label={entry.title} /></p>)}
+      </> : <p className="sm dim">{allComplete ? '已完成当前版本所有成就，请自由探索' : '接下来可以自由探索，也可以在成就菜单追踪目标。'}</p>}
+      {!allComplete && <Btn className="mini" onClick={onOpenAchievements}>打开成就</Btn>}
     </Card>
   )
 }
@@ -63,16 +62,18 @@ function GoalText({ hint }: { hint: GoalHint }) {
   return hint.map((part, index) => typeof part === 'string' ? part : <GoalLabel key={index} term={part} />)
 }
 
-export function JournalModal({ menu, onClose, onDebug }: {
+export function JournalModal({ menu, onClose, onDebug, bookItem, onRecipe }: {
   menu: GameMenu
   onClose: () => void
   onDebug?: () => void
+  bookItem?: string
+  onRecipe?: (target: RecipeTarget) => void
 }) {
   const s = useGame()
   const title = JOURNAL_TITLES[menu]
   return (
     <GameDialog label={title} onClose={onClose} className={`journal-dialog ${menu}-dialog`} showHeader>
-      {menu === 'catalog' && <ItemCatalog />}
+      {menu === 'catalog' && <RecipeBook key={bookItem} initialItem={bookItem} onMake={onRecipe} />}
       {menu === 'settings' && <SaveSettings onClose={onClose} onDebug={onDebug} />}
       {menu === 'achievements' && <Achievements />}
       {menu === 'stats' && <dl className="village-stats">
@@ -89,51 +90,6 @@ export function JournalModal({ menu, onClose, onDebug }: {
         ))}
       </dl>}
     </GameDialog>
-  )
-}
-
-function ItemCatalog() {
-  const seen = useGame((s) => s.seen)
-  const resetScroll = useScrollReset()
-  const discovered = ITEM_LIST.filter((item) => seen[item.id])
-
-  return (
-    <>
-      <p className="sm dim">已收录 {discovered.length}/{ITEM_LIST.length} 种物资</p>
-      {!discovered.length && <p className="notice">获得第一件物资后，图鉴会自动收录。</p>}
-      {discovered.length > 0 && (
-        <Tabs defaultValue={discovered[0].cat} onValueChange={() => resetScroll()}>
-          <TabsList className="subtabs" aria-label="图鉴分类">
-            {ITEM_CATEGORIES.map(([category, name]) => (
-              <TabsTrigger key={category} value={category} aria-label={name}>{name}</TabsTrigger>
-            ))}
-          </TabsList>
-          {ITEM_CATEGORIES.map(([category, name]) => {
-            const items = discovered.filter((item) => item.cat === category)
-            const total = ITEM_LIST.filter((item) => item.cat === category).length
-            return (
-              <TabsContent key={category} value={category}>
-                <Section title={name} extra={items.length + '/' + total}>
-                  {items.length === 0 && <p className="notice">还未收录此类物资。</p>}
-                  {items.length > 0 && (
-                    <ul className="entry-grid catalog-grid">
-                      {items.map((item) => (
-                        <li key={item.id} className="content-entry">
-                          <ItemName id={item.id} />
-                          {(item.food !== undefined || item.desc) && (
-                            <p className="sm dim">{item.food !== undefined && '饱食 +' + item.food + '。'}{item.desc}</p>
-                          )}
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                </Section>
-              </TabsContent>
-            )
-          })}
-        </Tabs>
-      )}
-    </>
   )
 }
 
@@ -164,16 +120,17 @@ function Achievements() {
         ))}
       </TabsList>
       {ACHIEVEMENT_TABS.map(({ id, label, steps }) => {
-        const count = steps.filter((entry) => completed.has(entry.id)).length
+        const visible = steps.filter((entry) => achievementVisible(entry, s))
+        const count = visible.filter((entry) => completed.has(entry.id)).length
         return (
           <TabsContent key={id} value={id}>
             <div className="achievement-progress">
-              <Bar value={count} max={steps.length} color="#6fae3a" label={label + '成就进度'}
-                valueText={`已完成 ${count}/${steps.length}`} />
-              <span className="sm dim" aria-hidden="true">{count}/{steps.length}</span>
+              <Bar value={count} max={visible.length} color="#6fae3a" label={label + '成就进度'}
+                valueText={`已完成 ${count}/${visible.length}`} />
+              <span className="sm dim" aria-hidden="true">{count}/{visible.length}</span>
             </div>
             <ul className="achievement-list">
-              {steps.map((entry) => {
+              {visible.map((entry) => {
                 const done = completed.has(entry.id)
                 const pending = entry.requires?.filter((id) => !completed.has(id)) ?? []
                 const locked = pending.length > 0
@@ -278,25 +235,25 @@ function SaveSettings({ onClose, onDebug }: { onClose: () => void; onDebug?: () 
       <section className="settings-group">
         <h3>存档</h3>
         <input ref={fileInput} type="file" accept=".json,application/json" hidden onChange={chooseSave} />
-        <div className="settings-controls">
+        <ActionGrid>
           <Btn onClick={exportSave}>导出存档</Btn>
           <Btn onClick={() => fileInput.current?.click()}>载入存档</Btn>
           <Btn className="danger" onClick={() => { setConfirm(true); setSelected(null) }}>重置存档</Btn>
           {onDebug && <Btn onClick={onDebug}>Debug</Btn>}
-        </div>
+        </ActionGrid>
         {selected && <Card className="settings-confirmation">
           <p>用「{selected.name}」覆盖当前进度？</p>
-          <div className="settings-controls">
+          <ActionGrid>
             <Btn className="danger" onClick={importSave}>确认载入</Btn>
             <Btn onClick={() => setSelected(null)}>取消</Btn>
-          </div>
+          </ActionGrid>
         </Card>}
         {confirm && <Card className="settings-confirmation">
           <p>清除当前进度，从初生森林重新开始？</p>
-          <div className="settings-controls">
+          <ActionGrid>
             <Btn className="danger" onClick={() => { reset(); onClose() }}>确认重置</Btn>
             <Btn onClick={() => setConfirm(false)}>取消</Btn>
-          </div>
+          </ActionGrid>
         </Card>}
         {status && <p className="sm" role="status">{status}</p>}
       </section>

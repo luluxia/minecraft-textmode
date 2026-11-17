@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import { existsSync, readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { ITEM_LIST, ITEMS, RECIPES, SMELTS, MOBS, BIOMES, BUILDINGS, BUILDING_MAP, JOBS, ACTIONS, TRADES, FUELS, ENCHANTS } from '../src/game/data.ts'
-import { BARTER_COST, BARTER_OFFERS, EXCAVATION_COST, EXPEDITIONS, LINES, NETHER_COST, PLANTS, RESPAWN_COST, ROUTES, SURVEY_COST, TRIAL_VAULTS, WITHER_COST } from '../src/game/progression.ts'
+import { BARTER_COST, BARTER_OFFERS, EXCAVATION_COST, EXPEDITIONS, LINES, NETHER_COST, PLANTS, RESPAWN_COST, SURVEY_COST, TRIAL_VAULTS, WITHER_COST } from '../src/game/progression.ts'
 const root = new URL('../', import.meta.url)
 const bag = (entries) => { for (const id of Object.keys(entries)) assert.ok(ITEMS[id], `Unknown item: ${id}`) }
 const assetSources = JSON.parse(readFileSync(new URL('public/textures/minecraft/sources.json', root), 'utf8'))
@@ -19,6 +19,7 @@ for (const entries of [ITEM_LIST, Object.values(MOBS)]) {
  const icons = new Set(entries.map((entry) => entry.icon))
  assert.equal(icons.size, entries.length, 'Different items or combat creatures should have distinct icons')
 }
+assert.equal(Object.keys(ITEMS).length, ITEM_LIST.length, 'Item IDs must be unique')
 for (const recipe of RECIPES) { bag(recipe.cost); bag(recipe.returns ?? {}); assert.ok(ITEMS[recipe.out]) }
 for (const item of ITEM_LIST) if (item.container) assert.ok(ITEMS[item.container])
 for (const smelt of SMELTS) { assert.ok(ITEMS[smelt.from]); assert.ok(ITEMS[smelt.out]) }
@@ -27,11 +28,10 @@ for (const biome of Object.values(BIOMES)) for (const id of biome.actions) {
  const action = ACTIONS[id]
  assert.ok(action, `Unknown action: ${id}`)
  if (action.finite) assert.ok(biome.res[action.finite], `Missing deposit: ${biome.id}/${action.finite}`)
- if (action.diveAir !== undefined) {
-   assert.equal(biome.id, 'coast')
-   assert.ok(Number.isInteger(action.diveAir) && action.diveAir > 0)
-   if (action.finite) assert.ok(biome.renew?.includes(action.finite))
- }
+ if (action.diveAir !== undefined) assert.ok(biome.diving, `Only diving places can offer ${id}`)
+}
+for (const action of Object.values(ACTIONS)) {
+ if (action.diveAir !== undefined) assert.ok(Number.isInteger(action.diveAir) && action.diveAir > 0)
  if (action.mob) assert.ok(MOBS[action.mob])
  if (action.tool) assert.ok(ITEMS[action.tool])
  if (action.enchant) assert.ok(ENCHANTS.some((entry) => entry.id === action.enchant))
@@ -43,11 +43,6 @@ for (const biome of Object.values(BIOMES)) for (const id of biome.renew ?? []) a
 for (const b of BUILDINGS) { bag(b.cost); if (b.tool) assert.ok(ITEMS[b.tool]) }
 for (const job of JOBS) bag(job.out)
 for (const trade of TRADES) { bag(trade.give); bag(trade.get) }
-for (const route of ROUTES) {
- assert.ok(BIOMES[route.biome])
- assert.equal(!!route.nether, !!BIOMES[route.biome].nether)
- if (route.tool) assert.ok(ITEMS[route.tool])
-}
 for (const cost of [NETHER_COST, WITHER_COST, SURVEY_COST, BARTER_COST, EXCAVATION_COST, RESPAWN_COST]) bag(cost)
 for (const offer of BARTER_OFFERS) bag(offer.reward)
 for (const line of LINES) {

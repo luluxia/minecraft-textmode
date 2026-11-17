@@ -6,6 +6,7 @@
   --panel: #24221b;
   --panel-2: #2e2b22;
   --line: #4a4638;
+  --entry-spacing: 8px;
   --hi: #6b6551;
   --lo: #0b0a07;
   --text: #e9e3cf;
@@ -31,7 +32,7 @@ body {
   image-rendering: pixelated;
 }
 button { font: inherit; color: inherit; }
-h1, h2, h3, p { margin: 0; font-weight: normal; }
+h1, h2, h3, h4, p { margin: 0; font-weight: normal; }
 .sm { font-size: 14px; }
 .dim { color: var(--dim); }
 .good { color: var(--green); }
@@ -211,9 +212,9 @@ body { background: linear-gradient(#0009, #0009), url('/textures/minecraft/dirt.
 .dialog-scroll { flex: 0 1 auto; min-height: 0; width: 100%; max-height: 720px; overflow-wrap: anywhere; }
 .journal-dialog { height: min(720px, calc(var(--ui-vh) * .9)); gap: 16px; }
 .journal-dialog .dialog-scroll { flex: 1; max-height: none; }
-.game-dialog-header { display: flex; align-items: center; justify-content: space-between; gap: 16px; width: 100%; flex-shrink: 0; padding-bottom: 12px; border-bottom: 2px solid var(--line); }
-.game-dialog-header h2 { margin: 0; font-size: 20px; line-height: 1.5; overflow-wrap: anywhere; }
-.game-dialog-header .game-dialog-close { flex-shrink: 0; min-width: 72px; min-height: 44px; }
+.game-dialog-header { display: flex; align-items: center; justify-content: space-between; gap: 16px; width: 100%; flex-shrink: 0; padding-bottom: 8px; border-bottom: 2px solid var(--line); }
+.game-dialog-header h2.text-base { margin: 0; font-size: 1rem; line-height: 1.5; overflow-wrap: anywhere; }
+.game-dialog-header .game-dialog-close { flex-shrink: 0; width: 36px; min-width: 36px; height: 36px; min-height: 36px; padding: 0; }
 .combat-dialog { height: min(640px, calc(var(--ui-vh) * .9)); }
 .game-dialog .modal { padding: 0; width: 100%; }
 .game-dialog .modal > .section { margin-top: 0; }
@@ -240,15 +241,10 @@ body { background: linear-gradient(#0009, #0009), url('/textures/minecraft/dirt.
 .combat-dialog .modal > p { text-align: center; }
 .combat-dialog .combat-lines { width: 100%; height: 72px; min-height: 0; flex: 0 0 72px; line-height: 20px; text-align: center; mask-image: none; }
 .combat-dialog .combat-lines > .scroll-content { display: flex; flex-direction: column; gap: 6px; }
-.combat-dialog .actions { width: 100%; display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 112px), 1fr)); gap: 8px; }
-.combat-dialog .actions > .btn { width: 100%; min-width: 0; padding: 8px; }
 :root[data-ui-short="true"] {
   .combat-dialog .modal { gap: 6px; }
   .combat-dialog .combat-mob { height: 72px; }
   .combat-dialog .player-status { padding-block: 6px; }
-  .combat-dialog .actions { gap: 6px; }
-  .combat-dialog .actions > .btn { padding: 4px 6px; }
-  .combat-dialog .btn-sub { font-size: 12px; line-height: 16px; }
 }
 .main, .panel, .card { min-width: 0; }
 :root[data-ui-narrow="true"] { .cards { grid-template-columns: minmax(0,1fr); } }
@@ -315,11 +311,10 @@ body, button, input, select, textarea,
 
 /* One outer frame; compact records inside it that size to their content. */
 .main-scroll { --entry-width: 264px; --action-width: 136px; }
-.entry-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, var(--entry-width)), 1fr)); gap: 8px; }
-.entry-list-notice { margin-bottom: 10px; }
-.recipe-filters { margin-bottom: 10px; }
-.trial-vaults { margin-top: 8px; }
-.content-entry { box-sizing: border-box; width: 100%; min-width: 0; padding: 8px 10px; display: flex; flex-direction: column; gap: 4px; border: 1px solid #555; background: #ffffff05; }
+.entry-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, var(--entry-width)), 1fr)); gap: var(--entry-spacing); }
+.recipe-filters { margin-bottom: var(--entry-spacing); }
+.trial-vaults { margin-top: var(--entry-spacing); }
+.content-entry { box-sizing: border-box; width: 100%; min-width: 0; padding: var(--entry-spacing); display: flex; flex-direction: column; gap: 4px; border: 1px solid #555; background: #ffffff05; }
 .content-entry > .spread { align-items: center; }
 .content-entry > .spread > span:first-child { min-width: 0; overflow-wrap: anywhere; }
 .content-entry .sm { line-height: 20px; }
@@ -343,13 +338,8 @@ body, button, input, select, textarea,
 .smelt-footer { margin-top: auto; padding-top: 2px; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; }
 .smelt-footer .entry-actions { flex-shrink: 0; margin-left: auto; }
 .smelt-footer .btn { min-width: 52px; height: 32px; padding: 2px 10px; }
-.main-scroll .actions, .fuel-actions { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, var(--action-width)), 1fr)); gap: 6px; }
-.main-scroll .move-actions { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-.move-actions .btn-label { overflow-wrap: anywhere; }
-.main-scroll .actions > .btn, .fuel-actions > .btn { width: 100%; height: auto; min-height: 56px; min-width: 0; padding: 4px 8px; }
-.main-scroll .actions > .btn.wide { grid-column: span 2; }
-.fuel-actions { --action-width: 176px; }
-.fuel-actions > .btn { min-height: 32px; }
+.main-scroll .actions:not(.action-grid) { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, var(--action-width)), 1fr)); gap: 6px; }
+.main-scroll .actions > .btn { width: 100%; height: auto; min-height: 56px; min-width: 0; padding: 4px 8px; }
 .main-scroll .btn-label { width: 100%; }
 .main-scroll .actions .btn-label { gap: 0; }
 .main-scroll .actions .btn-sub { line-height: 20px; }
@@ -359,7 +349,15 @@ body, button, input, select, textarea,
 .main-scroll .section:first-child { margin-top: 0; }
 .main-scroll .section > h3 { margin-bottom: 6px; align-items: center; }
 .main-scroll .notice { padding: 4px 10px; }
-.section + .camp-return-notice { margin-top: 10px; }
+:is(.main-scroll, .dialog-scroll) :where(.notice, .actions) + .actions:not(:empty),
+:is(.main-scroll, .dialog-scroll) .notice + :where(.entry-grid, .recipe-filters):not(:empty),
+:is(.main-scroll, .dialog-scroll) :where(.notice, .actions, .entry-grid, .section) + .notice,
+.game-dialog .modal > .notice + .section {
+  margin-block-start: 10px;
+}
+.village-notices { margin-block-end: 10px; }
+.village-overview-actions { margin-block-start: 8px; }
+.village-exchange-actions { margin-block-end: 8px; }
 .main-scroll .mc-tabs-list.subtabs { margin-bottom: 10px; }
 
 /* Hidden scrollbar, with independent fades that reflect the remaining scroll range. */
@@ -379,10 +377,9 @@ body, button, input, select, textarea,
 .scroll-area[data-scroll-below="true"] { --scroll-fade-bottom: 22px; }
 .scroll-content { min-width: 0; display: flow-root; }
 
-.catalog-grid { --entry-width: 144px; margin: 0; padding: 0; list-style: none; }
 .achievement-progress { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
 .achievement-progress > .bar { flex: 1; }
-.achievement-list { display: grid; gap: 8px; padding: 0; margin: 0; list-style: none; }
+.achievement-list { display: grid; gap: var(--entry-spacing); padding: 0; margin: 0; list-style: none; }
 .achievement-tracking { margin-bottom: 10px; }
 .achievements-dialog .entry-heading h3 { font: inherit; }
 
@@ -401,10 +398,128 @@ body, button, input, select, textarea,
 
 :root[data-ui-compact="true"] {
   .mc-card.panel { padding: 20px; }
-  .content-entry { padding: 12px; gap: 8px; }
-  .entry-grid, .main-scroll .actions { gap: 10px; }
+  .content-entry { gap: 8px; }
+  .main-scroll .actions:not(.action-grid) { gap: 10px; }
   .main-scroll .section { margin-top: 20px; }
   .main-scroll .section:first-child { margin-top: 0; }
   .main-scroll .section > h3 { margin-bottom: 10px; }
   .inv-row { padding-block: 4px; }
 }
+
+.recipe-ingredient { width: 100%; }
+.recipe-ingredient .recipe-ingredient-content { padding: 0; }
+.storage-header { margin-block: var(--entry-spacing); }
+.storage-entry > .icon-text { align-self: flex-start; overflow-wrap: anywhere; }
+.storage-entry > .entry-actions { margin-top: auto; flex-wrap: wrap; }
+.storage-count { font-variant-numeric: tabular-nums; }
+.adventure .mc-tabs-trigger[data-storage-pending="true"]::after {
+  content: "";
+  position: absolute;
+  inset: 8px 8px auto auto;
+  width: 6px;
+  height: 6px;
+  background: var(--gold);
+  pointer-events: none;
+}
+.village-commission { margin-top: var(--entry-spacing); }
+
+/* ---------- 配方书 ---------- */
+.book-browser, .book-detail { display: grid; gap: 12px; }
+.book-toolbar { display: grid; gap: 8px; padding-bottom: 12px; border-bottom: 2px solid var(--line); }
+.book-search-input { width: 100%; }
+.book-search-input::placeholder { color: var(--faint); }
+.book-filters { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 4px; margin: 0; }
+.book-filters > .btn { width: 100%; min-width: 0; padding-inline: 2px; }
+.book-group { display: grid; gap: 6px; }
+.book-group-title { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 14px; color: var(--dim); letter-spacing: 2px; }
+.book-group-title::after { content: ''; order: 1; flex: 1; height: 2px; background: var(--line); }
+.book-group-title > :not(:first-child) { order: 2; }
+.book-count { font-size: 14px; color: var(--faint); letter-spacing: 0; font-variant-numeric: tabular-nums; }
+.book-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(132px, 1fr)); gap: 4px; margin: 0; padding: 0; list-style: none; }
+.book-cell {
+  position: relative; display: flex; align-items: center; gap: 6px; width: 100%; height: 36px; padding: 0 8px;
+  border: 2px solid var(--lo); background: #8b8b8b26; box-shadow: inset 2px 2px 0 #ffffff1a, inset -2px -2px 0 #00000040;
+  font: inherit; font-size: 14px; color: var(--text); text-align: start; cursor: pointer;
+}
+.book-cell:hover { background: #ffffff1f; border-color: #fff; }
+.book-cell:focus-visible { outline: 2px solid #fff; outline-offset: 1px; }
+.book-cell .texture { width: 20px; height: 20px; }
+.book-cell-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.book-cell[data-unseen] { color: var(--dim); }
+.book-cell[data-unseen] .texture { opacity: .55; }
+.book-cell[data-unseen]::after { content: ''; position: absolute; top: 4px; right: 4px; width: 4px; height: 4px; background: var(--gold); }
+.book-legend { display: flex; align-items: center; gap: 6px; font-size: 14px; color: var(--faint); }
+.book-legend::before { content: ''; width: 4px; height: 4px; background: var(--gold); }
+.book-back { justify-self: start; }
+.book-hero { display: flex; align-items: center; gap: 12px; padding: 10px; border: 2px solid var(--lo); background: #00000033; box-shadow: inset 2px 2px 0 #ffffff12; }
+.book-hero-icon { display: grid; place-items: center; flex: none; width: 52px; height: 52px; border: 2px solid var(--lo); background: #8b8b8b40; box-shadow: inset 2px 2px 0 #00000055, inset -2px -2px 0 #ffffff1f; }
+.book-hero-icon .texture { width: 32px; height: 32px; }
+.book-hero-text { display: grid; gap: 4px; min-width: 0; }
+.book-hero-name { font-size: 20px; color: var(--text); overflow-wrap: anywhere; }
+.book-hero-tags { display: flex; flex-wrap: wrap; gap: 4px; }
+.book-desc { color: var(--dim); font-size: 14px; line-height: 1.6; }
+.book-block { display: grid; gap: 8px; }
+.book-chips { display: flex; flex-wrap: wrap; gap: 4px; margin: 0; padding: 0; list-style: none; }
+.book-chip { padding: 2px 8px; border: 2px solid var(--line); background: #ffffff08; font-size: 14px; }
+.recipe-details, .recipe-ingredients { display: grid; gap: 6px; }
+.recipe-details .recipe-details { margin: 4px 0 2px; padding-inline-start: 10px; border-inline-start: 2px solid var(--line); }
+.recipe-station { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 28px; }
+.recipe-station-info { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; font-size: 14px; min-width: 0; }
+.recipe-ingredients { list-style: none; padding: 0; margin: 0; }
+.recipe-ingredients .recipe-ingredient-trigger { width: 100%; min-width: 0; min-height: 36px; padding: 4px 10px; }
+.recipe-ingredients .recipe-ingredient-trigger .mc-button-label { width: 100%; display: flex; align-items: center; justify-content: space-between; gap: 8px; min-width: 0; text-align: start; }
+.recipe-count { flex: none; font-size: 14px; font-variant-numeric: tabular-nums; }
+.recipe-choice { display: grid; gap: 4px; padding-top: 4px; }
+.recipe-choice-name { font-size: 14px; color: var(--dim); }
+.recipe-sources { display: grid; gap: 2px; margin: 0; font-size: 14px; }
+.recipe-source-row { display: grid; grid-template-columns: 3em minmax(0, 1fr); gap: 8px; }
+.recipe-source-row dt { color: var(--dim); }
+.recipe-source-row dd { margin: 0; overflow-wrap: anywhere; }
+.recipe-focus { border-color: var(--green); }
+
+.location-heading, .location-status { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; }
+.location-heading > .loc-name { min-width: 0; overflow-wrap: anywhere; }
+.location-status { margin-inline-start: auto; }
+.location-status:empty { display: none; }
+.location-description { margin-top: 4px; }
+.location-actions { margin-top: 8px; }
+.action-grid {
+  --action-columns: 4;
+  display: grid;
+  width: 100%;
+  min-width: 0;
+  grid-template-columns: repeat(var(--action-columns), minmax(var(--action-column-min-width, 0px), 1fr));
+  grid-auto-rows: 1fr;
+  gap: 8px;
+  overflow-x: auto;
+}
+@media (max-width: 767px) {
+  .action-grid { --action-columns: 2; }
+}
+.action-grid-item { display: grid; min-width: 0; }
+.action-grid-item > .btn {
+  width: 100%;
+  min-width: 0;
+  min-height: 56px;
+  padding: 4px 12px;
+}
+.action-grid .btn-label { width: 100%; gap: 0; }
+.action-grid .btn-sub { line-height: 20px; }
+.action-grid-item[data-action-wide] {
+  grid-column: span 2;
+}
+.action-grid[data-measuring] { grid-template-columns: max-content; }
+.action-grid[data-measuring] > .action-grid-item {
+  grid-column: auto;
+  width: max-content;
+}
+.action-grid[data-measuring] .btn {
+  width: max-content;
+}
+.action-grid[data-measuring] .btn-label { width: auto; }
+.action-grid :is(.btn-title, .btn-sub) {
+  white-space: nowrap;
+}
+.action-quantity { font-size: .875em; color: var(--dim); }
+.btn:disabled .action-quantity { color: var(--faint); }
+.main-scroll .gather-panel .actions > .gather-select { grid-column: 1 / -1; width: min(100%, 244px); }

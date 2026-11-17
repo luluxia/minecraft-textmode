@@ -7,6 +7,7 @@ export interface GoalTerm {
   name: string
   icon: string
   tone: GoalTone
+  itemId?: string
 }
 
 export type GoalHint = readonly (string | GoalTerm)[]
@@ -20,11 +21,12 @@ interface Goal {
 interface Milestone extends Goal {
   id: string
   requires?: readonly string[]
+  available?: (state: GameState) => boolean
   complete: (state: GameState) => boolean
 }
 
 const item = (id: string, tone: GoalTone, name = ITEMS[id].name): GoalTerm => ({
-  name, icon: ITEMS[id].icon, tone,
+  name, icon: ITEMS[id].icon, tone, itemId: id,
 })
 const building = (id: string): GoalTerm => ({
   name: BUILDING_MAP[id].name, icon: BUILDING_MAP[id].icon, tone: 'project',
@@ -35,8 +37,6 @@ const place = (id: string, name = BIOMES[id].name): GoalTerm => ({
 const mob = (id: string): GoalTerm => ({ name: MOBS[id].name, icon: MOBS[id].icon, tone: 'danger' })
 
 const wood = item('wood', 'material')
-const plank = item('plank', 'material', '木板')
-const stick = item('stick', 'material')
 const cobble = item('cobble', 'material')
 const ironOre = item('iron_ore', 'material')
 const iron = item('iron', 'material')
@@ -87,19 +87,21 @@ const dragon = mob('dragon')
 const monumentRequirements: GoalHint = ['成为', mayor, '、点亮', beacon, '并完成', outerIslands]
 
 export const STORY: Milestone[] = [
+  { id: 'cook-food', title: '第一顿熟食', icon: food, hint: ['在营火或熔炉烹饪一次食物。'], complete: (s) => !!s.flags.cookedFood },
+  { id: 'nearby-discovery', title: '近处的发现', icon: forest, hint: ['在采集页探索附近。'], complete: (s) => !!s.flags.nearbyFound },
   { id: 'wood', title: '徒手伐木', icon: wood, hint: ['收集', wood, '。'], complete: (s) => !!s.seen.wood },
   {
-    id: 'table', requires: ['wood'], title: '工作台', icon: table, hint: ['在制造页把', wood, '做成', plank, '，再用 4 块木板合成', table, '。'],
+    id: 'table', requires: ['wood'], title: '工作台', icon: table, hint: ['把', wood, '做成木板，再合成', table, '。'],
     complete: (s) => !!s.seen.table,
   },
   {
     id: 'home', requires: ['table'], title: '安家', icon: shelter,
-    hint: ['在生存页用 6 根原木和 12 块木板建立', shelter, '，也可以从地图页寻找', village, '，再到生存页定居。'],
+    hint: ['建立', shelter, '，或完成', village, '的委托后定居。'],
     complete: (s) => s.homeId !== null,
   },
   {
     id: 'stone-age', requires: ['table'], title: '石器时代', icon: stonePick,
-    hint: ['用', plank, '和', stick, '做一把', woodPick, '，在', forest, '挖', cobble, '，换上', stonePick, '。'],
+    hint: ['用', woodPick, '从森林或丘陵取得', cobble, '，再制作', stonePick, '。'],
     complete: (s) => PICKS.slice(1).some((id) => s.seen[id]),
   },
   {
@@ -109,13 +111,13 @@ export const STORY: Milestone[] = [
   },
   {
     id: 'diamond-pick', requires: ['iron-pick'], title: '钻石！', icon: diamond,
-    hint: ['勘察', cave, '，用', ironPick, '开采', diamond, '，再做一把', diamondPick, '。', torch, '可以降低遇敌概率并补充矿脉。'],
+    hint: ['在', cave, '等地点寻找矿脉，用', ironPick, '开采', diamond, '，再做一把', diamondPick, '。', torch, '可以降低遇敌概率并补充矿脉。'],
     complete: (s) => PICKS.slice(3).some((id) => s.seen[id]),
   },
   {
     id: 'nether', requires: ['home', 'diamond-pick'], title: '勇往直下', icon: netherPortal,
-    hint: ['用', diamondPick, '开采', obsidian, '，回家在维度页用 10 块黑曜石和 1 块', iron, '搭建', netherPortal, '。'],
-    complete: (s) => !!s.flags.nether || !!s.flags.altar,
+    hint: ['用', diamondPick, '开采', obsidian, '，回家在维度页用 10 块黑曜石和 1 块', iron, '搭建', netherPortal, '并进入下界。'],
+    complete: (s) => !!s.flags.enteredNether || !!s.flags.altar,
   },
   {
     id: 'stronghold', requires: ['nether'], title: '跟随末影之眼', icon: eye,
@@ -135,17 +137,25 @@ export const STORY: Milestone[] = [
 ]
 
 export const PROJECTS: Milestone[] = [
+  { id: 'joined-village', title: '村里的新邻居', icon: village, hint: ['完成现成村庄的委托并定居。'], available: (s) => !s.village?.founded, complete: (s) => !!s.flags.joinedVillage },
+  { id: 'invited-resident', title: '第一位住民', icon: villager, hint: ['安顿好后，为结识的旅人准备住房和口粮。'], available: (s) => !s.village || s.village.founded, complete: (s) => !!s.flags.invitedVillager },
   {
-    id: 'first-job', requires: ['home'], title: '村庄的第一班岗', icon: villager, hint: ['在村庄页为一位', villager, '安排工作。'],
-    complete: (s) => !!s.flags.firstJob || Object.values(s.village?.jobs ?? {}).some((n) => n > 0),
+    id: 'first-job', requires: ['home'], title: '村庄的第一班岗', icon: villager, hint: ['安排一位', villager, '工作，并等到首次产出。'],
+    complete: (s) => !!s.flags.firstJobOutput,
   },
   {
     id: 'raid', requires: ['home'], title: '有备而来', icon: watchtower, hint: ['造起', watchtower, '，安排', guard, '后在村庄概况敲钟迎击袭击。'],
     complete: (s) => !!s.expeditions.raid,
   },
   {
-    id: 'automation', requires: ['home'], title: '自动化时代', icon: workshop, hint: ['建造', workshop, '，启用任意一条产线。'],
-    complete: (s) => !!s.flags.automation,
+    id: 'automation', title: '启用产线', icon: workshop, hint: ['已在旧存档中启用过产线。'],
+    available: (s) => !!s.flags.legacyAutomation,
+    complete: (s) => !!s.flags.legacyAutomation,
+  },
+  {
+    id: 'first-line-output', requires: ['first-job'], title: '自动化时代', icon: workshop,
+    hint: ['在', workshop, '启用一条产线，并在仓库备好原料。'],
+    complete: (s) => !!s.flags.lineOutput,
   },
   {
     id: 'mayor', requires: ['home'], title: '你就是村长', icon: mayor, hint: ['把人口发展到 8 人，并累积 60 声望。'],
@@ -175,8 +185,6 @@ export const PROJECTS: Milestone[] = [
 ]
 
 const spyglass = item('spyglass', 'equipment')
-const copper = item('copper', 'material')
-const amethyst = item('amethyst', 'special')
 const brush = item('brush', 'equipment')
 const pot = item('pot', 'special')
 const apiary = building('apiary')
@@ -193,7 +201,6 @@ const windCharge = item('wind_charge', 'special')
 const echoShard = item('echo_shard', 'special')
 const city = place('ancient_city')
 const compass = item('recovery_compass', 'equipment')
-const boat = item('boat', 'equipment')
 const treasureMap = item('treasure_map', 'special')
 const heart = item('heart_of_sea', 'special')
 const shellNautilus = item('nautilus', 'special')
@@ -210,6 +217,10 @@ const enderChest = item('ender_chest', 'equipment')
 const endStore = building('end_store')
 
 export const EXPLORATION: Milestone[] = [
+  { id: 'followed-lead', title: '循着线索', icon: forest, hint: ['从已发现线索的地点出发远行。'], complete: (s) => !!s.flags.followedLead },
+  { id: 'return-to-mark', title: '重返旧地', icon: item('map', 'equipment'), hint: ['用地图标记地点，离开后再回来。'], complete: (s) => !!s.flags.returnedToMark },
+  { id: 'local-supplies', title: '就地取材', icon: item('chest', 'material'), hint: ['使用箱子或仓库材料完成一次制作或建造。'], complete: (s) => !!s.flags.usedLocalStock },
+  { id: 'creeper', title: '嘶声过后', icon: mob('creeper'), hint: ['应对一次苦力怕的遭遇。'], complete: (s) => !!s.flags.defeatedCreeper },
   {
     id: 'apiary', requires: ['home'], title: '蜂巢下的烟火', icon: apiary,
     hint: ['带上', campfire, '与', shears, '，到白桦森林或平原采', honeycomb, '，再建起', apiary, '。'],
@@ -221,8 +232,8 @@ export const EXPLORATION: Milestone[] = [
     complete: (s) => !!s.seen.pot,
   },
   {
-    id: 'trial-chamber', requires: ['iron-pick'], title: '远望地下', icon: spyglass,
-    hint: ['熔出', copper, '，采收', amethyst, '，合成', spyglass, '，用铁镐勘察', trial, '。'],
+    id: 'trial-chamber', title: '远望地下', icon: spyglass, available: (s) => !!s.leads.copper,
+    hint: ['探索洞穴时寻找铜与凝灰岩线索，或用', spyglass, '协助寻找', trial, '。'],
     complete: (s) => !!s.flags.trialVisited || !!s.flags.trialVault ||
       Object.values(s.locs).some((loc) => loc.biome === 'trial_chamber'),
   },
@@ -237,14 +248,14 @@ export const EXPLORATION: Milestone[] = [
     complete: (s) => !!s.flags.maceLeap,
   },
   {
-    id: 'recovery-compass', requires: ['diamond-pick'], title: '故地重寻', icon: compass,
+    id: 'recovery-compass', requires: ['diamond-pick'], title: '故地重寻', icon: compass, available: (s) => !!s.leads.sculk || !!s.seenPlaces.ancient_city,
     hint: ['用羊毛在', city, '潜行搜寻', echoShard, '，制作', compass, '。'],
     complete: (s) => !!s.seen.recovery_compass,
   },
   {
-    id: 'heart-of-sea', requires: ['home'], title: '海洋之心', icon: heart,
-    hint: ['造一艘', boat, '，在村庄派队打捞沉船，再凭', treasureMap, '找到', heart, '。'],
-    complete: (s) => !!s.seen.heart_of_sea,
+    id: 'heart-of-sea', title: '海洋之心', icon: heart,
+    hint: ['从海岸沉船或村庄远征获得', treasureMap, '，再找到', heart, '。'],
+    complete: (s) => !!s.expeditions.buried_treasure || !!s.seen.heart_of_sea,
   },
   {
     id: 'conduit', requires: ['heart-of-sea'], title: '潮涌能量', icon: conduit,
@@ -252,7 +263,7 @@ export const EXPLORATION: Milestone[] = [
     complete: (s) => !!s.seen.conduit && !!s.expeditions.ocean_monument,
   },
   {
-    id: 'sniffer', requires: ['home'], title: '播种过往', icon: torchflower,
+    id: 'sniffer', requires: ['home'], title: '播种过往', icon: torchflower, available: (s) => !!s.flags.foundWarmRuins || !!s.seen.sniffer_egg,
     hint: ['考察暖水海底废墟，带回并孵化', snifferEgg, '，然后在营地种下', torchflower, '。'],
     complete: (s) => !!s.seen.torchflower,
   },
@@ -276,8 +287,10 @@ export const EXPLORATION: Milestone[] = [
 const achievements = [...STORY, ...PROJECTS, ...EXPLORATION]
 const achievementsById = new Map(achievements.map((entry) => [entry.id, entry]))
 
+export const achievementVisible = (entry: Milestone, state: GameState) => entry.complete(state) || (entry.available?.(state) ?? true)
+
 export const getAchievement = (id: string) => achievementsById.get(id)
-export const TUTORIAL = STORY.filter(({ id }) => ['wood', 'table', 'home'].includes(id))
+export const TUTORIAL = STORY.filter(({ id }) => ['wood', 'table', 'cook-food', 'nearby-discovery', 'stone-age', 'home'].includes(id))
 
 export function getCompletedAchievements(state: GameState) {
   // Evaluate each prerequisite before its dependent achievements.

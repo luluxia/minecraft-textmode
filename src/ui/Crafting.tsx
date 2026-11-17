@@ -2,18 +2,28 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '../components/minecraf
 import { Button } from '../components/minecraft/button'
 import { AdventureImage } from '../components/minecraft/minecraft-adventure-image'
 import { Texture } from './Texture'
-import { useState } from 'react'
-import { ENCHANTS, FUELS, ITEM_CATEGORIES, ITEMS, ITEM_LIST, RECIPES, SMELTS, type Cat } from '../game/data'
-import { canAfford, count, enchantCost, recipeStationReady, useGame } from '../game/store'
-import { Btn, Cost, EntryHeader, ItemName, Section } from './kit'
+import { useEffect, useState } from 'react'
+import { ActionGrid } from './ActionGrid'
+import { ENCHANTS, FUELS, ITEM_CATEGORIES, ITEMS, ITEM_LIST, RECIPES, SMELTS, type Cat, type Recipe } from '../game/data'
+import { PACK_LIMIT, carriesLimit, materialOptions } from '../game/inventory'
+import { available, canAfford, count, enchantCost, furnaceOutputBlocked, outputRoom, recipeStationReady, useGame } from '../game/store'
+import { STATION_NAMES, recipeOptions, type RecipeTarget } from '../game/recipes'
+import { ActionTitle, Btn, Cost, EntryHeader, ItemName, Section } from './kit'
 import { useScrollReset } from './ScrollArea'
 
 const CAT_NAMES: [Cat, string][] = [['tool', '工具'], ['gear', '装备'], ['food', '食物'], ['material', '材料'], ['special', '奇物']]
+const woodFuelVariants = new Set(['wood', 'plank'].flatMap((id) => materialOptions(id).filter((item) => item !== id)))
 
-export function Crafting() {
+export function Crafting({ target }: { target?: RecipeTarget }) {
   const s = useGame()
   const [sub, setSub] = useState('craft')
   const resetScroll = useScrollReset()
+  const [currentTarget, setCurrentTarget] = useState(target)
+  useEffect(() => {
+    if (!target) return
+    setSub(target.kind === 'smelt' ? 'furnace' : 'craft')
+    setCurrentTarget(target)
+  }, [target])
   const tabs: [string, string, boolean][] = [
     ['craft', count(s, 'table') > 0 ? '工作台' : '徒手合成', true],
     ['furnace', '熔炉', !!s.flags.furnace],
@@ -24,33 +34,34 @@ export function Crafting() {
 
   return (
     <div>
-      <Tabs value={cur} onValueChange={(value) => { resetScroll(); setSub(String(value)) }}><TabsList className="subtabs" aria-label="制造页面">
+      <Tabs value={cur} onValueChange={(value) => { resetScroll(); setSub(String(value)); setCurrentTarget(undefined) }}><TabsList className="subtabs" aria-label="制造页面">
         {tabs.filter(([, , ok]) => ok).map(([id, name]) => (
           <TabsTrigger key={id} value={id} aria-label={name}>
             {name}
           </TabsTrigger>
         ))}
       </TabsList>
-      <TabsContent value="craft"><CraftList /></TabsContent>
-      <TabsContent value="furnace"><Furnace /></TabsContent>
+      <TabsContent value="craft"><CraftList focusId={currentTarget?.kind === 'craft' ? currentTarget.id : undefined} /></TabsContent>
+      <TabsContent value="furnace"><Furnace focusId={currentTarget?.kind === 'smelt' ? currentTarget.id : undefined} /></TabsContent>
       <TabsContent value="enchant"><Enchant /></TabsContent>
       <TabsContent value="bag"><Bag /></TabsContent></Tabs>
     </div>
   )
 }
 
-function CraftList() {
+function CraftList({ focusId }: { focusId?: string }) {
   const s = useGame()
   const [category, setCategory] = useState<Cat | 'all'>('all')
   const hasTable = count(s, 'table') > 0
-  const unlocked = RECIPES.filter(
-    (r) => recipeStationReady(s, r.station) && Object.keys(r.cost).every((k) => s.seen[k]),
-  )
+  const unlocked = RECIPES.filter((recipe) => recipe.id === focusId || (recipeStationReady(s, recipe.station) &&
+    recipeOptions(s, recipe.out).some((step) => step.kind === 'craft' && step.id === recipe.id)))
   const showFilters = unlocked.length > 18
-  const list = showFilters && category !== 'all' ? unlocked.filter((recipe) => ITEMS[recipe.out].cat === category) : unlocked
+  const filtered = showFilters && category !== 'all' ? unlocked.filter((recipe) => ITEMS[recipe.out].cat === category) : unlocked
+  const focused = focusId ? unlocked.find((recipe) => recipe.id === focusId) : undefined
+  const list = focused ? [focused, ...filtered.filter((recipe) => recipe !== focused)] : filtered
   return (
     <>
-      {!hasTable && <p className="notice" style={{ marginBottom: 8 }}>双手能做的东西有限。先做一张工作台吧。</p>}
+      {!hasTable && <p className="notice">双手能做的东西有限。先做一张工作台吧。</p>}
       {showFilters && (
         <div className="row recipe-filters" role="group" aria-label="配方分类">
           {([['all', '全部'], ...ITEM_CATEGORIES] as const).map(([id, name]) => (
@@ -62,47 +73,64 @@ function CraftList() {
       )}
       {list.length === 0 && <p className="notice">还没有发现这类配方。</p>}
       <div className="entry-grid">
-        {list.map((r) => {
-          const def = ITEMS[r.out]
-          const unique = def.cat === 'tool' || def.cat === 'gear'
-          const owned = unique && count(s, r.out) > 0
-          const ok = canAfford(s, r.cost)
-          return (
-            <article key={r.id} className="content-entry fade-in">
-              <EntryHeader actions={<>
-                {owned
-                  ? <span className="tag g">已拥有</span>
-                  : <Btn disabled={!ok} onClick={() => s.craft(r.id)}>{r.station === 'brewing' ? '酿造' : r.station === 'smithing' ? '升级' : '合成'}</Btn>}
-                {!unique && <Btn disabled={!ok} onClick={() => s.craft(r.id, 10)}>×10</Btn>}
-              </>}>
-                <span className="icon-text"><Texture src={def.icon} /> {def.name}{r.n > 1 ? ` ×${r.n}` : ''}</span>
-                {!unique && <span className="sm dim">持有 {count(s, r.out)}</span>}
-              </EntryHeader>
-              {(def.desc || r.station === 'brewing' || r.station === 'smithing') && (
-                <span className="sm dim">{r.station === 'brewing' ? '酿造台 ' : r.station === 'smithing' ? '锻造台 ' : ''}{def.desc}</span>
-              )}
-              <Cost cost={r.cost} />
-            </article>
-          )
-        })}
+        {list.map((recipe) => <CraftEntry key={recipe.id} recipe={recipe} focused={recipe === focused} />)}
       </div>
     </>
   )
 }
 
-function Furnace() {
+function CraftEntry({ recipe, focused }: { recipe: Recipe; focused: boolean }) {
+  const s = useGame()
+  const { out, station, cost, alternatives } = recipe
+  const def = ITEMS[out]
+  const amount = count(s, out)
+  const unique = def.cat === 'tool' || def.cat === 'gear'
+  const full = outputRoom(s, out) < recipe.n
+  const ok = !s.combat && !s.submerged && !full && recipeStationReady(s, station) && canAfford(s, cost, alternatives)
+  const action = station === 'brewing' ? '酿造' : station === 'smithing' ? '升级' : '合成'
+
+  return (
+    <article className={focused ? 'content-entry recipe-focus' : 'content-entry fade-in'}>
+      <EntryHeader actions={<>
+        {unique && amount > 0
+          ? <span className="tag g">已拥有</span>
+          : <Btn disabled={!ok} onClick={() => s.craft(recipe.id)}>{action}</Btn>}
+        {!unique && <Btn disabled={!ok} onClick={() => s.craft(recipe.id, 10)}>×10</Btn>}
+      </>}>
+        <span className="icon-text"><Texture src={def.icon} /> {def.name}{recipe.n > 1 ? ` ×${recipe.n}` : ''}</span>
+      </EntryHeader>
+      {!unique && <span className="sm dim">持有 {amount}</span>}
+      {(def.desc || station === 'brewing' || station === 'smithing') && (
+        <span className="sm dim">{station === 'brewing' || station === 'smithing' ? `${STATION_NAMES[station]} ` : ''}{def.desc}</span>
+      )}
+      {full && <span className="bad">储存空间不足</span>}
+      <Cost cost={cost} alternatives={alternatives} />
+    </article>
+  )
+}
+
+function Furnace({ focusId }: { focusId?: string }) {
   const s = useGame()
   const job = s.furnace.job
   const jobDef = job && SMELTS.find((x) => x.id === job.r)
   const hasFuel = s.furnace.fuel >= 1
-  const fuels = Object.keys(FUELS).filter((k) => s.seen[k])
+  const outputIssue = furnaceOutputBlocked(s)
+  const away = job?.locId !== undefined && job.locId !== s.locId
+  const fuels = Object.keys(FUELS)
+    .filter((id) => !woodFuelVariants.has(id))
+    .map((id) => ({ id, quantity: available(s, id) }))
+    .filter(({ quantity }) => quantity > 0)
+  const smelts = SMELTS.map((recipe) => ({ recipe, have: available(s, recipe.from) }))
+    .filter(({ have }) => have > 0)
+  const focused = focusId && smelts.find(({ recipe }) => recipe.id === focusId)
+  const list = focused ? [focused, ...smelts.filter((entry) => entry !== focused)] : smelts
   return (
     <>
       <Section title="炉膛" extra={`燃料 ${s.furnace.fuel}`}>
         <div className="furnace-workspace">
           {job && jobDef ? (
             <>
-              <div className="spread furnace-job" data-paused={!hasFuel}
+              <div className="spread furnace-job" data-paused={!hasFuel || !!outputIssue}
                 style={{ backgroundSize: `${job.prog / jobDef.time * 100}% 100%` }}>
                 <SmeltItems from={jobDef.from} to={jobDef.out} />
                 <span className="sm dim" role="progressbar" aria-label="熔炼进度"
@@ -111,38 +139,44 @@ function Furnace() {
                   剩余 {job.left}
                 </span>
               </div>
-              {!hasFuel && <span className="sm bad">燃料耗尽，熔炉熄灭了。</span>}
-              <div><Btn className="mini" onClick={s.cancelSmelt}>取出原料</Btn></div>
+              {away && <span className="sm dim">{s.locs[job.locId!]?.name}</span>}
+              {!hasFuel && <span className="bad">燃料耗尽</span>}
+              {outputIssue && <span className="bad">{outputIssue}</span>}
             </>
           ) : (
             <span className="dim sm">炉膛是空的。每熔炼一件物品消耗 1 点燃料。</span>
           )}
-          <div className="fuel-actions">
-            {fuels.map((k) => (
-              <Btn key={k} className="mini" disabled={count(s, k) < 1} onClick={() => s.addFuel(k)}>
-                添加{ITEMS[k].name}（+{FUELS[k]}）
-              </Btn>
-            ))}
-          </div>
+          {(job || fuels.length > 0) && <ActionGrid>
+            {job && <Btn disabled={away} onClick={s.cancelSmelt}>取出原料</Btn>}
+            {fuels.map(({ id, quantity }) => {
+              const name = id === 'wood' ? '原木' : id === 'plank' ? '木板' : ITEMS[id].name
+              return (
+                <Btn key={id} disabled={!!s.combat || s.submerged} onClick={() => s.addFuel(id)}
+                  sub={`燃料 +${FUELS[id]}`}>
+                  <ActionTitle name={name} quantity={quantity} />
+                </Btn>
+              )
+            })}
+          </ActionGrid>}
         </div>
       </Section>
       <Section title="熔炼">
+        {list.length === 0 && <p className="notice">暂无可用的熔炼原料。</p>}
         <div className="entry-grid">
-          {SMELTS.filter((r) => s.seen[r.from]).map((r) => {
-            const have = count(s, r.from)
-            const blocked = !!job && job.r !== r.id
+          {list.map(({ recipe: r, have }) => {
+            const blocked = !!s.combat || s.submerged || (!!job && (job.r !== r.id || away))
             return (
-              <article key={r.id} className="content-entry">
+              <article key={r.id} className={r.id === focusId ? 'content-entry recipe-focus' : 'content-entry'}>
                 <div className="spread">
                   <SmeltItems from={r.from} to={r.out} />
                   <span className="sm dim">{r.time} 秒</span>
                 </div>
                 <div className="smelt-footer">
-                  <span className="tag material-tag">持有原料 {have}</span>
+                  <span className="tag material-tag">原料 {have}</span>
                   <div className="entry-actions">
-                    <Btn disabled={blocked || have < 1} onClick={() => s.smelt(r.id, 1)}>×1</Btn>
-                    <Btn disabled={blocked || have < 1} onClick={() => s.smelt(r.id, 8)}>×8</Btn>
-                    <Btn disabled={blocked || have < 1} onClick={() => s.smelt(r.id, have)}>全部</Btn>
+                    <Btn disabled={blocked} onClick={() => s.smelt(r.id, 1)}>×1</Btn>
+                    <Btn disabled={blocked} onClick={() => s.smelt(r.id, 8)}>×8</Btn>
+                    <Btn disabled={blocked} onClick={() => s.smelt(r.id, have)}>全部</Btn>
                   </div>
                 </div>
               </article>
@@ -170,10 +204,10 @@ function Enchant() {
     <Section title="附魔" extra={
       <span className="row">
         <span>等级 {s.level}</span>
-        <span className="icon-text"><ItemName id="lapis" /> {count(s, 'lapis')}</span>
+        <span className="icon-text"><ItemName id="lapis" /> {available(s, 'lapis')}</span>
       </span>
     }>
-      <p className="notice" style={{ marginBottom: 8 }}>
+      <p className="notice">
         消耗经验等级与青金石，为你的装备刻下永久的符文。{s.village?.buildings.library ? '（图书馆：青金石消耗减半）' : ''}
       </p>
       <div className="entry-grid">
@@ -181,7 +215,7 @@ function Enchant() {
           const lvl = s.ench[e.id] ?? 0
           const cost = enchantCost(s, e.id)
           const maxed = lvl >= e.max
-          const ok = !maxed && s.level >= cost.levels && count(s, 'lapis') >= cost.lapis
+          const ok = !maxed && s.level >= cost.levels && available(s, 'lapis') >= cost.lapis
           return (
             <article key={e.id} className="content-entry">
               <EntryHeader actions={
@@ -215,17 +249,20 @@ function Bag() {
         return (
           <Section key={cat} title={name}>
             <div className="entry-grid inventory-grid">
-              {items.map((i) => (
-                <article key={i.id} className="content-entry">
+              {items.map((i) => {
+                const amount = count(s, i.id)
+                return <article key={i.id} className="content-entry">
                   <div className="spread">
                     <span className="icon-text"><Texture src={i.icon} /> {i.name}</span>
-                    <span>{cat === 'tool' || cat === 'gear' ? '' : `×${count(s, i.id)}`}</span>
+                    {carriesLimit(i.id)
+                      ? <span>{amount}/{PACK_LIMIT}</span>
+                      : (amount > 1 || (cat !== 'tool' && cat !== 'gear')) && <span>×{amount}</span>}
                   </div>
                   {(i.desc || i.food) && (
                     <span className="sm dim">{i.food ? `饱食 +${i.food}。` : ''}{i.desc ?? ''}</span>
                   )}
                 </article>
-              ))}
+              })}
             </div>
           </Section>
         )

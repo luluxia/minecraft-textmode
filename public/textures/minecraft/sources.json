@@ -237,7 +237,8 @@
       "gunpowder": "gunpowder.png",
       "lingering_healing_potion": "lingering_potion__lingering_potion_of_healing__387dc34b.png",
       "archer_pottery_sherd": "archer_pottery_sherd.png",
-      "splash_healing_potion": "splash_potion__splash_potion_of_healing__387dc34b.png"
+      "splash_healing_potion": "splash_potion__splash_potion_of_healing__387dc34b.png",
+      "chest": "chest.png"
     }
   },
   "mob_renders": {
@@ -290,5 +291,35 @@
     },
     "transform": "Filled map inventory icon with the Java 1.21.4 map/decorations/red_x sprite.",
     "overlay": "https://raw.githubusercontent.com/InventivetalentDev/minecraft-assets/1.21.4/assets/minecraft/textures/map/decorations/red_x.png"
+  },
+  "world_expansion_1.21.4": {
+    "base": "https://raw.githubusercontent.com/InventivetalentDev/minecraft-assets/1.21.4/assets/minecraft/textures/",
+    "textures": {
+      "slime_ball": "item/slime_ball.png",
+      "armadillo_scute": "item/armadillo_scute.png",
+      "wolf_armor": "item/wolf_armor.png",
+      "glow_berries": "item/glow_berries.png",
+      "resin_clump": "item/resin_clump.png",
+      "totem_of_undying": "item/totem_of_undying.png"
+    }
+  },
+  "corrected_world_expansion_renders": {
+    "base": "https://minecraft.wiki/images/",
+    "textures": {
+      "copper_golem": "thumb/Copper_Golem_JE1_BE1.png/200px-Copper_Golem_JE1_BE1.png?3c87d",
+      "poplar_planks": "Poplar_Planks_JE1.png?2a797",
+      "poplar_log": "Poplar_Log_%28UD%29_JE2.png?83512",
+      "cinnabar": "Cinnabar_JE1_BE1.png?e5ecd",
+      "mob_creeper": "thumb/Creeper_JE3_BE1.png/256px-Creeper_JE3_BE1.png?40005",
+      "mob_cave_spider": "thumb/Cave_Spider_JE3_BE3.png/300px-Cave_Spider_JE3_BE3.png?86c1d",
+      "mob_elder_guardian": "Elder_Guardian_JE2_BE2.gif?99f67",
+      "mob_creaking": "thumb/Creaking_JE1_BE1.png/200px-Creaking_JE1_BE1.png?1a8ab",
+      "mob_evoker": "thumb/Evoker_JE3.png/200px-Evoker_JE3.png?54321",
+      "mob_hoglin": "thumb/Hoglin_JE3.png/500px-Hoglin_JE3.png?65eaa",
+      "mob_pillager": "thumb/Pillager_JE3.png/300px-Pillager_JE3.png?22662",
+      "mob_slime": "thumb/Slime_JE3_BE2.png/300px-Slime_JE3_BE2.png?5b6a7",
+      "mob_silverfish": "thumb/Silverfish_JE1_BE1.png/400px-Silverfish_JE1_BE1.png?83218"
+    },
+    "transform": "Complete inventory/block/entity renders, cropped to visible bounds and scaled proportionally to at most 128px. Animated sources use their first frame; stored as RGBA PNG. Entity UV sheets, face crops and spawn eggs must not be used as entity icons."
   }
 }

@@ -21,6 +21,18 @@ const it = (id: string, name: string, icon: string, cat: Cat, extra: Partial<Ite
 })
 
 export const ITEM_LIST: ItemDef[] = [
+  it('slime_ball', '黏液球', '/textures/minecraft/slime_ball.png', 'material'),
+  it('armadillo_scute', '犰狳鳞甲', '/textures/minecraft/armadillo_scute.png', 'material'),
+  it('wolf_armor', '狼铠', '/textures/minecraft/wolf_armor.png', 'gear'),
+  it('copper_golem', '铜傀儡', '/textures/minecraft/copper_golem.png', 'tool'),
+  it('poplar_log', '杨树原木', '/textures/minecraft/poplar_log.png', 'material'),
+  it('poplar_plank', '杨木木板', '/textures/minecraft/poplar_planks.png', 'material'),
+  it('glow_berries', '发光浆果', '/textures/minecraft/glow_berries.png', 'food', { food: 2 }),
+  it('resin', '树脂团', '/textures/minecraft/resin_clump.png', 'special'),
+  it('cinnabar', '朱砂', '/textures/minecraft/cinnabar.png', 'special'),
+  it('totem', '不死图腾', '/textures/minecraft/totem_of_undying.png', 'gear'),
+  it('chest', '箱子', '/textures/minecraft/chest.png', 'material'),
+  it('explorer_map', '探险家地图', '/textures/minecraft/map.png', 'special'),
   it('wood', '橡木原木', '/textures/minecraft/oak_log.png', 'material'),
   it('plank', '橡木木板', '/textures/minecraft/oak_planks.png', 'material'),
   it('stick', '木棍', '/textures/minecraft/stick.png', 'material'),
@@ -111,7 +123,7 @@ export const ITEM_LIST: ItemDef[] = [
   it('cherry_log', '樱花原木', '/textures/minecraft/cherry_log.png', 'material'),
   it('cherry_plank', '樱花木板', '/textures/minecraft/cherry_planks.png', 'material'),
   it('bamboo', '竹子', '/textures/minecraft/bamboo.png', 'material'),
-  it('scaffolding', '脚手架', '/textures/minecraft/scaffolding.png', 'tool', { desc: '使勘察和返回路标更快。' }),
+  it('scaffolding', '脚手架', '/textures/minecraft/scaffolding.png', 'tool', { desc: '缩短远行与回访的冷却。' }),
   it('cocoa', '可可豆', '/textures/minecraft/cocoa_beans.png', 'material'),
   it('cookie', '曲奇', '/textures/minecraft/cookie.png', 'food', { food: 2 }),
   it('melon', '西瓜片', '/textures/minecraft/melon_slice.png', 'food', { food: 3 }),
@@ -230,6 +242,8 @@ export const ARMORS: [string, number][] = [
 ]
 
 // ---------- 合成 ----------
+export type IngredientAlternatives = Partial<Record<string, readonly string[]>>
+
 export interface Recipe {
   id: string
   out: string
@@ -237,14 +251,19 @@ export interface Recipe {
   cost: Bag
   station: 'hand' | 'table' | 'brewing' | 'smithing'
   returns?: Bag
+  alternatives?: IngredientAlternatives
 }
 const rc = (out: string, n: number, cost: Bag, station: Recipe['station'] = 'table', returns?: Bag): Recipe => ({
   id: out, out, n, cost, station, returns,
 })
+const coalAlternatives = { coal: ['coal', 'charcoal'] } as const
 export const RECIPES: Recipe[] = [
+  rc('wolf_armor', 1, { armadillo_scute: 6 }),
+  rc('copper_golem', 1, { copper: 9, pumpkin: 1 }),
+  rc('chest', 1, { plank: 8 }),
+  rc('poplar_plank', 4, { poplar_log: 1 }, 'hand'),
   rc('plank', 4, { wood: 1 }, 'hand'),
-  rc('campfire', 1, { wood: 3, stick: 3, coal: 1 }, 'hand'),
-  { id: 'campfire_charcoal', out: 'campfire', n: 1, cost: { wood: 3, stick: 3, charcoal: 1 }, station: 'hand' },
+  { ...rc('campfire', 1, { wood: 3, stick: 3, coal: 1 }, 'hand'), alternatives: coalAlternatives },
   rc('stick', 4, { plank: 2 }, 'hand'),
   rc('table', 1, { plank: 4 }, 'hand'),
   rc('pick_wood', 1, { plank: 3, stick: 2 }),
@@ -253,8 +272,7 @@ export const RECIPES: Recipe[] = [
   rc('axe_stone', 1, { cobble: 3, stick: 2 }),
   rc('sword_stone', 1, { cobble: 2, stick: 1 }),
   rc('furnace', 1, { cobble: 8 }),
-  rc('torch', 4, { coal: 1, stick: 1 }),
-  { id: 'torch_charcoal', out: 'torch', n: 4, cost: { charcoal: 1, stick: 1 }, station: 'table' },
+  { ...rc('torch', 4, { coal: 1, stick: 1 }), alternatives: coalAlternatives },
   rc('bread', 1, { wheat: 3 }),
   rc('rod', 1, { stick: 3, string: 2 }),
   rc('bed', 1, { wool: 3, plank: 3 }),
@@ -324,15 +342,10 @@ export const RECIPES: Recipe[] = [
   rc('lingering_healing', 3, { splash_healing: 3, dragon_breath: 1 }, 'brewing'),
   rc('axe_diamond', 1, { diamond: 3, stick: 2 }),
   rc('birch_plank', 4, { birch_log: 1 }, 'hand'),
-  { id: 'stick_birch', out: 'stick', n: 4, cost: { birch_plank: 2 }, station: 'hand' },
   rc('spruce_plank', 4, { spruce_log: 1 }, 'hand'),
-  { id: 'stick_spruce', out: 'stick', n: 4, cost: { spruce_plank: 2 }, station: 'hand' },
   rc('jungle_plank', 4, { jungle_log: 1 }, 'hand'),
-  { id: 'stick_jungle', out: 'stick', n: 4, cost: { jungle_plank: 2 }, station: 'hand' },
   rc('mangrove_plank', 4, { mangrove_log: 1 }, 'hand'),
-  { id: 'stick_mangrove', out: 'stick', n: 4, cost: { mangrove_plank: 2 }, station: 'hand' },
   rc('cherry_plank', 4, { cherry_log: 1 }, 'hand'),
-  { id: 'stick_cherry', out: 'stick', n: 4, cost: { cherry_plank: 2 }, station: 'hand' },
 ]
 
 // ---------- 熔炼 ----------
@@ -392,6 +405,33 @@ export interface ActionDef {
 }
 const d = (item: string, min: number, max: number, p = 1): Drop => ({ item, min, max, p })
 const ACTION_LIST: ActionDef[] = [
+  { id: 'gather_wild_berries', name: '采摘灌木浆果', kind: 'gather', cd: 4, hunger: 0.1, finite: 'wild_berries', drops: [d('berries', 2, 4)] },
+  { id: 'brush_trail_ruins', name: '刷扫古迹废墟', kind: 'gather', cd: 6, hunger: 0.25, tool: 'brush', finite: 'trail', drops: [d('sherd', 1, 1), d('clay', 1, 2)] },
+  { id: 'dive_warm_ruins', name: '刷扫暖水废墟', kind: 'gather', cd: 9, hunger: 0.3, tool: 'brush', diveAir: 6, finite: 'warm_ruins', drops: [d('angler_sherd', 1, 1), d('nautilus', 1, 1, 0.25)] },
+  { id: 'rescue_igloo_villager', name: '把口粮交给被困村民', kind: 'gather', cd: 8, hunger: 0.2, cost: { bread: 1 } },
+  { id: 'search_igloo', name: '搜索雪屋', kind: 'gather', cd: 6, hunger: 0.2, finite: 'igloo', drops: [d('bread', 2, 4), d('apple', 1, 2)] },
+  { id: 'hunt_witch', name: '搜寻小屋中的女巫', kind: 'hunt', cd: 16, hunger: 0.4, mob: 'witch' },
+  { id: 'search_jungle_pyramid', name: '越过陷阱后打开宝箱', kind: 'gather', cd: 12, hunger: 0.6, pick: 2, finite: 'jungle_temple', drops: [d('gold', 2, 4), d('bone', 1, 3), d('explorer_map', 1, 1)] },
+  { id: 'search_desert_pyramid', name: '拆除机关后打开宝箱', kind: 'gather', cd: 12, hunger: 0.6, tool: 'shears', finite: 'pyramid_cache', drops: [d('gold', 3, 5), d('bone', 2, 4), d('explorer_map', 1, 1)] },
+  { id: 'search_stronghold_library', name: '搜索要塞图书馆', kind: 'gather', cd: 8, hunger: 0.3, finite: 'library_cache', drops: [d('book', 2, 4), d('paper', 3, 6)] },
+  { id: 'hunt_silverfish', name: '清理蠹虫', kind: 'hunt', cd: 10, hunger: 0.3, mob: 'silverfish' },
+  { id: 'search_ruined_portal', name: '搜索废弃传送门', kind: 'gather', cd: 8, hunger: 0.3, finite: 'ruined_portal', drops: [d('gold', 1, 2), d('obsidian', 1, 2)] },
+  { id: 'search_dungeon', name: '清理刷怪笼房间', kind: 'gather', cd: 10, hunger: 0.4, tool: 'torch', finite: 'dungeon', drops: [d('explorer_map', 1, 1, 0.4), d('iron', 2, 3), d('string', 2, 4)] },
+  { id: 'free_allay', name: '解救悦灵', kind: 'gather', cd: 8, hunger: 0.2 },
+  { id: 'hunt_pillager', name: '挑战掠夺者队长', kind: 'hunt', cd: 20, hunger: 0.5, mob: 'pillager' },
+  { id: 'hunt_slime', name: '搜寻史莱姆', kind: 'hunt', cd: 10, hunger: 0.4, mob: 'slime' },
+  { id: 'search_campsite', name: '检查废弃营地', kind: 'gather', cd: 5, hunger: 0.1, finite: 'camp_supplies', drops: [d('bread', 1, 3), d('explorer_map', 1, 1, 0.5)] },
+  { id: 'meet_traveler', name: '与旅人交谈', kind: 'gather', cd: 5, hunger: 0 },
+  { id: 'search_wreck', name: '搜索沉船', kind: 'gather', cd: 7, hunger: 0.4, finite: 'wreck', drops: [d('treasure_map', 1, 1), d('iron_ore', 2, 4)] },
+  { id: 'chop_poplar', name: '采集杨木', kind: 'gather', cd: 3, hunger: 0.2, drops: [d('poplar_log', 2, 4), d('brown_mushroom', 1, 2, 0.3)] },
+  { id: 'gather_glow_berries', name: '采摘发光浆果', kind: 'gather', cd: 4, hunger: 0.1, drops: [d('glow_berries', 2, 4)] },
+  { id: 'mine_cinnabar', name: '收集朱砂', kind: 'mine', cd: 6, hunger: 0.4, pick: 2, finite: 'cinnabar', drops: [d('cinnabar', 1, 3)] },
+  { id: 'search_minecart', name: '检查运输矿车', kind: 'gather', cd: 6, hunger: 0.3, finite: 'minecart', drops: [d('iron_ore', 2, 4), d('bread', 1, 2), d('explorer_map', 1, 1, 0.35)] },
+  { id: 'hunt_cave_spider', name: '挑战洞穴蜘蛛', kind: 'hunt', cd: 10, hunger: 0.4, mob: 'cave_spider' },
+  { id: 'hunt_ancient_guardian', name: '挑战远古守卫者', kind: 'hunt', cd: 30, hunger: 0.6, diveAir: 12, pick: 3, mob: 'elder_guardian' },
+  { id: 'track_creaking', name: '追查嘎枝之心', kind: 'hunt', cd: 16, hunger: 0.6, mob: 'creaking' },
+  { id: 'hunt_evoker', name: '挑战唤魔者', kind: 'hunt', cd: 24, hunger: 0.6, pick: 3, mob: 'evoker' },
+  { id: 'hunt_hoglin', name: '狩猎疣猪兽', kind: 'hunt', cd: 11, hunger: 0.5, mob: 'hoglin' },
   { id: 'chop', name: '撸树', kind: 'gather', cd: 2, hunger: 0.18, drops: [d('wood', 2, 3), d('stick', 1, 2, 0.2), d('apple', 1, 1, 0.1)], text: '树干在拳头下碎裂。' },
   { id: 'grass', name: '撸草', kind: 'gather', cd: 2, hunger: 0.1, drops: [d('grass', 1, 2), d('seed', 1, 2), d('wheat', 1, 1, 0.08)], text: '草丛沙沙作响。' },
   { id: 'forage', name: '采集野果', kind: 'gather', cd: 4, hunger: 0.1, drops: [d('apple', 1, 2), d('seed', 1, 1, 0.3)], text: '你在灌木间翻找。' },
@@ -467,13 +507,35 @@ export interface BiomeDef {
   danger: number
   weight: number
   nether?: boolean
+  diving?: boolean
   renew?: string[]
 }
 export const BIOMES: Record<string, BiomeDef> = {
+  desert_pyramid: { id: 'desert_pyramid', name: '沙漠神殿', icon: '/textures/minecraft/sandstone.png', desc: '砂岩塔下有埋藏的机关。', actions: ['search_desert_pyramid', 'dig_sand'], res: { pyramid_cache: [1, 1] }, danger: 0.65, weight: 0 },
+  cold_ocean: { id: 'cold_ocean', name: '寒冷海洋', icon: '/textures/minecraft/salmon.png', desc: '冰缘漂着浮木，鲑鱼在深水中游动。', actions: ['fish_deep', 'dive_shell'], res: { seabed: [5, 10] }, renew: ['seabed'], danger: 0.6, weight: 2, diving: true },
+  outpost: { id: 'outpost', name: '掠夺者前哨站', icon: '/textures/minecraft/ominous_bottle.png', desc: '塔楼高悬不祥旗帜。', actions: ['hunt_pillager'], res: {}, danger: 1.1, weight: 0 },
+  dappled_forest: { id: 'dappled_forest', name: '斑驳森林', icon: '/textures/minecraft/oak_log.png', desc: '林地铺着杨树落叶，倒木上长着层孔菌。', actions: ['chop_poplar', 'forage', 'hunt_chicken'], res: { chicken: [2, 6] }, renew: ['chicken'], danger: 0.7, weight: 6 },
+  savanna: { id: 'savanna', name: '热带草原', icon: '/textures/minecraft/grass_block.png', desc: '树影稀疏，兽群和村路穿过干草。', actions: ['grass', 'chop', 'hunt_cow', 'forage'], res: { cow: [3, 7] }, renew: ['cow'], danger: 0.8, weight: 7 },
+  badlands: { id: 'badlands', name: '恶地', icon: '/textures/minecraft/gold_ingot.png', desc: '红色岩层间露出金矿。', actions: ['mine_stone', 'mine_gold', 'dig_sand'], res: { gold: [6, 14] }, danger: 1.2, weight: 4 },
+  dark_forest: { id: 'dark_forest', name: '黑森林', icon: '/textures/minecraft/oak_log.png', desc: '浓密的树冠遮蔽了林间的光。', actions: ['chop', 'gather_mushrooms', 'hunt_spider'], res: { mushrooms: [4, 9] }, renew: ['mushrooms'], danger: 1.55, weight: 4 },
+  pale_garden: { id: 'pale_garden', name: '苍白之园', icon: '/textures/minecraft/oak_log.png', desc: '灰白树干在夜色中传出嘎吱声。', actions: ['chop', 'track_creaking'], res: {}, danger: 0.8, weight: 1 },
+  mansion: { id: 'mansion', name: '林地府邸', icon: '/textures/minecraft/book.png', desc: '窗后透出灯光，府邸里的唤魔者仍在活动。', actions: ['hunt_evoker'], res: {}, danger: 1.4, weight: 0 },
+  mushroom_fields: { id: 'mushroom_fields', name: '蘑菇岛', icon: '/textures/minecraft/brown_mushroom.png', desc: '巨大的蘑菇铺满岛屿。', actions: ['gather_mushrooms', 'forage'], res: { mushrooms: [12, 18] }, renew: ['mushrooms'], danger: 0, weight: 1 },
+  dripstone_caves: { id: 'dripstone_caves', name: '溶洞', icon: '/textures/minecraft/tuff.png', desc: '水从滴水石落下，洞壁有丰富的铜矿。', actions: ['mine_stone', 'mine_copper', 'mine_iron'], res: { copper: [12, 24], iron: [4, 8] }, danger: 1.2, weight: 4 },
+  lush_caves: { id: 'lush_caves', name: '繁茂洞穴', icon: '/textures/minecraft/sweet_berries.png', desc: '洞顶垂下发光浆果。', actions: ['gather_glow_berries', 'mine_stone'], res: {}, danger: 0.6, weight: 3 },
+  deep_dark: { id: 'deep_dark', name: '深暗之域', icon: '/textures/minecraft/sculk_sensor.png', desc: '幽匿顺着岩壁蔓延。', actions: ['mine_sculk'], res: {}, danger: 0.7, weight: 0 },
+  sulfur_caves: { id: 'sulfur_caves', name: '硫磺洞穴', icon: '/textures/minecraft/tuff.png', desc: '硫磺池冒泡，红色朱砂横贯洞壁。', actions: ['mine_stone', 'mine_cinnabar'], res: { cinnabar: [6, 12] }, danger: 0.85, weight: 0 },
+  mineshaft: { id: 'mineshaft', name: '废弃矿井', icon: '/textures/minecraft/iron_ingot.png', desc: '歪斜的木梁支撑着废弃铁轨。', actions: ['mine_stone', 'mine_coal', 'search_minecart', 'hunt_cave_spider'], res: { iron: [3, 8], coal: [6, 12], minecart: [1, 1] }, danger: 1.2, weight: 1 },
+  warm_ocean: { id: 'warm_ocean', name: '暖水海洋', icon: '/textures/minecraft/cod.png', desc: '浅海里可以看见珊瑚与鱼群。', actions: ['fish', 'fish_deep', 'dive_shell'], res: { seabed: [4, 7] }, renew: ['seabed'], danger: 0.5, weight: 3, diving: true },
+  deep_ocean: { id: 'deep_ocean', name: '深海', icon: '/textures/minecraft/prismarine_shard.png', desc: '海面下的轮廓隐入深水。', actions: ['fish_deep', 'dive_shell'], res: { seabed: [4, 7] }, renew: ['seabed'], danger: 0.6, weight: 2, diving: true },
+  monument: { id: 'monument', name: '海底神殿', icon: '/textures/minecraft/prismarine_shard.png', desc: '海晶石高墙围住了远古守卫者。', actions: ['hunt_ancient_guardian'], res: {}, danger: 0, weight: 0, diving: true },
+  crimson_forest: { id: 'crimson_forest', name: '绯红森林', icon: '/textures/minecraft/nether_wart.png', desc: '巨大菌株间有疣猪兽出没。', actions: ['hunt_hoglin', 'gather_wart'], res: { nether_wart: [3, 6] }, renew: ['nether_wart'], danger: 1.3, weight: 4, nether: true },
+  soul_sand_valley: { id: 'soul_sand_valley', name: '灵魂沙峡谷', icon: '/textures/minecraft/soul_sand.png', desc: '灵魂沙间散落着古老的骨骼。', actions: ['dig_soul_sand', 'hunt_ghast'], res: {}, danger: 1.3, weight: 4, nether: true },
+  basalt_deltas: { id: 'basalt_deltas', name: '玄武岩三角洲', icon: '/textures/minecraft/blackstone.png', desc: '灰烬落在黑石和岩浆之间。', actions: ['mine_blackstone', 'hunt_magma'], res: {}, danger: 1.6, weight: 4, nether: true },
   forest: { id: 'forest', name: '森林', icon: '/textures/minecraft/oak_log.png', desc: '高大的橡树遮住了天空，林间散落着野果。', actions: ['chop', 'grass', 'forage', 'mine_stone', 'hunt_pig', 'hunt_spider', 'hunt_chicken', 'gather_egg'], res: { pig: [3, 7], chicken: [3, 5], eggs: [3, 5] }, renew: ['pig', 'chicken', 'eggs'], danger: 1, weight: 20 },
   plains: { id: 'plains', name: '平原', icon: '/textures/minecraft/grass_block.png', desc: '一望无际的草地，牛羊在远处漫步。', actions: ['grass', 'forage', 'chop', 'hunt_cow', 'hunt_sheep', 'shear_sheep', 'gather_pumpkin', 'gather_egg', 'harvest_comb', 'bottle_honey'], res: { cow: [3, 8], sheep: [3, 8], fleece: [4, 6], pumpkin: [4, 6], eggs: [3, 5], nectar: [4, 6] }, renew: ['cow', 'sheep', 'fleece', 'pumpkin', 'eggs', 'nectar'], danger: 0.8, weight: 18 },
-  coast: { id: 'coast', name: '沙滩', icon: '/textures/minecraft/sand.png', desc: '潮水拍打着沙滩，岸边长着成片的甘蔗。往外游可以潜入海底。', actions: ['fish', 'fish_deep', 'dig_sand', 'gather_cane', 'dig_clay', 'dive_shell', 'dive_ruin', 'dive_guardian'], res: { seabed: [5, 8], sunken_sand: [3, 5] }, renew: ['seabed', 'sunken_sand'], danger: 0.7, weight: 12 },
-  swamp: { id: 'swamp', name: '沼泽', icon: '/textures/minecraft/lily_pad.png', desc: '浑浊的水面漂着睡莲，空气又湿又闷。', actions: ['chop', 'fish', 'gather_cane', 'grass', 'gather_mushrooms', 'dig_clay'], res: { mushrooms: [6, 9] }, renew: ['mushrooms'], danger: 1.4, weight: 8 },
+  coast: { id: 'coast', diving: true, name: '沙滩', icon: '/textures/minecraft/sand.png', desc: '潮水拍打着沙滩，岸边长着成片的甘蔗。往外游可以潜入海底。', actions: ['fish', 'fish_deep', 'dig_sand', 'gather_cane', 'dig_clay', 'dive_shell'], res: { seabed: [5, 8], sunken_sand: [3, 5] }, renew: ['seabed', 'sunken_sand'], danger: 0.7, weight: 12 },
+  swamp: { id: 'swamp', name: '沼泽', icon: '/textures/minecraft/lily_pad.png', desc: '浑浊的水面漂着睡莲，空气又湿又闷。', actions: ['chop', 'fish', 'gather_cane', 'grass', 'gather_mushrooms', 'dig_clay', 'hunt_slime'], res: { mushrooms: [6, 9] }, renew: ['mushrooms'], danger: 1.4, weight: 8 },
   desert: { id: 'desert', name: '沙漠', icon: '/textures/minecraft/cactus.png', desc: '炽热的沙丘连绵起伏，岩缝里闪着金光。', actions: ['dig_sand', 'mine_stone', 'mine_gold'], res: { gold: [2, 6] }, danger: 1.2, weight: 8 },
   mountain: { id: 'mountain', name: '风袭丘陵', icon: '/textures/minecraft/stone.png', desc: '裸露的岩壁上能看到煤与铁的矿脉。', actions: ['mine_stone', 'mine_coal', 'mine_iron', 'mine_copper', 'mine_emerald', 'hunt_sheep', 'shear_sheep'], res: { coal: [10, 24], iron: [6, 14], emerald: [0, 3], sheep: [2, 5], fleece: [3, 6], copper: [10, 16] }, renew: ['sheep', 'fleece'], danger: 1, weight: 14 },
   cave: { id: 'cave', name: '洞穴', icon: '/textures/minecraft/coal_ore.png', desc: '深不见底的洞穴，黑暗中传来低沉的声响。', actions: ['mine_stone', 'mine_coal', 'mine_iron', 'mine_copper', 'mine_tuff', 'mine_lapis', 'mine_gold', 'mine_redstone', 'mine_diamond', 'mine_obsidian'], res: { coal: [8, 20], iron: [8, 18], copper: [10, 16], lapis: [2, 8], gold: [2, 8], redstone: [3, 9], diamond: [5, 8], obsidian: [6, 9] }, danger: 1.25, weight: 12 },
@@ -481,7 +543,7 @@ export const BIOMES: Record<string, BiomeDef> = {
   village: { id: 'village', name: '村庄', icon: '/textures/minecraft/bell.png', desc: '炊烟升起，村民们打量着你这个外来者。', actions: ['gather_wheat', 'gather_vegetables', 'gather_pumpkin', 'gather_egg', 'grass', 'chop'], res: { wheat: [6, 12], vegetables: [5, 8], pumpkin: [3, 6], eggs: [3, 5] }, renew: ['wheat', 'vegetables', 'pumpkin', 'eggs'], danger: 0.4, weight: 7 },
   rift: { id: 'rift', name: '下界要塞', icon: '/textures/minecraft/nether_bricks.png', desc: '岩浆在脚下翻涌，烈焰人在热浪中游荡。', actions: ['mine_obsidian', 'mine_gold', 'hunt_blaze', 'hunt_wither', 'gather_wart', 'dig_soul_sand', 'mine_netherrack'], res: { obsidian: [6, 14], gold: [4, 10], nether_wart: [3, 6] }, renew: ['nether_wart'], danger: 2, weight: 0, nether: true },
   warped: { id: 'warped', name: '诡异森林', icon: '/textures/minecraft/warped_stem.png', desc: '蓝绿色的菌柄间，回荡着末影人的低鸣。', actions: ['hunt_ender'], res: {}, danger: 0, weight: 0, nether: true },
-  altar: { id: 'altar', name: '要塞传送门房间', icon: '/textures/minecraft/end_portal_frame_top.png', desc: '地底深处的古老石室，十二个空洞的凹槽环绕着一座沉寂的传送门。', actions: ['mine_stone'], res: {}, danger: 1.5, weight: 0 },
+  altar: { id: 'altar', name: '要塞传送门房间', icon: '/textures/minecraft/end_portal_frame_top.png', desc: '地底深处的古老石室，十二个空洞的凹槽环绕着一座沉寂的传送门。', actions: ['mine_stone', 'search_stronghold_library', 'hunt_silverfish'], res: { library_cache: [1, 1] }, danger: 1.5, weight: 0 },
   birch_grove: { id: 'birch_grove', name: '白桦森林', icon: '/textures/minecraft/birch_log.png', desc: '白桦间有野生蜂巢，带上营火和剪刀可以安全采收。', actions: ['chop_birch', 'forage', 'harvest_comb', 'bottle_honey'], res: { nectar: [5, 7] }, renew: ['nectar'], danger: 0.6, weight: 7 },
   taiga: { id: 'taiga', name: '针叶林', icon: '/textures/minecraft/spruce_log.png', desc: '云杉下有甜浆果与野生蘑菇。', actions: ['chop_spruce', 'gather_berries', 'gather_mushrooms', 'hunt_chicken', 'gather_egg'], res: { berries: [5, 8], mushrooms: [5, 8], chicken: [3, 6], eggs: [3, 6] }, renew: ['berries', 'mushrooms', 'chicken', 'eggs'], danger: 0.8, weight: 7 },
   jungle: { id: 'jungle', name: '丛林', icon: '/textures/minecraft/jungle_log.png', desc: '高树间生长着竹子、可可与西瓜。', actions: ['chop_jungle', 'gather_bamboo', 'gather_jungle_fruit', 'hunt_chicken'], res: { jungle_fruit: [5, 8], chicken: [3, 6] }, renew: ['jungle_fruit', 'chicken'], danger: 1.2, weight: 6 },
@@ -495,8 +557,8 @@ export const BIOMES: Record<string, BiomeDef> = {
   bastion: { id: 'bastion', name: '堡垒遗迹', icon: '/textures/minecraft/blackstone.png', desc: '黑石堆砌的遗迹由猪灵蛮兵驻守。', actions: ['mine_blackstone', 'mine_gold', 'hunt_brute', 'hunt_magma'], res: { gold: [7, 12] }, danger: 0.8, weight: 0, nether: true },
 }
 const NAME_A = ['寂静', '迷雾', '晨曦', '落日', '苍翠', '风鸣', '荒芜', '幽暗', '回声', '霜白', '赤红', '遗忘']
-export const randomLocName = (biome: string) =>
-  NAME_A[Math.floor(Math.random() * NAME_A.length)] + BIOMES[biome].name
+export const randomLocName = (biome: string, name = BIOMES[biome].name) =>
+  NAME_A[Math.floor(Math.random() * NAME_A.length)] + name
 
 // ---------- 生物 ----------
 export interface MobDef {
@@ -512,6 +574,15 @@ export interface MobDef {
   nightOnly?: boolean
 }
 export const MOBS: Record<string, MobDef> = {
+  silverfish: { id: 'silverfish', name: '蠹虫', icon: '/textures/minecraft/mob_silverfish.png', hp: 8, atk: 2, xp: 3, drops: [] },
+  pillager: { id: 'pillager', name: '掠夺者队长', icon: '/textures/minecraft/mob_pillager.png', hp: 30, atk: 5, xp: 8, drops: [d('ominous_bottle', 1, 1), d('emerald', 1, 2)] },
+  slime: { id: 'slime', name: '史莱姆', icon: '/textures/minecraft/mob_slime.png', hp: 18, atk: 3, xp: 4, drops: [d('slime_ball', 2, 4)] },
+  creeper: { id: 'creeper', name: '苦力怕', icon: '/textures/minecraft/mob_creeper.png', hp: 18, atk: 9, xp: 5, drops: [d('gunpowder', 1, 3)], hostile: true, weight: 5 },
+  cave_spider: { id: 'cave_spider', name: '洞穴蜘蛛', icon: '/textures/minecraft/mob_cave_spider.png', hp: 13, atk: 4, xp: 4, drops: [d('string', 2, 4)] },
+  elder_guardian: { id: 'elder_guardian', name: '远古守卫者', icon: '/textures/minecraft/mob_elder_guardian.png', hp: 68, atk: 7, xp: 16, drops: [d('prismarine_shard', 4, 8), d('wet_sponge', 1, 2)] },
+  creaking: { id: 'creaking', name: '嘎枝', icon: '/textures/minecraft/mob_creaking.png', hp: 40, atk: 5, xp: 8, drops: [d('resin', 2, 4)] },
+  evoker: { id: 'evoker', name: '唤魔者', icon: '/textures/minecraft/mob_evoker.png', hp: 55, atk: 7, xp: 14, drops: [d('totem', 1, 1)] },
+  hoglin: { id: 'hoglin', name: '疣猪兽', icon: '/textures/minecraft/mob_hoglin.png', hp: 36, atk: 6, xp: 7, drops: [d('porkchop', 3, 5), d('leather', 1, 2)] },
   guardian: { id: 'guardian', name: '守卫者', icon: '/textures/minecraft/mob_guardian.png', hp: 30, atk: 5, xp: 8, drops: [d('prismarine_shard', 3, 5), d('prismarine_crystal', 1, 3)] },
   pig: { id: 'pig', name: '猪', icon: '/textures/minecraft/mob_pig.png', hp: 6, atk: 0, xp: 1, drops: [d('porkchop', 1, 3)] },
   cow: { id: 'cow', name: '牛', icon: '/textures/minecraft/mob_cow.png', hp: 8, atk: 0, xp: 1, drops: [d('meat', 1, 2), d('leather', 1, 2)] },
