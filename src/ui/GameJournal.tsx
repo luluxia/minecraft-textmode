@@ -43,8 +43,8 @@ export function CurrentGoal({ onOpenAchievements }: { onOpenAchievements: () => 
       </> : !allComplete && suggestions.length > 0 ? <>
         <h3>可选目标</h3>
         {suggestions.map((entry) => <p key={entry.id}><GoalLabel term={entry.icon} label={entry.title} /></p>)}
-      </> : null}
-      <Btn className="mini" onClick={onOpenAchievements}>打开成就</Btn>
+      </> : <p className="sm dim">{allComplete ? '已完成当前版本所有成就，请自由探索' : '接下来可以自由探索，也可以在成就菜单追踪目标。'}</p>}
+      {!allComplete && <Btn className="mini" onClick={onOpenAchievements}>打开成就</Btn>}
     </Card>
   )
 }
@@ -62,13 +62,12 @@ function GoalText({ hint }: { hint: GoalHint }) {
   return hint.map((part, index) => typeof part === 'string' ? part : <GoalLabel key={index} term={part} />)
 }
 
-export function JournalModal({ menu, onClose, onDebug, bookItem, onRecipe, onOpenItem }: {
+export function JournalModal({ menu, onClose, onDebug, bookItem, onRecipe }: {
   menu: GameMenu
   onClose: () => void
   onDebug?: () => void
   bookItem?: string
   onRecipe?: (target: RecipeTarget) => void
-  onOpenItem?: (item: string) => void
 }) {
   const s = useGame()
   const title = JOURNAL_TITLES[menu]
@@ -76,7 +75,7 @@ export function JournalModal({ menu, onClose, onDebug, bookItem, onRecipe, onOpe
     <GameDialog label={title} onClose={onClose} className={`journal-dialog ${menu}-dialog`} showHeader>
       {menu === 'catalog' && <RecipeBook key={bookItem} initialItem={bookItem} onMake={onRecipe} />}
       {menu === 'settings' && <SaveSettings onClose={onClose} onDebug={onDebug} />}
-      {menu === 'achievements' && <Achievements onOpenItem={onOpenItem} />}
+      {menu === 'achievements' && <Achievements />}
       {menu === 'stats' && <dl className="village-stats">
         <dt>世界天数</dt><dd>{dayOf(s.minute)}</dd>
         <dt>采集与狩猎行动</dt><dd>{s.stats.actions}</dd>
@@ -94,7 +93,7 @@ export function JournalModal({ menu, onClose, onDebug, bookItem, onRecipe, onOpe
   )
 }
 
-function Achievements({ onOpenItem }: { onOpenItem?: (item: string) => void }) {
+function Achievements() {
   const s = useGame()
   const resetScroll = useScrollReset()
   const completed = getCompletedAchievements(s)
@@ -154,7 +153,6 @@ function Achievements({ onOpenItem }: { onOpenItem?: (item: string) => void }) {
                       <h3 className="icon-text"><Texture src={entry.icon.icon} />{entry.title}</h3>
                     </EntryHeader>
                     <p className="sm dim"><GoalText hint={entry.hint} /></p>
-                    {!done && !locked && entry.bookItem && onOpenItem && <div><Btn className="mini" onClick={() => onOpenItem(entry.bookItem!)}>查看配方</Btn></div>}
                     {locked && (
                       <p className="sm dim">需先完成{pending.map((id) => `「${getAchievement(id)?.title}」`).join('、')}</p>
                     )}

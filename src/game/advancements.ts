@@ -16,7 +16,6 @@ interface Goal {
   title: string
   icon: GoalTerm
   hint: GoalHint
-  bookItem?: string
 }
 
 interface Milestone extends Goal {
@@ -88,11 +87,11 @@ const dragon = mob('dragon')
 const monumentRequirements: GoalHint = ['成为', mayor, '、点亮', beacon, '并完成', outerIslands]
 
 export const STORY: Milestone[] = [
-  { id: 'cook-food', title: '第一顿熟食', icon: food, hint: ['在营火或熔炉烹饪一次食物。'], bookItem: 'campfire', complete: (s) => !!s.flags.cookedFood },
+  { id: 'cook-food', title: '第一顿熟食', icon: food, hint: ['在营火或熔炉烹饪一次食物。'], complete: (s) => !!s.flags.cookedFood },
   { id: 'nearby-discovery', title: '近处的发现', icon: forest, hint: ['在采集页探索附近。'], complete: (s) => !!s.flags.nearbyFound },
   { id: 'wood', title: '徒手伐木', icon: wood, hint: ['收集', wood, '。'], complete: (s) => !!s.seen.wood },
   {
-    id: 'table', requires: ['wood'], title: '工作台', icon: table, hint: ['把', wood, '做成木板，再合成', table, '。'], bookItem: 'table',
+    id: 'table', requires: ['wood'], title: '工作台', icon: table, hint: ['把', wood, '做成木板，再合成', table, '。'],
     complete: (s) => !!s.seen.table,
   },
   {
@@ -102,7 +101,7 @@ export const STORY: Milestone[] = [
   },
   {
     id: 'stone-age', requires: ['table'], title: '石器时代', icon: stonePick,
-    hint: ['用', woodPick, '从森林或丘陵取得', cobble, '，再制作', stonePick, '。'], bookItem: 'pick_stone',
+    hint: ['用', woodPick, '从森林或丘陵取得', cobble, '，再制作', stonePick, '。'],
     complete: (s) => PICKS.slice(1).some((id) => s.seen[id]),
   },
   {
@@ -219,8 +218,8 @@ const endStore = building('end_store')
 
 export const EXPLORATION: Milestone[] = [
   { id: 'followed-lead', title: '循着线索', icon: forest, hint: ['从已发现线索的地点出发远行。'], complete: (s) => !!s.flags.followedLead },
-  { id: 'return-to-mark', title: '重返旧地', icon: item('map', 'equipment'), hint: ['用地图标记地点，离开后再回来。'], bookItem: 'map', complete: (s) => !!s.flags.returnedToMark },
-  { id: 'local-supplies', title: '就地取材', icon: item('chest', 'material'), hint: ['使用箱子或仓库材料完成一次制作或建造。'], bookItem: 'chest', complete: (s) => !!s.flags.usedLocalStock },
+  { id: 'return-to-mark', title: '重返旧地', icon: item('map', 'equipment'), hint: ['用地图标记地点，离开后再回来。'], complete: (s) => !!s.flags.returnedToMark },
+  { id: 'local-supplies', title: '就地取材', icon: item('chest', 'material'), hint: ['使用箱子或仓库材料完成一次制作或建造。'], complete: (s) => !!s.flags.usedLocalStock },
   { id: 'creeper', title: '嘶声过后', icon: mob('creeper'), hint: ['应对一次苦力怕的遭遇。'], complete: (s) => !!s.flags.defeatedCreeper },
   {
     id: 'apiary', requires: ['home'], title: '蜂巢下的烟火', icon: apiary,

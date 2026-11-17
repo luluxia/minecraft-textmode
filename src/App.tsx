@@ -144,7 +144,7 @@ export function App() {
       <CombatModal />
       <WinModal />
       {showSwipeGuide && <SwipeGuide onClose={() => setShowSwipeGuide(false)} />}
-      {menu && menu !== 'debug' && <JournalModal menu={menu} onClose={closeMenu} bookItem={bookItem} onRecipe={openRecipe} onOpenItem={openBook}
+      {menu && menu !== 'debug' && <JournalModal menu={menu} onClose={closeMenu} bookItem={bookItem} onRecipe={openRecipe}
         onDebug={import.meta.env.DEV ? () => setMenu('debug') : undefined} />}
       {import.meta.env.DEV && menu === 'debug' && (
         <GameDialog label="Debug" onClose={closeMenu}>
