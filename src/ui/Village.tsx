@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { ActionGrid } from './ActionGrid'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '../components/minecraft/tabs'
 import { Texture } from './Texture'
 import {
@@ -7,7 +8,7 @@ import {
 import {
   activeLines, attackPower, atHome, buildCost, canAfford, canControl, count, cropMultiplier, defensePower, employed,
   expeditionCost, expeditionLock, expeditionTime, expeditionVisible, housing,
-  jobSlots, lineLimit, monumentReady, production, raidStrength, recruitTime, useGame, villageCap, villageDefense, wheatDemand,
+  jobSlots, lineIssue, lineLimit, mayBuildVillage, monumentReady, villageGrowthReady, production, raidStrength, recruitTime, useGame, villageCap, villageDefense, wheatDemand,
 } from '../game/store'
 import { EXPEDITIONS, LINES, seasonAt, type ExpeditionDef } from '../game/progression'
 import { Bar, Btn, Cost, EntryHeader, Section, bagText } from './kit'
@@ -26,7 +27,7 @@ export function Village() {
     ['buildings', '建筑', true],
     ['villagers', '村民', hasVillagers],
     ['exchange', '交流', hasVillagers],
-    ['automation', '红石', lineLimit(s) > 0],
+    ['automation', '红石', lineLimit(s) > 0 && villageGrowthReady(s)],
     ['expeditions', '远征', trips.length > 0],
   ]
   const cur = tabs.some(([id, , available]) => id === sub && available) ? sub : 'overview'
@@ -48,12 +49,10 @@ export function Village() {
           </TabsTrigger>
         ))}
       </TabsList>
-      {!home && <p className="notice" style={{ marginBottom: 8 }}>你不在村中。建造、交谈与交易需要先回家。</p>}
-      {!control && (
-        <p className="notice" style={{ marginBottom: 8 }}>
-          村民还不信任你。声望达到 {CONTROL_REP} 后，才能在此建造并安排村民的工作。
-        </p>
-      )}
+      {(!home || !control) && <div className="village-notices">
+        {!home && <p className="notice">你不在村中。建造、交谈与交易需要先回家。</p>}
+        {!control && <p className="notice">村民还不信任你。声望达到 {CONTROL_REP} 后，才能在此建造并安排村民的工作。</p>}
+      </div>}
       <TabsContent value="overview">
         <Section title="概况">
           <div className="row">
@@ -64,7 +63,7 @@ export function Village() {
           <dl className="village-stats sm">
             <dt>村民</dt>
             <dd>{v.villagers}/{housing(v)}</dd>
-            {housing(v) > v.villagers && <>
+            {villageGrowthReady(s) && housing(v) > v.villagers && <>
               <dt>招募</dt>
               <dd>{Math.min(s.recruitment, recruitTime(v))}/{recruitTime(v)} 秒{v.villagers >= 2 && ' · 小麦 ' + (3 + Math.floor(v.villagers / 2))}</dd>
             </>}
@@ -94,34 +93,27 @@ export function Village() {
               </>
             )}
           </dl>
-          {!v.mayor && hasVillagers && (
-            <div className="actions" style={{ marginTop: 8 }}>
-              <Btn
-                className="primary wide"
+          {((!v.mayor && hasVillagers) || (!!v.buildings.watchtower && v.villagers >= 2)) && (
+            <ActionGrid className="village-overview-actions">
+              {!v.mayor && hasVillagers && <Btn className="primary"
                 disabled={!home || v.rep < MAYOR_REP || v.villagers < MAYOR_POP}
-                onClick={s.runMayor}
-                sub={`声望 ${v.rep}/${MAYOR_REP} · 村民 ${v.villagers}/${MAYOR_POP}`}
-              >
+                onClick={s.runMayor} sub={`声望 ${v.rep}/${MAYOR_REP} · 村民 ${v.villagers}/${MAYOR_POP}`}>
                 竞选村长
-              </Btn>
-            </div>
-          )}
-          {!!v.buildings.watchtower && v.villagers >= 2 && (
-            <div className="actions" style={{ marginTop: 8 }}>
-              <Btn cd="raid" disabled={!home || readyDefense < raid} onClick={s.challengeRaid}
-                sub={'防御 ' + readyDefense + '/' + raid + ' · 声望 +12'}>敲钟迎击袭击</Btn>
-            </div>
+              </Btn>}
+              {!!v.buildings.watchtower && v.villagers >= 2 && (
+                <Btn cd="raid" disabled={!home || readyDefense < raid} onClick={s.challengeRaid}
+                  sub={'防御 ' + readyDefense + '/' + raid + ' · 声望 +12'}>敲钟迎击袭击</Btn>
+              )}
+            </ActionGrid>
           )}
         </Section>
-        {!hasVillagers && (
-          <p className="notice" style={{ marginTop: 12 }}>先建一间房屋。头两名村民会自行搬来，建好农场或伐木场后就能安排他们工作。</p>
-        )}
+
       </TabsContent>
 
       <TabsContent value="buildings">
         <Section title="建筑">
           <div className="entry-grid">
-            {BUILDINGS.filter((b) => !b.need || s.seen[b.need]).map((b) => {
+            {BUILDINGS.filter((b) => mayBuildVillage(s, b.id) && (!b.need || s.seen[b.need])).map((b) => {
               const cost = buildCost(v, b.id)
               const full = (v.buildings[b.id] ?? 0) >= (b.limit ?? 40)
               const locked = b.project && !monumentReady(s)
@@ -149,7 +141,7 @@ export function Village() {
         <TabsContent value="villagers">
           <Section title="村民" extra={`空闲 ${free}`}>
             <div className="entry-grid">
-              {JOBS.map((j) => {
+              {JOBS.filter((j) => jobSlots(v, j.id) > 0 || v.jobs[j.id]).map((j) => {
                 const n = v.jobs[j.id] ?? 0
                 const slots = jobSlots(v, j.id)
                 const out = Object.entries(j.out).map(([k, r]) => `${ITEMS[k].name} +${r}`).join(' ')
@@ -157,9 +149,9 @@ export function Village() {
                   <article key={j.id} className="content-entry">
                     <EntryHeader actions={
                       <div className="stepper">
-                        <Btn className="mini" disabled={!control || n <= 0} onClick={() => s.assign(j.id, -1)} title={`减少${j.name}`} aria-label={`减少${j.name}`}>−</Btn>
+                        <Btn className="mini" disabled={!home || !control || n <= 0} onClick={() => s.assign(j.id, -1)} title={`减少${j.name}`} aria-label={`减少${j.name}`}>−</Btn>
                         <b>{n}/{slots}</b>
-                        <Btn className="mini" disabled={!control || free <= 0 || n >= slots} onClick={() => s.assign(j.id, 1)} title={`增加${j.name}`} aria-label={`增加${j.name}`}>+</Btn>
+                        <Btn className="mini" disabled={!home || !control || free <= 0 || n >= slots} onClick={() => s.assign(j.id, 1)} title={`增加${j.name}`} aria-label={`增加${j.name}`}>+</Btn>
                       </div>
                     }>
                       <span className="icon-text"><Texture src={j.icon} /> {j.name}</span>
@@ -176,9 +168,9 @@ export function Village() {
       {hasVillagers && (
         <TabsContent value="exchange">
           <Section title="交流">
-            <div className="actions" style={{ marginBottom: 8 }}>
+            <ActionGrid className="village-exchange-actions">
               <Btn cd="talk" disabled={!home} onClick={s.talk} sub={'声望 +' + (v.rep < CONTROL_REP ? 4 : 2)}>与村民交谈</Btn>
-            </div>
+            </ActionGrid>
             <div className="entry-grid">
               {TRADES.filter((t) => Object.keys(t.give).every((k) => s.seen[k]) && (!t.need || v.buildings[t.need])).map((t) => {
                 const locked = (t.rep ?? 0) > v.rep
@@ -199,7 +191,7 @@ export function Village() {
           </Section>
         </TabsContent>
       )}
-      {lineLimit(s) > 0 && <TabsContent value="automation"><Automation /></TabsContent>}
+      {lineLimit(s) > 0 && villageGrowthReady(s) && <TabsContent value="automation"><Automation /></TabsContent>}
       {trips.length > 0 && <TabsContent value="expeditions"><Expeditions trips={trips} /></TabsContent>}
     </Tabs>
   )
@@ -211,10 +203,10 @@ function Automation() {
   const cap = lineLimit(s)
   return (
     <Section title="红石产线" extra={active + '/' + cap}>
-      <p className="notice entry-list-notice">产线与村民一同运转。原料不足或产物堆满时，产线会等待。面包坊优先留出一分钟的村民口粮。</p>
       <div className="entry-grid">
         {LINES.filter((line) => line.id in s.lines || Object.keys(line.input).some((item) => s.seen[item])).map((line) => {
           const running = line.id in s.lines
+          const issue = running ? lineIssue(s, line) : ''
           const building = line.building && !s.village?.buildings[line.building] ? BUILDINGS.find((entry) => entry.id === line.building) : undefined
           return (
             <article className="content-entry" key={line.id}>
@@ -227,6 +219,7 @@ function Automation() {
                 <span className="sm dim">{running ? s.lines[line.id] + '/' + line.seconds + ' 秒' : line.seconds + ' 秒/批'}</span>
               </EntryHeader>
               {building && <span className="sm bad">需要{building.name}</span>}
+              {issue && <span className="sm bad">{issue}</span>}
               <div className="item-flow">{bagText(line.output)}</div>
               <Cost cost={line.input} />
             </article>

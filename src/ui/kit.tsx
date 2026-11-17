@@ -3,7 +3,7 @@ import { Button } from '../components/minecraft/button'
 import { Texture } from './Texture'
 import { useLayoutEffect, useRef, useState, type ReactNode } from 'react'
 import { ITEMS, type Bag } from '../game/data'
-import { useGame } from '../game/store'
+import { available, useGame } from '../game/store'
 
 interface BtnProps {
   cd?: string
@@ -79,11 +79,11 @@ export function Bar({ value, max, color, label, valueText }: { value: number; ma
 }
 
 export function Cost({ cost }: { cost: Bag }) {
-  const inv = useGame((s) => s.inv)
+  const s = useGame()
   return (
     <div className="cost">
       {Object.entries(cost).map(([k, n]) => {
-        const have = Math.floor((inv[k] ?? 0) + 1e-9)
+        const have = available(s, k)
         return (
           <span key={k} className={`tag material-tag icon-text${have >= n ? '' : ' bad'}`}>
             <Texture src={ITEMS[k].icon} /> {ITEMS[k].name} {have}/{n}
@@ -106,7 +106,7 @@ export function EntryHeader({ children, actions }: { children: ReactNode; action
   )
 }
 
-export function Section({ title, extra, children }: { title: string; extra?: ReactNode; children: ReactNode }) {
+export function Section({ title, extra, children }: { title: ReactNode; extra?: ReactNode; children: ReactNode }) {
   return (
     <div className="section fade-in">
       <h3><span>{title}</span>{extra && <span>{extra}</span>}</h3>

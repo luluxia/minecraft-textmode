@@ -290,5 +290,61 @@
     },
     "transform": "Filled map inventory icon with the Java 1.21.4 map/decorations/red_x sprite.",
     "overlay": "https://raw.githubusercontent.com/InventivetalentDev/minecraft-assets/1.21.4/assets/minecraft/textures/map/decorations/red_x.png"
+  },
+  "world_expansion_1.21.4": {
+    "base": "https://raw.githubusercontent.com/InventivetalentDev/minecraft-assets/1.21.4/assets/minecraft/textures/",
+    "textures": {
+      "slime_ball": "item/slime_ball.png",
+      "armadillo_scute": "item/armadillo_scute.png",
+      "wolf_armor": "item/wolf_armor.png",
+      "glow_berries": "item/glow_berries.png",
+      "resin_clump": "item/resin_clump.png",
+      "totem_of_undying": "item/totem_of_undying.png",
+      "chest": "entity/chest/normal.png"
+    },
+    "crops": {
+      "chest": {
+        "x": 14,
+        "y": 33,
+        "width": 14,
+        "height": 12
+      }
+    }
+  },
+  "world_expansion_1.21.9": {
+    "base": "https://raw.githubusercontent.com/InventivetalentDev/minecraft-assets/1.21.9/assets/minecraft/textures/",
+    "textures": {
+      "copper_golem": "entity/copper_golem/copper_golem.png"
+    },
+    "crops": {
+      "copper_golem": {
+        "x": 8,
+        "y": 8,
+        "width": 8,
+        "height": 8
+      }
+    }
+  },
+  "world_expansion_26.3": {
+    "base": "https://raw.githubusercontent.com/InventivetalentDev/minecraft-assets/26.3/assets/minecraft/textures/",
+    "textures": {
+      "poplar_log": "block/poplar_log.png",
+      "poplar_planks": "block/poplar_planks.png",
+      "cinnabar": "block/cinnabar.png"
+    }
+  },
+  "world_expansion_1.21.5": {
+    "base": "https://raw.githubusercontent.com/InventivetalentDev/minecraft-assets/1.21.5/assets/minecraft/textures/",
+    "textures": {
+      "mob_creeper": "item/creeper_spawn_egg.png",
+      "mob_cave_spider": "item/cave_spider_spawn_egg.png",
+      "mob_elder_guardian": "item/elder_guardian_spawn_egg.png",
+      "mob_creaking": "item/creaking_spawn_egg.png",
+      "mob_evoker": "item/evoker_spawn_egg.png",
+      "mob_hoglin": "item/hoglin_spawn_egg.png",
+      "mob_pillager": "item/pillager_spawn_egg.png",
+      "mob_slime": "item/slime_spawn_egg.png",
+      "mob_silverfish": "item/silverfish_spawn_egg.png"
+    }
   }
 }

@@ -6,8 +6,10 @@ import { Button } from './components/minecraft/button'
 import { Texture } from './ui/Texture'
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { ITEM_CATEGORIES, ITEM_LIST, ITEMS, MOBS, villageLevel } from './game/data'
-import { canBreatheUnderwater, combatMaxHp, count, dayOf, hourOf, isNight, production, useGame, villageCap } from './game/store'
+import { canBreatheUnderwater, combatMaxHp, count, dayOf, hourOf, isNight, useGame } from './game/store'
+import type { RecipeTarget } from './game/recipes'
 import { Adventure } from './ui/Adventure'
+import { ActionGrid } from './ui/ActionGrid'
 import { PlayerHud } from './ui/PlayerHud'
 import { Crafting } from './ui/Crafting'
 import { Village } from './ui/Village'
@@ -29,11 +31,22 @@ export function App() {
   const villagers = useGame((s) => s.village?.villagers ?? null)
   const showAir = useGame((s) => s.submerged || s.air < MAX_AIR)
   const [tab, setTab] = useState('adventure')
+  const [bookItem, setBookItem] = useState<string>()
+  const [recipeTarget, setRecipeTarget] = useState<RecipeTarget>()
   const [menu, setMenu] = useState<GameMenu | 'debug' | null>(null)
   const [debugActive, setDebugActive] = useState(false)
   const [worldRevision, setWorldRevision] = useState(0)
   const [showSwipeGuide, setShowSwipeGuide] = useState(false)
   const closeMenu = () => setMenu(null)
+  const openBook = (item?: string) => {
+    setBookItem(item)
+    setMenu('catalog')
+  }
+  const openRecipe = (target: RecipeTarget) => {
+    setRecipeTarget({ ...target })
+    setTab('crafting')
+    closeMenu()
+  }
   const showAdventure = () => {
     setTab('adventure')
     setWorldRevision((revision) => revision + 1)
@@ -98,7 +111,7 @@ export function App() {
                 <ScrollArea className="main-scroll" tabIndex={0} aria-label="滚动主区域">
                   {id === 'adventure' ? <Adventure onFirstChop={() => {
                     if (document.documentElement.dataset.uiCompact === 'true') setShowSwipeGuide(true)
-                  }} /> : id === 'crafting' ? <Crafting /> : <Village />}
+                  }} /> : id === 'crafting' ? <Crafting target={recipeTarget} /> : <Village />}
                 </ScrollArea>
               </TabsContent>
             ))}
@@ -111,7 +124,7 @@ export function App() {
             {import.meta.env.DEV && debugActive && (
               <Btn className="toolbar-button on" onClick={() => setMenu('debug')}>Debug</Btn>
             )}
-            <Button className="btn toolbar-button" aria-label="图鉴" title="图鉴" onClick={() => setMenu('catalog')}>
+            <Button className="btn toolbar-button" aria-label="配方书" title="配方书" onClick={() => openBook()}>
               <Texture src="/textures/icons-essential/Book.png" />
             </Button>
             <Button className="btn toolbar-button" aria-label="成就" title="成就" onClick={() => setMenu('achievements')}>
@@ -131,13 +144,13 @@ export function App() {
       <CombatModal />
       <WinModal />
       {showSwipeGuide && <SwipeGuide onClose={() => setShowSwipeGuide(false)} />}
-      {menu && menu !== 'debug' && <JournalModal menu={menu} onClose={closeMenu}
+      {menu && menu !== 'debug' && <JournalModal menu={menu} onClose={closeMenu} bookItem={bookItem} onRecipe={openRecipe} onOpenItem={openBook}
         onDebug={import.meta.env.DEV ? () => setMenu('debug') : undefined} />}
       {import.meta.env.DEV && menu === 'debug' && (
         <GameDialog label="Debug" onClose={closeMenu}>
           <h2>Debug</h2>
           <DebugPanel active={debugActive} onChange={setDebugActive} onWorldChange={showAdventure} />
-          <div className="actions"><Btn onClick={closeMenu}>关闭</Btn></div>
+          <ActionGrid><Btn onClick={closeMenu}>关闭</Btn></ActionGrid>
         </GameDialog>
       )}
     </div>
@@ -186,14 +199,12 @@ function LogPanel() {
 
 function Sidebar() {
   const s = useGame()
-  const prod = production(s)
-  const cap = villageCap(s)
   return (
-    <Card className="panel side fade-in" role="complementary" aria-label="物资">
+    <Card className="panel side fade-in" role="complementary" aria-label="背包">
       <ScrollArea className="sidebar-scroll" tabIndex={0} aria-label="滚动物资">
-      <h3><span>物资</span></h3>
+      <h3><span>背包</span></h3>
       {ITEM_CATEGORIES.map(([cat, name]) => {
-        const items = ITEM_LIST.filter((i) => i.cat === cat && (count(s, i.id) > 0 || prod[i.id]))
+        const items = ITEM_LIST.filter((i) => i.cat === cat && count(s, i.id) > 0)
         if (!items.length) return null
         const unique = cat === 'tool' || cat === 'gear'
         return (
@@ -201,13 +212,11 @@ function Sidebar() {
             <div className="sm dim">{name}</div>
             {items.map((i) => {
               const n = count(s, i.id)
-              const full = (prod[i.id] ?? 0) > 0 && n >= cap
               return (
                 <div key={i.id} className="inv-row" title={i.desc}>
                   <span className="icon-text inv-name"><Texture src={i.icon} /><span>{i.name}</span></span>
                   <span className="inv-values">
-                    {!unique && <span className={full ? 'gold' : ''}>{n}</span>}
-                    {!!prod[i.id] && <span className="rate">{full ? '已满' : (prod[i.id] > 0 ? '+' : '') + prod[i.id].toFixed(2) + '/秒'}</span>}
+                    {(!unique || n > 1) && <span>{n}</span>}
                   </span>
                 </div>
               )
@@ -247,9 +256,9 @@ function CombatModal() {
       <ScrollArea className="combat-lines" tabIndex={0} role="region" aria-label="战斗日志">
         {c.lines.map((l, i) => <p key={c.lines.length - i}>{l}</p>)}
       </ScrollArea>
-      <div className="actions">
+      <ActionGrid>
         <Btn cd="attack" className="primary" onClick={c.crystals ? s.breakCrystal : s.attack}
-          sub={c.crystals ? '剩余 ' + c.crystals + ' 座' : undefined}>{c.crystals ? '击碎末地水晶' : '攻击'}</Btn>
+          sub={c.crystals ? '剩余 ' + c.crystals + ' 座' : undefined}>{c.crystals ? '击碎末地水晶' : c.mob === 'creaking' ? c.heartLocated ? '破坏嘎枝之心' : '寻找嘎枝之心' : '攻击'}</Btn>
         {count(s, 'shield') > 0 && <Btn cd="block" onClick={s.block} sub="持续 4 秒">举盾</Btn>}
         {food && <Btn cd="eat" disabled={s.hunger >= 20 && s.hp >= 20} onClick={() => s.eat(food.id)} sub={`余 ${count(s, food.id)}`}>吃{food.name}</Btn>}
         {count(s, 'potion') > 0 && <Btn cd="drink" disabled={s.hp >= 20} onClick={() => s.drink()} sub="回复 8 生命">治疗药水</Btn>}
@@ -268,7 +277,7 @@ function CombatModal() {
         {s.submerged
           ? <Btn onClick={s.surface}>上浮撤退</Btn>
           : <Btn cd="flee" onClick={s.flee} sub={c.boss ? '下次挑战重新开始' : undefined}>撤退</Btn>}
-      </div>
+      </ActionGrid>
     </GameDialog>
   )
 }
@@ -284,7 +293,7 @@ function WinModal() {
       <p className="sm">
         历时 {dayOf(s.minute)} 天 · 行动 {s.stats.actions} 次 · 探索 {s.stats.explored} 处 · 击败 {s.stats.kills} 只生物 · 死亡 {s.stats.deaths} 次
       </p>
-      <div className="actions"><Btn className="primary" onClick={s.dismissWin}>继续经营</Btn></div>
+      <ActionGrid><Btn className="primary" onClick={s.dismissWin}>继续经营</Btn></ActionGrid>
     </GameDialog>
   )
 }

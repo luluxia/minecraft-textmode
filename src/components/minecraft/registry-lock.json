@@ -44,5 +44,16 @@
       "retrieved": "2026-11-13"
     }
   ],
-  "adaptation": "utils imports use ../../lib/utils; button/tab/card/dialog/select/switch text uses DOM and Fusion Pixel instead of bitmap/Canvas glyphs; textures, sound and Base UI interactions retained."
+  "upstreamSources": {
+    "repository": "https://github.com/nicognaW/grasscn",
+    "commit": "f6f36511567ecfcc59be7a0cffeddec73cb6f784",
+    "retrieved": "2026-11-17",
+    "files": [
+      "apps/web/registry/ui/input.tsx",
+      "apps/web/registry/ui/minecraft-input.css",
+      "apps/web/registry/ui/collapsible.tsx",
+      "apps/web/registry/ui/minecraft-collapsible.css"
+    ]
+  },
+  "adaptation": "Utils imports use ../../lib/utils. Button, tabs, card, dialog, select, switch, input and collapsible use DOM text and Fusion Pixel. Input uses the Grass CN field textures as a CSS border image. Base UI interactions and button sounds are retained."
 }
