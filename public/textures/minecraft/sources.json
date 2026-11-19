@@ -253,6 +253,7 @@
       "mob_witch": "Witch_JE4.png",
       "mob_shade": "Enderman_JE3.png",
       "mob_blaze": "Blaze_JE2.gif",
+      "mob_breeze": "Breeze_JE1.gif",
       "mob_dragon": "Ender_Dragon_JE1_BE1.png"
     }
   },
@@ -265,7 +266,6 @@
       "mob_villager": "d5c459cce8b48ecd1a270a49b16eb525.webp",
       "mob_wither": "6ddfdcf55bfe46ba9b256907af794a1f.webp",
       "mob_wither_skeleton": "ad30b517d7c6ebfb057cc034aedc0eff.webp",
-      "mob_breeze": "4551927a8ba001f85d5a50e762fd28bb.webp",
       "mob_warden": "50d822f42a2be52628458ea5f88cc693.webp",
       "mob_guardian": "db257fea03aa47a9e874719118de8331.webp",
       "mob_piglin_brute": "d5d2f2e11b7506eae0a54f35b49f4ed7.webp",
