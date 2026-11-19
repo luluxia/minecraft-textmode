@@ -3,12 +3,12 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/minecraf
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/minecraft/select'
 import { Button } from '../components/minecraft/button'
 import { Texture } from './Texture'
-import { ACTIONS, BIOMES, EYES_NEEDED, ITEM_LIST, ITEMS, itemCostText } from '../game/data'
+import { BIOMES, EYES_NEEDED, ITEM_LIST, ITEMS, itemCostText } from '../game/data'
 import { BARTER_COST, EXCAVATION_COST, EXPEDITIONS, MAX_AIR, NETHER_COST, PLANTS, RESPAWN_COST, SURVEY_COST, TRIAL_VAULTS, WATER_BREATHING_SECONDS, WITHER_COST } from '../game/progression'
 import { JOURNEY_COST, LEADS, NEARBY_COST, RETURN_COST, SITES } from '../game/exploration'
 import {
   ALLAY_ITEMS, CAMP_COOK, SHELTER_COST, available, actionAllowed, actionLock, atHome, canAfford, canBreatheUnderwater, canCampHere, canDiveHere, canSurvey, count, curLoc, diveLock, canRetreat, hasConduitPower, inNether,
-  availableActions, canExploreNearby, canInviteVillager, expeditionLock, explorerMapChoices, foundSites, invitationCost, isNight, locationLeads,
+  availableActions, currentAction, currentLocationDescription, canExploreNearby, canInviteVillager, expeditionLock, explorerMapChoices, foundSites, invitationCost, isNight, locationLeads,
   locationCap, mineResources, pickTier, survivedIndependently, travelAllowed, useGame, wildlifeLock, wildlifeVisible,
 } from '../game/store'
 import { LocationName, ActionTitle, Btn, Cost, EntryHeader, Section, bagText } from './kit'
@@ -46,7 +46,7 @@ export function Adventure({ onFirstChop }: { onFirstChop?: () => void }) {
   const discovered = foundSites(loc)
   const nearby = SITES[loc.sites?.[loc.discovered ?? 0] ?? '']
   const locationDescription = [
-    biome.desc,
+    currentLocationDescription(s),
     discovered.length ? '附近发现了' + discovered.map((id) => SITES[id].name).join('、') + '。' : '',
     nearby ? nearby.hint + '。' : '',
   ].join('')
@@ -140,7 +140,7 @@ export function Adventure({ onFirstChop }: { onFirstChop?: () => void }) {
         {(actions.length > 0 || canDigTreasure || canOpenMine) && <Section title="当地行动">
           <ActionGrid>
             {actions.map((id) => {
-              const a = ACTIONS[id]
+              const a = currentAction(s, id)
               const lock = actionLock(s, a)
               const quantity = a.finite ? (loc.res[a.finite] ?? 0) : undefined
               const detail = lock || [a.cost && itemCostText(a.cost, a.name), a.diveAir && !breathing && `空气 −${a.diveAir}`].filter(Boolean).join(' · ')
@@ -335,7 +335,7 @@ export function Adventure({ onFirstChop }: { onFirstChop?: () => void }) {
                 ? <Btn disabled={busy || (!s.flags.witherSummoned && !canAfford(s, WITHER_COST))} onClick={s.summonWither}>挑战凋灵</Btn>
                 : <Btn disabled={busy || !canAfford(s, NETHER_COST)} onClick={s.buildNether}>建造下界传送门</Btn>
               }>
-                <p className="sm dim">{s.flags.nether ? '用灵魂沙和三颗凋灵骷髅头颅召来凋灵。它的下界之星可以点亮信标。' : '在家搭建传送门，打通前往下界要塞和诡异森林的路线。'}</p>
+                <p className="sm dim">{s.flags.witherSummoned ? '凋灵已被召来，可以再次挑战。' : s.flags.nether ? '用灵魂沙和三颗凋灵骷髅头颅召来凋灵。它的下界之星可以点亮信标。' : '在家搭建传送门，打通前往下界要塞和诡异森林的路线。'}</p>
               </EntryHeader>
               {(!s.flags.nether || !s.flags.witherSummoned) && <Cost cost={s.flags.nether ? WITHER_COST : NETHER_COST} />}
             </article>

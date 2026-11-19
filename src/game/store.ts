@@ -172,6 +172,38 @@ export const pickTier = (s: GameState) => {
   for (let i = PICKS.length - 1; i >= 0; i--) if (count(s, PICKS[i]) > 0) return i + 1
   return 0
 }
+const axes: [string, number][] = [
+  ['axe_netherite', 0.36], ['axe_diamond', 0.42], ['axe_iron', 0.5], ['axe_stone', 0.7],
+]
+
+export function currentAction(s: GameState, id: string) {
+  const action = ACTIONS[id]
+  if (!action || !id.startsWith('chop')) return action
+  const axe = axes.find(([item]) => count(s, item) > 0)
+  if (!axe) return action
+  const name = id === 'chop' ? '砍树' : action.name
+  return { ...action, name, cd: action.cd * axe[1], text: `你挥动${ITEMS[axe[0]].name}${name}。` }
+}
+
+export function currentLocationDescription(s: GameState) {
+  const loc = curLoc(s)
+  const terrain = BIOMES[loc.biome].desc
+  if (s.village && loc.id === s.homeId) {
+    const greeting = s.village.mayor ? '路过的村民向你招手：“村长好！”'
+      : s.village.founded ? '你建起的村庄里，住户们正忙着各自的活计。'
+      : '炊烟升起，邻居们在自家门前向你问好。'
+    return loc.biome === 'village' ? greeting : terrain + greeting
+  }
+  if (loc.biome === 'village' && loc.visitorRep) return '炊烟升起，有村民认出了你，停下脚步向你招手。'
+  if (loc.biome === 'altar') {
+    if (s.flags.portal) return '末影之眼环绕着传送门，门中翻涌着星空般的黑暗。'
+    if (s.altarEyes > 0) return `石室中已有 ${s.altarEyes} 只末影之眼嵌入框架，还有 ${EYES_NEEDED - s.altarEyes} 个空槽。`
+  }
+  if (loc.cleared && loc.biome === 'mansion') return '窗后仍透出灯光，走廊里已听不见唤魔者的低语。'
+  if (loc.cleared && loc.biome === 'bastion') return '黑石高墙仍在，驻守遗迹的猪灵蛮兵已被你击退。'
+  return terrain
+}
+
 export const attackPower = (s: GameState) =>
   1 + (SWORDS.find(([id]) => count(s, id) > 0)?.[1] ?? 0) + (s.ench.sharp ?? 0) +
   Number(!!s.flags.wildlife_wolf && !s.submerged) + Number(!!s.flags.wildlife_axolotl && s.submerged)
@@ -1109,7 +1141,7 @@ export const useGame = create<Game>()(
       }),
 
       act: (id) => set((s) => {
-        const a = ACTIONS[id]
+        const a = currentAction(s, id)
         if (!a || s.combat || onCd(s, id) || !actionAllowed(s, id)) return
         const loc = curLoc(s)
         if (actionLock(s, a)) return
@@ -1117,8 +1149,6 @@ export const useGame = create<Game>()(
         if (a.cost) pay(s, a.cost)
         let cd = a.cd
         if (a.kind === 'mine') cd *= Math.max(0.58, 1 - 0.14 * (pickTier(s) - (a.pick ?? 1)))
-        if (id.startsWith('chop')) cd *= count(s, 'axe_netherite') ? 0.36 : count(s, 'axe_diamond') ? 0.42 :
-          count(s, 'axe_iron') ? 0.5 : count(s, 'axe_stone') ? 0.7 : 1
         setCd(s, id, cd)
         s.stats.actions++
         if (s.flags.status) s.hunger = Math.max(0, s.hunger - a.hunger)
