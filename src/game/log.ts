@@ -16,6 +16,10 @@ interface OfflineSettlement {
 
 type LogState = { log: LogEntry[]; logId: number }
 
+export function itemList(items: Bag, batches = 1) {
+  return Object.entries(items).map(([id, n]) => `${ITEMS[id].name} ×${n * batches}`).join('、')
+}
+
 export function pushLog(s: LogState, text: string, kind: LogKind = 'info') {
   s.log.unshift({ id: s.logId++, text, kind })
   if (s.log.length > LOG_LIMIT) s.log.length = LOG_LIMIT

@@ -11,7 +11,7 @@ import {
 import { WILDLIFE, wildlifeAt } from './wildlife'
 import { achievementVisible, getAchievement, getCompletedAchievements } from './advancements'
 import { decodeSave, encodeSave, normalizeSave, SAVE_KEY, SAVE_VERSION, snapshot } from './save'
-import { LOG_LIMIT, logOfflineSettlement, pushLog, type LogEntry } from './log'
+import { LOG_LIMIT, itemList, logOfflineSettlement, pushLog, type LogEntry } from './log'
 import { current } from 'immer'
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
@@ -411,6 +411,9 @@ const receive = (s: GameState, loc: Loc, item: string, n: number, toStock = fals
   if (n > 0) addStock((loc.pending ??= {}), item, n)
 }
 const give = (s: GameState, item: string, n: number) => receive(s, curLoc(s), item, n)
+const giveItems = (s: GameState, items: Bag) => {
+  for (const [item, n] of Object.entries(items)) give(s, item, n)
+}
 const pay = (s: GameState, cost: Bag, carriedOnly = false, trackLocal = false, alternatives?: IngredientAlternatives) => {
   const local = carriedOnly ? undefined : stockHere(s)
   const bags = local ? [local, s.inv] : [s.inv]
@@ -443,16 +446,17 @@ const gainXp = (s: GameState, n: number) => {
   s.xp += n
   while (s.xp >= xpNeed(s.level)) { s.xp -= xpNeed(s.level); s.level++ }
 }
-const rollDrops = (s: GameState, drops: Drop[]) => {
-  const parts: string[] = []
+const rollDrops = (s: GameState, drops: Drop[], bonus: Bag = {}) => {
+  const loot = { ...bonus }
+  giveItems(s, bonus)
   for (const dr of drops) {
     if (Math.random() > (dr.p ?? 1)) continue
     let n = rand(dr.min, dr.max)
     if (!['dragon_egg', 'nether_star', 'sculk_catalyst', 'obsidian'].includes(dr.item) && Math.random() < 0.12 * (s.ench.fortune ?? 0)) n *= 2
     give(s, dr.item, n)
-    parts.push(`${ITEMS[dr.item].name} +${n}`)
+    loot[dr.item] = (loot[dr.item] ?? 0) + n
   }
-  return parts.join('，')
+  return itemList(loot)
 }
 const createLocation = (id: number, biome: string): Loc => {
   const res: Bag = {}
@@ -617,7 +621,7 @@ const advanceEconomy = (s: GameState, live: boolean) => {
       else outputAtHome(s, item, n)
     }
     if (oldCamp) delete oldCamp.growingCrop
-    if (live) pushLog(s, '营地的' + plant.name + '成熟了，收获已入库。', 'good')
+    if (live) pushLog(s, '营地的' + plant.name + '成熟了，收获' + itemList(plant.reward) + '。', 'good')
   }
 
   const job = s.furnace.job
@@ -880,7 +884,7 @@ export const useGame = create<Game>()(
         setCd(s, 'drink', 8, true)
         setCd(s, 'water_breathing', WATER_BREATHING_SECONDS, true)
         s.air = MAX_AIR
-        pushLog(s, '水肺药水生效，暂时可以在水下呼吸。', 'good')
+        pushLog(s, '水肺药水生效，收回玻璃瓶 ×1。暂时可以在水下呼吸。', 'good')
       }),
 
       exploreNearby: () => set((s) => {
@@ -970,7 +974,7 @@ export const useGame = create<Game>()(
         const vault = TRIAL_VAULTS.find((entry) => entry.id === (ominous ? 'ominous' : 'normal'))!
         if (!canAfford(s, vault.cost) || onCd(s, 'vault')) return
         pay(s, vault.cost)
-        for (const [item, n] of Object.entries(vault.reward)) give(s, item, n)
+        giveItems(s, vault.reward)
         s.flags[vault.flag] = true
         setCd(s, 'vault', 4, true)
         pushLog(s, vault.name + '喷出了战利品。', 'good')
@@ -981,9 +985,9 @@ export const useGame = create<Game>()(
         if (s.combat || loc.biome !== 'bastion' || loc.lootTaken || !(loc.cleared || s.flags.bastionCleared)) return
         loc.lootTaken = true
         s.flags.bastionCleared = false
-        give(s, 'netherite_template', 1)
-        give(s, 'gold', 6)
-        pushLog(s, '你从堡垒遗迹的箱子中找到下界合金升级锻造模板。', 'good')
+        const reward = { netherite_template: 1, gold: 6 }
+        giveItems(s, reward)
+        pushLog(s, '取出锻造模板时，还发现了' + itemList({ gold: reward.gold }) + '。', 'good')
       }),
 
       gust: () => set((s) => {
@@ -1081,7 +1085,7 @@ export const useGame = create<Game>()(
         if (item === 'fire_resistance') {
           give(s, 'bottle', 1)
           setCd(s, 'fire_ward', 60, true)
-          pushLog(s, '你饮下了抗火药水，60 秒内降低来自烈焰人、岩浆怪和恶魂的伤害。', 'good')
+          pushLog(s, '你饮下了抗火药水，收回玻璃瓶 ×1。60 秒内降低来自烈焰人、岩浆怪和恶魂的伤害。', 'good')
         } else {
           const heal = item === 'lingering_healing' ? 12 : 8
           s.hp = Math.min(20, s.hp + heal)
@@ -1123,11 +1127,12 @@ export const useGame = create<Game>()(
           s.flags.foundShipwreck = true
           s.expeditions.shipwreck = Math.max(1, s.expeditions.shipwreck ?? 0)
         }
+        const bonus: Bag = {}
         if (id === 'dive_warm_ruins') {
           s.flags.foundWarmRuins = true
           if (!s.expeditions.warm_ruins) {
             s.expeditions.warm_ruins = 1
-            give(s, 'sniffer_egg', 1)
+            bonus.sniffer_egg = 1
           }
         }
         if (id === 'meet_traveler') {
@@ -1137,7 +1142,7 @@ export const useGame = create<Game>()(
         }
         if (id === 'mine_cinnabar' && s.flags.sulfurPath) {
           s.flags.sulfurPath = false
-          give(s, 'cinnabar', 1)
+          bonus.cinnabar = 1
         }
         if (id === 'rescue_igloo_villager') {
           loc.cleared = true
@@ -1156,7 +1161,7 @@ export const useGame = create<Game>()(
           startCombat(s, a.mob, a.mob === 'warden')
           return
         }
-        let got = rollDrops(s, a.drops ?? [])
+        let got = rollDrops(s, a.drops ?? [], bonus)
         const allayItem = s.allayTarget
         if (s.flags.allay && allayItem && a.drops?.some((drop) => drop.item === allayItem) &&
           carryRoom(s, allayItem) > 0 && Math.random() < 0.4) {
@@ -1327,7 +1332,8 @@ export const useGame = create<Game>()(
           made += r.n
         }
         if (!made) return
-        pushLog(s, `你合成了${ITEMS[r.out].name} ×${made}。`)
+        const returned = r.returns ? '，返还' + itemList(r.returns, made / r.n) : ''
+        pushLog(s, `你合成了${ITEMS[r.out].name} ×${made}${returned}。`)
         checkUnlocks(s)
       }),
 
@@ -1354,6 +1360,7 @@ export const useGame = create<Game>()(
         if (job.locId !== undefined && job.locId !== s.locId) return
         const item = SMELTS.find((x) => x.id === job.r)!.from
         give(s, item, job.left)
+        pushLog(s, `取消熔炼，退回${ITEMS[item].name} ×${job.left}。`)
         s.furnace.job = null
       }),
 
@@ -1409,28 +1416,27 @@ export const useGame = create<Game>()(
         if (animal.underwater && !canBreatheUnderwater(s)) s.air -= 7
         s.flags['wildlife_' + id] = true
         setCd(s, 'wildlife_' + id, 25, true)
+        if (animal.reward) giveItems(s, animal.reward)
         switch (id) {
-          case 'armadillo': give(s, 'armadillo_scute', 1); break
-          case 'mooshroom': give(s, 'mushroom_stew', 1); break
           case 'dolphin': learnLocationLead(s, 'wreck'); break
-          case 'trader': give(s, 'seed', 4); give(s, 'pumpkin', 1); break
           case 'sulfur_cube':
             s.flags.sulfurPath = true
             pushLog(s, '硫磺立方体推开了碎石。下次开采可多得一份朱砂。')
             return
         }
-        pushLog(s, animal.name + '：' + animal.action + '。', 'event')
+        const received = animal.reward ? '，获得' + itemList(animal.reward) : ''
+        pushLog(s, animal.name + '：' + animal.action + received + '。', 'event')
       }),
 
       digTreasure: () => set((s) => {
         if (!canDiveHere(s) || s.submerged || s.combat || s.expedition?.id === 'buried_treasure' ||
           onCd(s, 'treasure') || !pay(s, { treasure_map: 1 })) return
-        if (!s.expeditions.buried_treasure) give(s, 'heart_of_sea', 1)
-        give(s, 'gold', 3)
-        give(s, 'emerald', 1)
+        const reward: Bag = { gold: 3, emerald: 1 }
+        if (!s.expeditions.buried_treasure) reward.heart_of_sea = 1
+        giveItems(s, reward)
         s.expeditions.buried_treasure = (s.expeditions.buried_treasure ?? 0) + 1
         setCd(s, 'treasure', 12, true)
-        pushLog(s, '挖出了埋藏的宝箱。', 'good')
+        pushLog(s, '挖出了埋藏的宝箱，获得' + itemList(reward) + '。', 'good')
       }),
 
       build: (id) => set((s) => {
@@ -1462,11 +1468,13 @@ export const useGame = create<Game>()(
         const t = TRADES.find((x) => x.id === id)
         if (!t || s.combat || !canVisitMarket(s) || marketReputation(s) < (t.rep ?? 0) || (t.need && (!atHome(s) || !v?.buildings[t.need]))) return
         if (!Number.isSafeInteger(times) || times < 1) return
-        for (let i = 0; i < Math.min(times, 5) && canAfford(s, t.give); i++) {
+        let completed = 0
+        for (; completed < Math.min(times, 5) && canAfford(s, t.give); completed++) {
           pay(s, t.give)
-          for (const [k, n] of Object.entries(t.get)) give(s, k, n)
+          giveItems(s, t.get)
           gainMarketReputation(s, (v?.buildings.market ? 2 : 1) + (v?.buildings.cultural_hall ? 1 : 0))
         }
+        if (completed && completed < times) pushLog(s, `本次完成了 ${completed} 笔交易。`)
       }),
 
       talk: () => set((s) => {
@@ -1507,10 +1515,14 @@ export const useGame = create<Game>()(
         if (c.hp > 0) return
         s.combat = null
         s.stats.kills++
-        const got = rollDrops(s, m.drops.filter((drop) => drop.item !== 'dragon_egg' || !s.flags.won))
+        let got = rollDrops(s, m.drops.filter((drop) => drop.item !== 'dragon_egg' || !s.flags.won))
+        if (c.trial) {
+          const key = { [c.trial === 'ominous' ? 'ominous_key' : 'trial_key']: 1 }
+          giveItems(s, key)
+          got = [got, itemList(key)].filter(Boolean).join('，')
+        }
         gainXp(s, m.xp)
         pushLog(s, `你击败了${m.name}。${got ? `（${got}）` : ''}`, 'good')
-        if (c.trial) give(s, c.trial === 'ominous' ? 'ominous_key' : 'trial_key', 1)
         if (c.mob === 'piglin_brute') curLoc(s).cleared = true
         if (c.mob === 'warden') s.flags.warden = true
         if (c.mob === 'dragon') {

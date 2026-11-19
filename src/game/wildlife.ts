@@ -3,6 +3,7 @@ import type { Bag } from './data'
 interface Encounter {
   name: string
   action: string
+  reward?: Bag
   cost?: Bag
   underwater?: boolean
   repeatable?: boolean
@@ -10,11 +11,11 @@ interface Encounter {
 
 export const WILDLIFE: Record<string, Encounter> = {
   wolf: { name: '狼', action: '用骨头驯服', cost: { bone: 2 } },
-  mooshroom: { name: '哞菇', action: '从哞菇取得蘑菇煲', cost: { bowl: 1 }, repeatable: true },
+  mooshroom: { name: '哞菇', action: '从哞菇取得蘑菇煲', reward: { mushroom_stew: 1 }, cost: { bowl: 1 }, repeatable: true },
   horse: { name: '马', action: '驯马', cost: { apple: 2 } },
   donkey: { name: '驴', action: '驯驴', cost: { apple: 2 } },
   camel: { name: '骆驼', action: '带骆驼同行', cost: { wheat: 2 } },
-  armadillo: { name: '犰狳', action: '刷取犰狳鳞甲', cost: {}, repeatable: true },
+  armadillo: { name: '犰狳', action: '刷取犰狳鳞甲', reward: { armadillo_scute: 1 }, cost: {}, repeatable: true },
   dolphin: { name: '海豚', action: '喂鱼寻找沉船', cost: { fish: 1 }, underwater: true },
   axolotl: { name: '美西螈', action: '用铁桶带走美西螈', cost: { bucket: 1 } },
   nautilus_mob: { name: '鹦鹉螺', action: '喂食并驯服鹦鹉螺', cost: { pufferfish: 1 }, underwater: true },
@@ -26,7 +27,7 @@ export const WILDLIFE: Record<string, Encounter> = {
   fox: { name: '狐狸', action: '在林边观察狐狸' },
   goat: { name: '山羊', action: '观察崖边的山羊' },
   polar_bear: { name: '北极熊', action: '保持距离观察北极熊' },
-  trader: { name: '流浪商人', action: '交换种子', cost: { emerald: 1 }, repeatable: true },
+  trader: { name: '流浪商人', action: '交换种子', reward: { seed: 4, pumpkin: 1 }, cost: { emerald: 1 }, repeatable: true },
 }
 
 const habitats: Record<string, string[]> = {
