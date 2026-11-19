@@ -233,6 +233,15 @@ export const ITEM_LIST: ItemDef[] = [
 ]
 export const ITEMS: Record<string, ItemDef> = Object.fromEntries(ITEM_LIST.map((i) => [i.id, i]))
 
+export const itemCostText = (cost: Bag, actionName?: string) => {
+  const items = Object.entries(cost)
+  if (items.length === 1 && actionName?.includes(ITEMS[items[0][0]].name)) {
+    const quantity = items[0][1]
+    return quantity === 1 ? '' : `−${quantity}`
+  }
+  return items.map(([id, quantity]) => `${ITEMS[id].name} −${quantity}`).join('、')
+}
+
 export const PICKS = ['pick_wood', 'pick_stone', 'pick_iron', 'pick_diamond', 'pick_netherite']
 export const SWORDS: [string, number][] = [
   ['sword_netherite', 9], ['mace', 8], ['sword_diamond', 7], ['sword_iron', 5], ['sword_stone', 3], ['sword_wood', 2],

@@ -19,7 +19,7 @@ import { immer } from 'zustand/middleware/immer'
 import {
   ACTIONS, ARMORS, BIOMES, BUILDING_MAP, BUILDINGS, COST_RATIO, CONTROL_REP, ENCHANTS, EYES_NEEDED, FUELS,
   ITEMS, ITEM_LIST, JOBS, JOB_MAP, MAYOR_POP, MAYOR_REP, MOBS, PICKS, RECIPES, SMELTS, SWORDS, TALK_LINES,
-  TRADES, type Bag, type Drop, type IngredientAlternatives, type Recipe,
+  TRADES, itemCostText, type Bag, type Drop, type IngredientAlternatives, type Recipe,
 } from './data'
 
 export interface Loc { id: number; biome: string; name: string; res: Bag; saved: boolean; shelter: boolean; sites?: string[]; leads?: string[]; discovered?: number; marked?: boolean; variant?: string; chest?: boolean; shaftsLeft?: number; villageLayout?: VillageLayout; visitorRep?: number; growingCrop?: boolean; commissioned?: boolean; cleared?: boolean; lootTaken?: boolean; stock?: Bag; pending?: Bag }
@@ -310,8 +310,8 @@ export const wildlifeLock = (s: GameState, id: string) => {
   if (id === 'armadillo' && carryRoom(s, 'armadillo_scute') < 1) return '背包已满'
   if (id === 'mooshroom' && carryRoom(s, 'mushroom_stew') < 1) return '背包已满'
   if (s.submerged && s.air < 7 && !canBreatheUnderwater(s)) return '空气不足'
-  if (!canAfford(s, WILDLIFE[id].cost ?? {})) return '需要' +
-    Object.entries(WILDLIFE[id].cost ?? {}).map(([item, amount]) => ITEMS[item].name + ' ×' + amount).join('、')
+  const cost = WILDLIFE[id].cost
+  if (cost && !canAfford(s, cost)) return itemCostText(cost)
   return ''
 }
 export const canExploreNearby = (s: GameState) => !!s.flags.explore && !s.combat && !s.submerged &&
@@ -348,7 +348,7 @@ export const actionLock = (s: GameState, action: typeof ACTIONS[string]) => {
   if (action.finite && (curLoc(s).res[action.finite] ?? 0) <= 0) return '已枯竭'
   if (action.diveAir && s.air < action.diveAir && !canBreatheUnderwater(s)) return '空气不足，先上浮换气'
   if (action.cost && !canAfford(s, action.cost)) {
-    return '需要 ' + Object.entries(action.cost).map(([id, n]) => ITEMS[id].name + ' ×' + n).join('、')
+    return itemCostText(action.cost)
   }
   return ''
 }
@@ -757,7 +757,7 @@ export const initial = (): GameState => ({
   submerged: false,
   xp: 0,
   level: 0,
-  autoEat: false,
+  autoEat: true,
   minute: 8 * 60,
   weather: 'clear',
   locs: { 1: startingForest() },

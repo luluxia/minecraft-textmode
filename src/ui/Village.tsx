@@ -11,7 +11,7 @@ import {
   jobSlots, lineIssue, lineLimit, mayBuildVillage, monumentReady, villageGrowthReady, production, raidStrength, recruitTime, useGame, villageCap, villageDefense, wheatDemand,
 } from '../game/store'
 import { EXPEDITIONS, LINES, seasonAt, type ExpeditionDef } from '../game/progression'
-import { Bar, Btn, Cost, EntryHeader, Section, bagText } from './kit'
+import { LocationName, Bar, Btn, Cost, EntryHeader, Section, bagText } from './kit'
 import { useScrollReset } from './ScrollArea'
 import { villageBeforeSettlement } from '../game/village'
 
@@ -55,7 +55,7 @@ export function Village() {
       <Tabs value={cur} onValueChange={changeTab}>
         {navigation}
         <TabsContent value="overview">
-          <Section title="概况" extra={loc.name}>
+          <Section title="概况" extra={<LocationName name={loc.name} />}>
             <dl className="village-stats sm">
               <dt>村民</dt>
               <dd>{local.villagers} 人（农夫 {local.jobs.farmer} 人）</dd>
@@ -92,7 +92,7 @@ export function Village() {
       <TabsContent value="overview">
         <Section title="概况">
           <div className="row">
-            <span className="loc-name">{s.locs[s.homeId!].name}</span>
+            <span className="loc-name"><LocationName name={s.locs[s.homeId!].name} /></span>
             <span className="tag g">{villageLevel(v.villagers)}</span>
             {v.mayor && <span className="tag y">村长</span>}
           </div>

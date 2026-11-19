@@ -5,7 +5,7 @@ import { Card } from './components/minecraft/card'
 import { Button } from './components/minecraft/button'
 import { Texture } from './ui/Texture'
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
-import { ITEM_CATEGORIES, ITEM_LIST, ITEMS, MOBS } from './game/data'
+import { ITEM_CATEGORIES, ITEM_LIST, ITEMS, MOBS, itemCostText } from './game/data'
 import { canBreatheUnderwater, combatInterval, dragonLanded, nextStrike, combatMaxHp, count, dayOf, hourOf, isNight, useGame } from './game/store'
 import type { RecipeTarget } from './game/recipes'
 import { Adventure } from './ui/Adventure'
@@ -13,7 +13,7 @@ import { ActionGrid } from './ui/ActionGrid'
 import { PlayerHud } from './ui/PlayerHud'
 import { Crafting } from './ui/Crafting'
 import { Village } from './ui/Village'
-import { Btn } from './ui/kit'
+import { LocationName, Btn } from './ui/kit'
 import { CurrentGoal, JournalModal, type GameMenu } from './ui/GameJournal'
 import { MAX_AIR, seasonAt } from './game/progression'
 import { DebugPanel } from './ui/DebugPanel'
@@ -189,7 +189,7 @@ function LogPanel() {
       <ScrollArea className="sidebar-scroll log-scroll" tabIndex={0} aria-label="滚动冒险日志">
       {log.slice(0, 40).map((l, i) => (
         <p key={l.id} className={l.kind === 'info' ? '' : l.kind} style={{ opacity: Math.max(0.25, 1 - i * 0.045) }}>
-          {l.text}
+          {/^(抵达|返回|撤回|你在地图上标记了)/.test(l.text) ? <LocationName name={l.text} /> : l.text}
         </p>
       ))}
       </ScrollArea>
@@ -269,7 +269,7 @@ function CombatModal() {
         )}
         {count(s, 'wind_charge') > 0 && <Btn cd="gust" onClick={s.gust} sub={count(s, 'mace') ? '强化下一击' : '打断敌人'}>投掷风弹</Btn>}
         {c.mob === 'dragon' && count(s, 'bottle') > 0 && !c.breathTaken && (
-          <Btn disabled={c.turn < 4} onClick={s.bottleBreath} sub={c.turn < 4 ? '等待龙息落下' : '消耗一个玻璃瓶'}>收集龙息</Btn>
+          <Btn disabled={c.turn < 4} onClick={s.bottleBreath} sub={c.turn < 4 ? '等待龙息落下' : itemCostText({ bottle: 1 })}>收集龙息</Btn>
         )}
         {s.submerged && count(s, 'water_breathing') > 0 && (
           <Btn cd="drink" disabled={canBreatheUnderwater(s)} onClick={s.drinkWaterBreathing}>水肺药水</Btn>

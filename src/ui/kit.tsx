@@ -5,6 +5,12 @@ import { useLayoutEffect, useRef, useState, type ReactNode } from 'react'
 import { ITEMS, type Bag, type IngredientAlternatives } from '../game/data'
 import { available, useGame } from '../game/store'
 
+export function LocationName({ name }: { name: string }) {
+  const suffix = / #?([2-9]|[1-9]\d+)(。?)$/.exec(name)
+  if (!suffix) return name
+  return <span>{name.slice(0, suffix.index)}<small className="location-number">{'\u00a0#' + suffix[1]}</small>{suffix[2]}</span>
+}
+
 interface BtnProps {
   cd?: string
   onClick?: () => void

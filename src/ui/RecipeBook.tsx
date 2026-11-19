@@ -9,7 +9,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '../componen
 import { Input } from '../components/minecraft/input'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/minecraft/tabs'
 import { available, canAfford, outputRoom, useGame } from '../game/store'
-import { Btn, IngredientName, ItemName } from './kit'
+import { LocationName, Btn, IngredientName, ItemName } from './kit'
 import { Texture } from './Texture'
 
 interface RecipeBookProps {
@@ -202,7 +202,7 @@ function RecipeDetails({ item, needed, ancestors, onMake }: {
       {sources.some(([, list]) => list.length > 0) && (
         <dl className="recipe-sources">
           {sources.filter(([, list]) => list.length > 0).map(([label, list]) => (
-            <div key={label} className="recipe-source-row"><dt>{label}</dt><dd>{list.join('、')}</dd></div>
+            <div key={label} className="recipe-source-row"><dt>{label}</dt><dd>{list.map((name, index) => <span key={name}>{index > 0 && '、'}<LocationName name={name} /></span>)}</dd></div>
           ))}
         </dl>
       )}

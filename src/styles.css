@@ -180,6 +180,7 @@ h1, h2, h3, h4, p { margin: 0; font-weight: normal; }
 .tag.y { border-color: #6e5a1e; color: var(--gold); }
 .notice { border: 2px dashed var(--line); padding: 8px 10px; color: var(--dim); font-size: 14px; }
 .loc-name { font-size: 20px; }
+.location-number { font-size: 0.85em; color: var(--dim); }
 .stepper { display: flex; align-items: center; gap: 6px; }
 .stepper b { min-width: 44px; text-align: center; font-weight: normal; }
 

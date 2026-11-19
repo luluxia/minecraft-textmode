@@ -2,7 +2,7 @@ import { ITEMS } from '../game/data'
 import { ActionGrid } from './ActionGrid'
 import { CHEST_COST, room, whole } from '../game/inventory'
 import { atHome, canAfford, canCampHere, carryRoom, count, curLoc, locationCap, useGame } from '../game/store'
-import { Btn, ItemName, Section } from './kit'
+import { LocationName, Btn, ItemName, Section } from './kit'
 
 export function LocationStorage({ onOpenMap }: { onOpenMap: () => void }) {
   const s = useGame()
@@ -22,7 +22,7 @@ export function LocationStorage({ onOpenMap }: { onOpenMap: () => void }) {
   }
 
   if (!cap && !pending.length && !canPlace) {
-    return <Section title="当前地点" extra={loc.name}>
+    return <Section title="当前地点" extra={<LocationName name={loc.name} />}>
       <p className="notice">{!canCamp ? '这里无法放置箱子。' : s.flags.waypoint
         ? '记录此地后可放置箱子。' : '制作地图并记录此地后可放置箱子。'}</p>
       {canCamp && s.flags.waypoint && <ActionGrid>
@@ -33,9 +33,9 @@ export function LocationStorage({ onOpenMap }: { onOpenMap: () => void }) {
 
   return (
     <>
-      {canPlace && <Section title="箱子" extra={loc.name}>
+      {canPlace && <Section title="箱子" extra={<LocationName name={loc.name} />}>
         <ActionGrid>
-          <Btn disabled={disabled || !hasChest} onClick={s.placeChest} sub={hasChest ? undefined : '需要箱子'}>放置箱子</Btn>
+          <Btn disabled={disabled || !hasChest} onClick={s.placeChest}>放置箱子</Btn>
         </ActionGrid>
       </Section>}
       {!!cap && <Section title={loc.id === s.homeId && s.village ? '村庄仓库' : '箱子'} extra={'单种物品上限 ' + cap}>
