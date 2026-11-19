@@ -446,7 +446,7 @@ const ACTION_LIST: ActionDef[] = [
   { id: 'mine_gold', name: '挖掘金矿', kind: 'mine', cd: 6, hunger: 0.35, pick: 3, finite: 'gold', drops: [d('gold_ore', 1, 2)], xp: 2 },
   { id: 'mine_redstone', name: '挖掘红石', kind: 'mine', cd: 6, hunger: 0.35, pick: 3, finite: 'redstone', drops: [d('redstone', 2, 4)], xp: 2 },
   { id: 'mine_emerald', name: '挖掘绿宝石', kind: 'mine', cd: 7, hunger: 0.4, pick: 3, finite: 'emerald', drops: [d('emerald', 1, 1)], xp: 4 },
-  { id: 'mine_diamond', name: '挖掘钻石', kind: 'mine', cd: 8, hunger: 0.4, pick: 3, finite: 'diamond', drops: [d('diamond', 1, 2)], xp: 5 },
+  { id: 'mine_diamond', name: '挖掘钻石', kind: 'mine', cd: 8, hunger: 0.4, pick: 3, finite: 'diamond', drops: [d('diamond', 1, 1)], xp: 5 },
   { id: 'mine_obsidian', name: '挖掘黑曜石', kind: 'mine', cd: 10, hunger: 0.5, pick: 4, finite: 'obsidian', drops: [d('obsidian', 2, 2)], xp: 2 },
   { id: 'hunt_pig', name: '讨伐猪', kind: 'hunt', cd: 4, hunger: 0.3, finite: 'pig', mob: 'pig' },
   { id: 'hunt_cow', name: '讨伐牛', kind: 'hunt', cd: 4, hunger: 0.3, finite: 'cow', mob: 'cow' },
@@ -483,7 +483,7 @@ const ACTION_LIST: ActionDef[] = [
   { id: 'dive_ruin', name: '刷扫海底废墟', kind: 'gather', cd: 10, hunger: 0.24, diveAir: 5, tool: 'brush', finite: 'sunken_sand', drops: [d('angler_sherd', 1, 1), d('emerald', 1, 1, 0.2)], xp: 4 },
   { id: 'dive_guardian', name: '挑战守卫者', kind: 'hunt', cd: 28, hunger: 0.35, diveAir: 4, pick: 3, mob: 'guardian' },
   { id: 'mine_sculk', name: '精准采集幽匿块', kind: 'mine', cd: 5, hunger: 0.25, pick: 3, enchant: 'silk', drops: [d('sculk', 2, 4)], xp: 1 },
-  { id: 'sneak_city', name: '铺羊毛潜行搜寻箱子', kind: 'gather', cd: 15, hunger: 0.4, cost: { wool: 3 }, drops: [d('echo_shard', 2, 3), d('sculk_sensor', 1, 1), d('diamond', 1, 2, 0.25)], xp: 5 },
+  { id: 'sneak_city', name: '铺羊毛潜行搜寻箱子', kind: 'gather', cd: 15, hunger: 0.4, cost: { wool: 3 }, finite: 'city_chest', drops: [d('echo_shard', 2, 3), d('sculk_sensor', 1, 1), d('diamond', 1, 2, 0.25)], xp: 5 },
   { id: 'hunt_warden', name: '挑战监守者', kind: 'hunt', cd: 45, hunger: 0.8, mob: 'warden' },
   { id: 'mine_netherrack', name: '开采下界岩', kind: 'mine', cd: 3, hunger: 0.24, pick: 1, drops: [d('netherrack', 3, 6)] },
   { id: 'mine_quartz', name: '开采下界石英矿', kind: 'mine', cd: 5, hunger: 0.3, pick: 2, finite: 'quartz', drops: [d('quartz', 2, 4)], xp: 3 },
@@ -524,8 +524,8 @@ export const BIOMES: Record<string, BiomeDef> = {
   dripstone_caves: { id: 'dripstone_caves', name: '溶洞', icon: '/textures/minecraft/tuff.png', desc: '水从滴水石落下，洞壁有丰富的铜矿。', actions: ['mine_stone', 'mine_copper', 'mine_iron'], res: { copper: [12, 24], iron: [4, 8] }, danger: 1.2, weight: 4 },
   lush_caves: { id: 'lush_caves', name: '繁茂洞穴', icon: '/textures/minecraft/sweet_berries.png', desc: '洞顶垂下发光浆果。', actions: ['gather_glow_berries', 'mine_stone'], res: {}, danger: 0.6, weight: 3 },
   deep_dark: { id: 'deep_dark', name: '深暗之域', icon: '/textures/minecraft/sculk_sensor.png', desc: '幽匿顺着岩壁蔓延。', actions: ['mine_sculk'], res: {}, danger: 0.7, weight: 0 },
-  sulfur_caves: { id: 'sulfur_caves', name: '硫磺洞穴', icon: '/textures/minecraft/tuff.png', desc: '硫磺池冒泡，红色朱砂横贯洞壁。', actions: ['mine_stone', 'mine_cinnabar'], res: { cinnabar: [6, 12] }, danger: 0.85, weight: 0 },
-  mineshaft: { id: 'mineshaft', name: '废弃矿井', icon: '/textures/minecraft/iron_ingot.png', desc: '歪斜的木梁支撑着废弃铁轨。', actions: ['mine_stone', 'mine_coal', 'search_minecart', 'hunt_cave_spider'], res: { iron: [3, 8], coal: [6, 12], minecart: [1, 1] }, danger: 1.2, weight: 1 },
+  sulfur_caves: { id: 'sulfur_caves', name: '硫磺洞穴', icon: '/textures/minecraft/tuff.png', desc: '红色朱砂横贯洞壁，熔岩遇水的岸边凝结着黑曜石。', actions: ['mine_stone', 'mine_cinnabar', 'mine_obsidian'], res: { obsidian: [2, 3], cinnabar: [6, 12] }, danger: 0.85, weight: 0 },
+  mineshaft: { id: 'mineshaft', name: '废弃矿井', icon: '/textures/minecraft/iron_ingot.png', desc: '废弃铁轨深入岩层，木梁下露出零星钻石。', actions: ['mine_stone', 'mine_coal', 'mine_diamond', 'search_minecart', 'hunt_cave_spider'], res: { iron: [3, 8], coal: [6, 12], diamond: [3, 5], minecart: [1, 1] }, danger: 1.2, weight: 1 },
   warm_ocean: { id: 'warm_ocean', name: '暖水海洋', icon: '/textures/minecraft/cod.png', desc: '浅海里可以看见珊瑚与鱼群。', actions: ['fish', 'fish_deep', 'dive_shell'], res: { seabed: [4, 7] }, renew: ['seabed'], danger: 0.5, weight: 3, diving: true },
   deep_ocean: { id: 'deep_ocean', name: '深海', icon: '/textures/minecraft/prismarine_shard.png', desc: '海面下的轮廓隐入深水。', actions: ['fish_deep', 'dive_shell'], res: { seabed: [4, 7] }, renew: ['seabed'], danger: 0.6, weight: 2, diving: true },
   monument: { id: 'monument', name: '海底神殿', icon: '/textures/minecraft/prismarine_shard.png', desc: '海晶石高墙围住了远古守卫者。', actions: ['hunt_ancient_guardian'], res: {}, danger: 0, weight: 0, diving: true },
@@ -538,10 +538,10 @@ export const BIOMES: Record<string, BiomeDef> = {
   swamp: { id: 'swamp', name: '沼泽', icon: '/textures/minecraft/lily_pad.png', desc: '浑浊的水面漂着睡莲，空气又湿又闷。', actions: ['chop', 'fish', 'gather_cane', 'grass', 'gather_mushrooms', 'dig_clay', 'hunt_slime'], res: { mushrooms: [6, 9] }, renew: ['mushrooms'], danger: 1.4, weight: 8 },
   desert: { id: 'desert', name: '沙漠', icon: '/textures/minecraft/cactus.png', desc: '炽热的沙丘连绵起伏，岩缝里闪着金光。', actions: ['dig_sand', 'mine_stone', 'mine_gold'], res: { gold: [2, 6] }, danger: 1.2, weight: 8 },
   mountain: { id: 'mountain', name: '风袭丘陵', icon: '/textures/minecraft/stone.png', desc: '裸露的岩壁上能看到煤与铁的矿脉。', actions: ['mine_stone', 'mine_coal', 'mine_iron', 'mine_copper', 'mine_emerald', 'hunt_sheep', 'shear_sheep'], res: { coal: [10, 24], iron: [6, 14], emerald: [0, 3], sheep: [2, 5], fleece: [3, 6], copper: [10, 16] }, renew: ['sheep', 'fleece'], danger: 1, weight: 14 },
-  cave: { id: 'cave', name: '洞穴', icon: '/textures/minecraft/coal_ore.png', desc: '深不见底的洞穴，黑暗中传来低沉的声响。', actions: ['mine_stone', 'mine_coal', 'mine_iron', 'mine_copper', 'mine_tuff', 'mine_lapis', 'mine_gold', 'mine_redstone', 'mine_diamond', 'mine_obsidian'], res: { coal: [8, 20], iron: [8, 18], copper: [10, 16], lapis: [2, 8], gold: [2, 8], redstone: [3, 9], diamond: [5, 8], obsidian: [6, 9] }, danger: 1.25, weight: 12 },
+  cave: { id: 'cave', name: '洞穴', icon: '/textures/minecraft/coal_ore.png', desc: '深不见底的洞穴，黑暗中传来低沉的声响。', actions: ['mine_stone', 'mine_coal', 'mine_iron', 'mine_copper', 'mine_tuff', 'mine_lapis', 'mine_gold', 'mine_redstone'], res: { coal: [8, 20], iron: [8, 18], copper: [10, 16], lapis: [2, 8], gold: [2, 8], redstone: [3, 9] }, danger: 1.25, weight: 12 },
   snow: { id: 'snow', name: '雪原', icon: '/textures/minecraft/snow.png', desc: '白茫茫的冻土，云杉林覆盖着积雪。', actions: ['chop_spruce', 'fish', 'fish_deep', 'mine_stone'], res: {}, danger: 0.9, weight: 7 },
   village: { id: 'village', name: '村庄', icon: '/textures/minecraft/bell.png', desc: '炊烟升起，村民们打量着你这个外来者。', actions: ['gather_wheat', 'gather_vegetables', 'gather_pumpkin', 'gather_egg', 'grass', 'chop'], res: { wheat: [6, 12], vegetables: [5, 8], pumpkin: [3, 6], eggs: [3, 5] }, renew: ['wheat', 'vegetables', 'pumpkin', 'eggs'], danger: 0.4, weight: 7 },
-  rift: { id: 'rift', name: '下界要塞', icon: '/textures/minecraft/nether_bricks.png', desc: '岩浆在脚下翻涌，烈焰人在热浪中游荡。', actions: ['mine_obsidian', 'mine_gold', 'hunt_blaze', 'hunt_wither', 'gather_wart', 'dig_soul_sand', 'mine_netherrack'], res: { obsidian: [6, 14], gold: [4, 10], nether_wart: [3, 6] }, renew: ['nether_wart'], danger: 2, weight: 0, nether: true },
+  rift: { id: 'rift', name: '下界要塞', icon: '/textures/minecraft/nether_bricks.png', desc: '岩浆在脚下翻涌，烈焰人在热浪中游荡。', actions: ['mine_obsidian', 'mine_gold', 'hunt_blaze', 'hunt_wither', 'gather_wart', 'dig_soul_sand', 'mine_netherrack'], res: { obsidian: [2, 3], gold: [4, 10], nether_wart: [3, 6] }, renew: ['nether_wart'], danger: 2, weight: 0, nether: true },
   warped: { id: 'warped', name: '诡异森林', icon: '/textures/minecraft/warped_stem.png', desc: '蓝绿色的菌柄间，回荡着末影人的低鸣。', actions: ['hunt_ender'], res: {}, danger: 0, weight: 0, nether: true },
   altar: { id: 'altar', name: '要塞传送门房间', icon: '/textures/minecraft/end_portal_frame_top.png', desc: '地底深处的古老石室，十二个空洞的凹槽环绕着一座沉寂的传送门。', actions: ['mine_stone', 'search_stronghold_library', 'hunt_silverfish'], res: { library_cache: [1, 1] }, danger: 1.5, weight: 0 },
   birch_grove: { id: 'birch_grove', name: '白桦森林', icon: '/textures/minecraft/birch_log.png', desc: '白桦间有野生蜂巢，带上营火和剪刀可以安全采收。', actions: ['chop_birch', 'forage', 'harvest_comb', 'bottle_honey'], res: { nectar: [5, 7] }, renew: ['nectar'], danger: 0.6, weight: 7 },
@@ -552,13 +552,10 @@ export const BIOMES: Record<string, BiomeDef> = {
   geode: { id: 'geode', name: '紫水晶洞', icon: '/textures/minecraft/amethyst_block.png', desc: '紫水晶母岩会重新长出水晶簇。', actions: ['mine_amethyst', 'mine_stone', 'mine_tuff'], res: { amethyst: [4, 7] }, renew: ['amethyst'], danger: 0.7, weight: 0 },
   desert_ruin: { id: 'desert_ruin', name: '沙漠遗迹', icon: '/textures/minecraft/sandstone.png', desc: '砂岩废墟的可疑沙层保存着陶片，刷子可以安全清理。', actions: ['brush_ruin', 'dig_sand'], res: { suspicious: [5, 7] }, danger: 0.55, weight: 0 },
   trial_chamber: { id: 'trial_chamber', name: '试炼密室', icon: '/textures/minecraft/chiseled_tuff_bricks.png', desc: '凝灰岩走廊尽头有试炼刷怪笼和宝库。', actions: ['mine_tuff', 'mine_copper'], res: { copper: [6, 12] }, danger: 0, weight: 0 },
-  ancient_city: { id: 'ancient_city', name: '远古城市', icon: '/textures/minecraft/sculk_catalyst.png', desc: '幽匿感测体会察觉脚步。铺羊毛搜索箱子，或主动挑战监守者。', actions: ['sneak_city', 'mine_sculk', 'hunt_warden'], res: {}, danger: 0, weight: 0 },
+  ancient_city: { id: 'ancient_city', name: '远古城市', icon: '/textures/minecraft/sculk_catalyst.png', desc: '幽匿感测体会察觉脚步。铺羊毛搜索箱子，或主动挑战监守者。', actions: ['sneak_city', 'mine_sculk', 'hunt_warden'], res: { city_chest: [2, 3] }, danger: 0, weight: 0 },
   nether_wastes: { id: 'nether_wastes', name: '下界荒地', icon: '/textures/minecraft/netherrack.png', desc: '下界岩下藏着远古残骸，空中传来恶魂的回声。', actions: ['mine_netherrack', 'mine_quartz', 'mine_ancient', 'gather_glowstone', 'hunt_ghast', 'hunt_magma'], res: { quartz: [9, 18], ancient_debris: [6, 10] }, danger: 1.2, weight: 0, nether: true },
   bastion: { id: 'bastion', name: '堡垒遗迹', icon: '/textures/minecraft/blackstone.png', desc: '黑石堆砌的遗迹由猪灵蛮兵驻守。', actions: ['mine_blackstone', 'mine_gold', 'hunt_brute', 'hunt_magma'], res: { gold: [7, 12] }, danger: 0.8, weight: 0, nether: true },
 }
-const NAME_A = ['寂静', '迷雾', '晨曦', '落日', '苍翠', '风鸣', '荒芜', '幽暗', '回声', '霜白', '赤红', '遗忘']
-export const randomLocName = (biome: string, name = BIOMES[biome].name) =>
-  NAME_A[Math.floor(Math.random() * NAME_A.length)] + name
 
 // ---------- 生物 ----------
 export interface MobDef {
@@ -578,7 +575,7 @@ export const MOBS: Record<string, MobDef> = {
   pillager: { id: 'pillager', name: '掠夺者队长', icon: '/textures/minecraft/mob_pillager.png', hp: 30, atk: 5, xp: 8, drops: [d('ominous_bottle', 1, 1), d('emerald', 1, 2)] },
   slime: { id: 'slime', name: '史莱姆', icon: '/textures/minecraft/mob_slime.png', hp: 18, atk: 3, xp: 4, drops: [d('slime_ball', 2, 4)] },
   creeper: { id: 'creeper', name: '苦力怕', icon: '/textures/minecraft/mob_creeper.png', hp: 18, atk: 9, xp: 5, drops: [d('gunpowder', 1, 3)], hostile: true, weight: 5 },
-  cave_spider: { id: 'cave_spider', name: '洞穴蜘蛛', icon: '/textures/minecraft/mob_cave_spider.png', hp: 13, atk: 4, xp: 4, drops: [d('string', 2, 4)] },
+  cave_spider: { id: 'cave_spider', name: '洞穴蜘蛛', icon: '/textures/minecraft/mob_cave_spider.png', hp: 22, atk: 5, xp: 4, drops: [d('string', 2, 4)] },
   elder_guardian: { id: 'elder_guardian', name: '远古守卫者', icon: '/textures/minecraft/mob_elder_guardian.png', hp: 68, atk: 7, xp: 16, drops: [d('prismarine_shard', 4, 8), d('wet_sponge', 1, 2)] },
   creaking: { id: 'creaking', name: '嘎枝', icon: '/textures/minecraft/mob_creaking.png', hp: 40, atk: 5, xp: 8, drops: [d('resin', 2, 4)] },
   evoker: { id: 'evoker', name: '唤魔者', icon: '/textures/minecraft/mob_evoker.png', hp: 55, atk: 7, xp: 14, drops: [d('totem', 1, 1)] },
@@ -591,9 +588,9 @@ export const MOBS: Record<string, MobDef> = {
   skeleton: { id: 'skeleton', name: '骷髅', icon: '/textures/minecraft/mob_skeleton.png', hp: 12, atk: 3, xp: 4, drops: [d('bone', 1, 3)], hostile: true, weight: 8 },
   spider: { id: 'spider', name: '蜘蛛', icon: '/textures/minecraft/mob_spider.png', hp: 10, atk: 2, xp: 4, drops: [d('string', 1, 3)], hostile: true, weight: 8 },
   witch: { id: 'witch', name: '女巫', icon: '/textures/minecraft/mob_witch.png', hp: 16, atk: 3, xp: 6, drops: [d('redstone', 1, 3, 0.6), d('cane', 1, 3, 0.5)], hostile: true, weight: 2 },
-  shade: { id: 'shade', name: '末影人', icon: '/textures/minecraft/mob_shade.png', hp: 24, atk: 5, xp: 10, drops: [d('pearl', 1, 2)], hostile: true, weight: 2, nightOnly: true },
-  blaze: { id: 'blaze', name: '烈焰人', icon: '/textures/minecraft/mob_blaze.png', hp: 18, atk: 4, xp: 8, drops: [d('blaze_rod', 1, 2)] },
-  wither_skeleton: { id: 'wither_skeleton', name: '凋灵骷髅', icon: '/textures/minecraft/mob_wither_skeleton.png', hp: 32, atk: 5, xp: 12, drops: [d('wither_skull', 1, 1), d('coal', 1, 3)] },
+  shade: { id: 'shade', name: '末影人', icon: '/textures/minecraft/mob_shade.png', hp: 30, atk: 6, xp: 10, drops: [d('pearl', 1, 2)], hostile: true, weight: 2, nightOnly: true },
+  blaze: { id: 'blaze', name: '烈焰人', icon: '/textures/minecraft/mob_blaze.png', hp: 30, atk: 6, xp: 8, drops: [d('blaze_rod', 1, 2)] },
+  wither_skeleton: { id: 'wither_skeleton', name: '凋灵骷髅', icon: '/textures/minecraft/mob_wither_skeleton.png', hp: 36, atk: 6, xp: 12, drops: [d('wither_skull', 1, 1), d('coal', 1, 3)] },
   wither: { id: 'wither', name: '凋灵', icon: '/textures/minecraft/mob_wither.png', hp: 130, atk: 7, xp: 90, drops: [d('nether_star', 1, 1)] },
   dragon: { id: 'dragon', name: '末影龙', icon: '/textures/minecraft/mob_dragon.png', hp: 150, atk: 6, xp: 200, drops: [d('dragon_egg', 1, 1)] },
   chicken: { id: 'chicken', name: '鸡', icon: '/textures/minecraft/mob_chicken.png', hp: 4, atk: 0, xp: 1, drops: [d('chicken', 1, 2), d('feather', 1, 2)] },
@@ -656,7 +653,7 @@ export const COST_RATIO = 1.16
 
 export interface JobDef { id: string; name: string; icon: string; out: Bag; desc: string }
 export const JOBS: JobDef[] = [
-  { id: 'farmer', name: '农夫', icon: '/textures/minecraft/wheat.png', out: { wheat: 0.18, seed: 0.025 }, desc: '种植小麦' },
+  { id: 'farmer', name: '农夫', icon: '/textures/minecraft/wheat.png', out: { wheat: 0.15, seed: 0.025, bread: 0.01 }, desc: '种植小麦，烤制远行面包' },
   { id: 'lumberjack', name: '伐木工', icon: '/textures/minecraft/stone_axe.png', out: { wood: 0.22 }, desc: '砍伐原木' },
   { id: 'miner', name: '矿工', icon: '/textures/minecraft/iron_pickaxe.png', out: { cobble: 0.20, coal: 0.045, iron_ore: 0.035 }, desc: '开采石料与矿物' },
   { id: 'herder', name: '牧民', icon: '/textures/minecraft/shears.png', out: { meat: 0.04, leather: 0.02, wool: 0.02 }, desc: '照料牲畜' },

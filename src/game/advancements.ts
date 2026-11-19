@@ -96,7 +96,7 @@ export const STORY: Milestone[] = [
   },
   {
     id: 'home', requires: ['table'], title: '安家', icon: shelter,
-    hint: ['建立', shelter, '，或完成', village, '的委托后定居。'],
+    hint: ['建立', shelter, '，或找到', village, '安顿下来。'],
     complete: (s) => s.homeId !== null,
   },
   {
@@ -111,12 +111,12 @@ export const STORY: Milestone[] = [
   },
   {
     id: 'diamond-pick', requires: ['iron-pick'], title: '钻石！', icon: diamond,
-    hint: ['在', cave, '等地点寻找矿脉，用', ironPick, '开采', diamond, '，再做一把', diamondPick, '。', torch, '可以降低遇敌概率并补充矿脉。'],
+    hint: ['在', cave, '用', torch, '开拓矿道，在地图追踪钻石矿脉。到达废弃矿井后用', ironPick, '开采', diamond, '，再做一把', diamondPick, '。'],
     complete: (s) => PICKS.slice(3).some((id) => s.seen[id]),
   },
   {
     id: 'nether', requires: ['home', 'diamond-pick'], title: '勇往直下', icon: netherPortal,
-    hint: ['用', diamondPick, '开采', obsidian, '，回家在维度页用 10 块黑曜石和 1 块', iron, '搭建', netherPortal, '并进入下界。'],
+    hint: ['循熔岩水迹前往硫磺洞穴，用', diamondPick, '开采', obsidian, '，回家在维度页用 10 块黑曜石和 1 块', iron, '搭建', netherPortal, '并进入下界。'],
     complete: (s) => !!s.flags.enteredNether || !!s.flags.altar,
   },
   {
@@ -137,7 +137,7 @@ export const STORY: Milestone[] = [
 ]
 
 export const PROJECTS: Milestone[] = [
-  { id: 'joined-village', title: '村里的新邻居', icon: village, hint: ['完成现成村庄的委托并定居。'], available: (s) => !s.village?.founded, complete: (s) => !!s.flags.joinedVillage },
+  { id: 'joined-village', title: '村里的新邻居', icon: village, hint: ['到访村庄，在村庄页选择「在此定居」。'], available: (s) => !s.village?.founded, complete: (s) => !!s.flags.joinedVillage },
   { id: 'invited-resident', title: '第一位住民', icon: villager, hint: ['安顿好后，为结识的旅人准备住房和口粮。'], available: (s) => !s.village || s.village.founded, complete: (s) => !!s.flags.invitedVillager },
   {
     id: 'first-job', requires: ['home'], title: '村庄的第一班岗', icon: villager, hint: ['安排一位', villager, '工作，并等到首次产出。'],
@@ -217,7 +217,7 @@ const enderChest = item('ender_chest', 'equipment')
 const endStore = building('end_store')
 
 export const EXPLORATION: Milestone[] = [
-  { id: 'followed-lead', title: '循着线索', icon: forest, hint: ['从已发现线索的地点出发远行。'], complete: (s) => !!s.flags.followedLead },
+  { id: 'followed-lead', title: '循着线索', icon: forest, hint: ['在地图选择一条当地线索并远行。'], complete: (s) => !!s.flags.followedLead },
   { id: 'return-to-mark', title: '重返旧地', icon: item('map', 'equipment'), hint: ['用地图标记地点，离开后再回来。'], complete: (s) => !!s.flags.returnedToMark },
   { id: 'local-supplies', title: '就地取材', icon: item('chest', 'material'), hint: ['使用箱子或仓库材料完成一次制作或建造。'], complete: (s) => !!s.flags.usedLocalStock },
   { id: 'creeper', title: '嘶声过后', icon: mob('creeper'), hint: ['应对一次苦力怕的遭遇。'], complete: (s) => !!s.flags.defeatedCreeper },

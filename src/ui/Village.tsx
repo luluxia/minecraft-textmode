@@ -3,36 +3,78 @@ import { ActionGrid } from './ActionGrid'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '../components/minecraft/tabs'
 import { Texture } from './Texture'
 import {
-  BUILDINGS, CONTROL_REP, ITEMS, JOBS, MAYOR_POP, MAYOR_REP, TRADES, repTier, villageLevel,
+  BUILDINGS, BUILDING_MAP, CONTROL_REP, ITEMS, JOBS, MAYOR_POP, MAYOR_REP, TRADES, repTier, villageLevel,
 } from '../game/data'
 import {
-  activeLines, attackPower, atHome, buildCost, canAfford, canControl, count, cropMultiplier, defensePower, employed,
+  activeLines, attackPower, atHome, buildCost, canAfford, canControl, canVisitMarket, curLoc, marketReputation, count, cropMultiplier, defensePower, employed,
   expeditionCost, expeditionLock, expeditionTime, expeditionVisible, housing,
   jobSlots, lineIssue, lineLimit, mayBuildVillage, monumentReady, villageGrowthReady, production, raidStrength, recruitTime, useGame, villageCap, villageDefense, wheatDemand,
 } from '../game/store'
 import { EXPEDITIONS, LINES, seasonAt, type ExpeditionDef } from '../game/progression'
 import { Bar, Btn, Cost, EntryHeader, Section, bagText } from './kit'
 import { useScrollReset } from './ScrollArea'
+import { villageBeforeSettlement } from '../game/village'
 
 export function Village() {
   const s = useGame()
   const [sub, setSub] = useState('overview')
   const resetScroll = useScrollReset()
   const v = s.village
-  if (!v) return null
-  const hasVillagers = v.villagers > 0
-  const trips = EXPEDITIONS.filter((entry) => expeditionVisible(s, entry))
+  const market = canVisitMarket(s)
+  const control = !!v && canControl(v)
+  const showAutomation = control && lineLimit(s) > 0 && villageGrowthReady(s)
+  const hasVillagers = (v?.villagers ?? 0) > 0
+  const trips = v ? EXPEDITIONS.filter((entry) => expeditionVisible(s, entry)) : []
   const tabs: [string, string, boolean][] = [
     ['overview', '概况', true],
-    ['buildings', '建筑', true],
+    ['buildings', '建筑', !!v],
     ['villagers', '村民', hasVillagers],
-    ['exchange', '交流', hasVillagers],
-    ['automation', '红石', lineLimit(s) > 0 && villageGrowthReady(s)],
+    ['exchange', '交易', hasVillagers || market],
+    ['automation', '红石', showAutomation],
     ['expeditions', '远征', trips.length > 0],
   ]
   const cur = tabs.some(([id, , available]) => id === sub && available) ? sub : 'overview'
+  const navigation = (
+    <TabsList className="subtabs" aria-label="村庄页面">
+      {tabs.filter(([, , available]) => available).map(([id, name]) => (
+        <TabsTrigger key={id} value={id} aria-label={name}>
+          {name}
+        </TabsTrigger>
+      ))}
+    </TabsList>
+  )
+  const changeTab = (value: unknown) => { resetScroll(); setSub(String(value)) }
+  const talkButton = <Btn cd="talk" disabled={!market || !!s.combat} onClick={s.talk}
+    sub={'声望 +' + (marketReputation(s) < CONTROL_REP ? 4 : 2)}>与村民交谈</Btn>
+  if (!v) {
+    if (!s.flags.metVillage) return null
+    if (!market) return <p className="notice">到村庄后可与村民交谈和交易。</p>
+    const loc = curLoc(s)
+    const local = villageBeforeSettlement(loc)
+    return (
+      <Tabs value={cur} onValueChange={changeTab}>
+        {navigation}
+        <TabsContent value="overview">
+          <Section title="概况" extra={loc.name}>
+            <dl className="village-stats sm">
+              <dt>村民</dt>
+              <dd>{local.villagers} 人（农夫 {local.jobs.farmer} 人）</dd>
+              <dt>已有建筑</dt>
+              <dd>{Object.entries(local.buildings).map(([id, n]) => `${BUILDING_MAP[id].name} ×${n}`).join('、')}</dd>
+              <dt>当地声望</dt>
+              <dd>{local.rep} · {repTier(local.rep)}</dd>
+            </dl>
+            <ActionGrid className="village-overview-actions">
+              {talkButton}
+              <Btn disabled={!!s.combat} onClick={s.settle}>在此定居</Btn>
+            </ActionGrid>
+          </Section>
+        </TabsContent>
+        <TabsContent value="exchange"><VillageExchange /></TabsContent>
+      </Tabs>
+    )
+  }
   const home = atHome(s)
-  const control = canControl(v)
   const free = v.villagers - employed(v)
   const prod = Object.entries(production(s))
   const nextRep = v.rep >= CONTROL_REP ? MAYOR_REP : CONTROL_REP
@@ -41,16 +83,10 @@ export function Village() {
   const readyDefense = villageDefense(v) + attackPower(s) + defensePower(s)
 
   return (
-    <Tabs value={cur} onValueChange={(value) => { resetScroll(); setSub(String(value)) }}>
-      <TabsList className="subtabs" aria-label="村庄页面">
-        {tabs.filter(([, , available]) => available).map(([id, name]) => (
-          <TabsTrigger key={id} value={id} aria-label={name}>
-            {name}
-          </TabsTrigger>
-        ))}
-      </TabsList>
+    <Tabs value={cur} onValueChange={changeTab}>
+      {navigation}
       {(!home || !control) && <div className="village-notices">
-        {!home && <p className="notice">你不在村中。建造、交谈与交易需要先回家。</p>}
+        {!home && <p className="notice">建造和安排岗位需要返回自己的村庄。</p>}
         {!control && <p className="notice">村民还不信任你。声望达到 {CONTROL_REP} 后，才能在此建造并安排村民的工作。</p>}
       </div>}
       <TabsContent value="overview">
@@ -63,7 +99,7 @@ export function Village() {
           <dl className="village-stats sm">
             <dt>村民</dt>
             <dd>{v.villagers}/{housing(v)}</dd>
-            {villageGrowthReady(s) && housing(v) > v.villagers && <>
+            {control && villageGrowthReady(s) && housing(v) > v.villagers && <>
               <dt>招募</dt>
               <dd>{Math.min(s.recruitment, recruitTime(v))}/{recruitTime(v)} 秒{v.villagers >= 2 && ' · 小麦 ' + (3 + Math.floor(v.villagers / 2))}</dd>
             </>}
@@ -71,9 +107,11 @@ export function Village() {
             <dd>{villageDefense(v)}</dd>
             <dt>储量上限</dt>
             <dd>{villageCap(s)}</dd>
-            <dt>农时</dt>
-            <dd>{seasonAt(s.minute).name} · 作物产出 {Math.round(cropMultiplier(s) * 100)}%</dd>
-            {wheatDemand(v) > 0 && <>
+            {control && <>
+              <dt>农时</dt>
+              <dd>{seasonAt(s.minute).name} · 作物产出 {Math.round(cropMultiplier(s) * 100)}%</dd>
+            </>}
+            {control && wheatDemand(v) > 0 && <>
               <dt>村民口粮</dt>
               <dd>小麦 {wheatDemand(v).toFixed(2)}/秒 · 口粮不足时非农业岗位效率降至 65%</dd>
             </>}
@@ -93,8 +131,9 @@ export function Village() {
               </>
             )}
           </dl>
-          {((!v.mayor && hasVillagers) || (!!v.buildings.watchtower && v.villagers >= 2)) && (
+          {(hasVillagers || market) && (
             <ActionGrid className="village-overview-actions">
+              {talkButton}
               {!v.mayor && hasVillagers && <Btn className="primary"
                 disabled={!home || v.rep < MAYOR_REP || v.villagers < MAYOR_POP}
                 onClick={s.runMayor} sub={`声望 ${v.rep}/${MAYOR_REP} · 村民 ${v.villagers}/${MAYOR_POP}`}>
@@ -112,8 +151,9 @@ export function Village() {
 
       <TabsContent value="buildings">
         <Section title="建筑">
+          {control && !villageGrowthReady(s) && <p className="notice">村民首次产出后可扩建更多建筑。</p>}
           <div className="entry-grid">
-            {BUILDINGS.filter((b) => mayBuildVillage(s, b.id) && (!b.need || s.seen[b.need])).map((b) => {
+            {BUILDINGS.filter((b) => v.buildings[b.id] || !b.need || s.seen[b.need]).map((b) => {
               const cost = buildCost(v, b.id)
               const full = (v.buildings[b.id] ?? 0) >= (b.limit ?? 40)
               const locked = b.project && !monumentReady(s)
@@ -121,7 +161,7 @@ export function Village() {
               return (
                 <article key={b.id} className="content-entry">
                   <EntryHeader actions={
-                    <Btn disabled={full || locked || !!missingTool || !home || !control || !canAfford(s, cost)} onClick={() => s.build(b.id)}>{full ? '已达上限' : '建造'}</Btn>
+                    <Btn disabled={!mayBuildVillage(s, b.id) || full || locked || !!missingTool || !home || !control || !canAfford(s, cost)} onClick={() => s.build(b.id)}>{full ? '已达上限' : '建造'}</Btn>
                   }>
                     <span className="icon-text"><Texture src={b.icon} /> {b.name}</span>
                     <span className="sm dim">已建 {v.buildings[b.id] ?? 0}</span>
@@ -156,7 +196,7 @@ export function Village() {
                     }>
                       <span className="icon-text"><Texture src={j.icon} /> {j.name}</span>
                     </EntryHeader>
-                    <span className="sm dim">{slots === 0 ? '需要先建造对应建筑。' : `${j.desc}。${out ? `每人每秒 ${out}` : ''}`}</span>
+                    <span className="sm dim">{slots === 0 ? '需要先建造对应建筑。' : `${j.desc}。${control && out ? `每人每秒 ${out}` : ''}`}</span>
                   </article>
                 )
               })}
@@ -165,35 +205,43 @@ export function Village() {
         </TabsContent>
       )}
 
-      {hasVillagers && (
+      {(hasVillagers || market) && (
         <TabsContent value="exchange">
-          <Section title="交流">
-            <ActionGrid className="village-exchange-actions">
-              <Btn cd="talk" disabled={!home} onClick={s.talk} sub={'声望 +' + (v.rep < CONTROL_REP ? 4 : 2)}>与村民交谈</Btn>
-            </ActionGrid>
-            <div className="entry-grid">
-              {TRADES.filter((t) => Object.keys(t.give).every((k) => s.seen[k]) && (!t.need || v.buildings[t.need])).map((t) => {
-                const locked = (t.rep ?? 0) > v.rep
-                return (
-                  <article key={t.id} className="content-entry">
-                    <EntryHeader actions={<>
-                      <Btn disabled={!home || locked || !canAfford(s, t.give)} onClick={() => s.trade(t.id)}>交易</Btn>
-                      <Btn disabled={!home || locked || !canAfford(s, t.give)} onClick={() => s.trade(t.id, 5)}>最多 5 次</Btn>
-                    </>}>
-                      <span className="item-flow">{bagText(t.get)}</span>
-                    </EntryHeader>
-                    {locked && <span className="sm bad">需要声望 {t.rep}</span>}
-                    <Cost cost={t.give} />
-                  </article>
-                )
-              })}
-            </div>
-          </Section>
+          <VillageExchange />
         </TabsContent>
       )}
-      {lineLimit(s) > 0 && villageGrowthReady(s) && <TabsContent value="automation"><Automation /></TabsContent>}
+      {showAutomation && <TabsContent value="automation"><Automation /></TabsContent>}
       {trips.length > 0 && <TabsContent value="expeditions"><Expeditions trips={trips} /></TabsContent>}
     </Tabs>
+  )
+}
+
+function VillageExchange() {
+  const s = useGame()
+  const v = s.village
+  const rep = marketReputation(s)
+  const market = canVisitMarket(s)
+  const home = atHome(s)
+  return (
+    <Section title="交易">
+      <div className="entry-grid">
+        {TRADES.filter((t) => !t.need || (home && v?.buildings[t.need] && Object.keys(t.give).every((k) => s.seen[k]))).map((t) => {
+          const locked = (t.rep ?? 0) > rep
+          return (
+            <article key={t.id} className="content-entry">
+              <EntryHeader actions={<>
+                <Btn disabled={!market || !!s.combat || locked || !canAfford(s, t.give)} onClick={() => s.trade(t.id)}>交易</Btn>
+                <Btn disabled={!market || !!s.combat || locked || !canAfford(s, t.give)} onClick={() => s.trade(t.id, 5)}>最多 5 次</Btn>
+              </>}>
+                <span className="item-flow">{bagText(t.get)}</span>
+              </EntryHeader>
+              {locked && <span className="sm bad">需要声望 {t.rep}</span>}
+              <Cost cost={t.give} />
+            </article>
+          )
+        })}
+      </div>
+    </Section>
   )
 }
 

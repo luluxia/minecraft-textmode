@@ -5,8 +5,8 @@ import { Card } from './components/minecraft/card'
 import { Button } from './components/minecraft/button'
 import { Texture } from './ui/Texture'
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
-import { ITEM_CATEGORIES, ITEM_LIST, ITEMS, MOBS, villageLevel } from './game/data'
-import { canBreatheUnderwater, combatMaxHp, count, dayOf, hourOf, isNight, useGame } from './game/store'
+import { ITEM_CATEGORIES, ITEM_LIST, ITEMS, MOBS } from './game/data'
+import { canBreatheUnderwater, combatInterval, dragonLanded, nextStrike, combatMaxHp, count, dayOf, hourOf, isNight, useGame } from './game/store'
 import type { RecipeTarget } from './game/recipes'
 import { Adventure } from './ui/Adventure'
 import { ActionGrid } from './ui/ActionGrid'
@@ -82,10 +82,10 @@ export function App() {
   const tabs: [string, string, boolean][] = [
     ['adventure', '冒险', true],
     ['crafting', '制造', !!flags.inv],
-    ['village', villagers === null ? '村庄' : villageLevel(villagers), villagers !== null],
+    ['village', '村庄', !!flags.metVillage || villagers !== null],
   ]
   const cur = tabs.find(([id, , ok]) => id === tab && ok) ? tab : 'adventure'
-  const early = !flags.inv
+  const early = !flags.inv && !flags.metVillage && villagers === null
 
   return (
     <div className="app">
@@ -238,7 +238,7 @@ function CombatModal() {
   const maxHp = combatMaxHp(c)
   const mobHealth = `${Math.max(0, c.hp)} / ${maxHp}`
   const mobHp = Math.min(maxHp, Math.max(0, c.hp))
-  const interval = c.boss ? 4 : 3
+  const interval = combatInterval(s, c)
   const fireWard = (s.cds.fire_ward?.until ?? 0) > Date.now()
   return (
     <GameDialog label="战斗" className="combat-dialog" scrollable={false}>
@@ -251,7 +251,7 @@ function CombatModal() {
         </div>
       </div>
       <div key={c.hp} className="mob-icon shake"><Texture src={m.icon} className="combat-mob" /></div>
-      {m.atk > 0 && <p className="sm dim">距下一次攻击 {interval - (c.turn % interval)} 秒</p>}
+      {m.atk > 0 && <p className="sm dim">{c.mob === 'dragon' && dragonLanded(c.turn) ? '落地破绽 · ' : ''}{nextStrike(c)}倒计时 {interval - (c.turn % interval)} 秒</p>}
       <PlayerHud />
       <ScrollArea className="combat-lines" tabIndex={0} role="region" aria-label="战斗日志">
         {c.lines.map((l, i) => <p key={c.lines.length - i}>{l}</p>)}

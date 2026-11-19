@@ -7,9 +7,9 @@ import { ACTIONS, BIOMES, EYES_NEEDED, ITEM_LIST, ITEMS } from '../game/data'
 import { BARTER_COST, EXCAVATION_COST, EXPEDITIONS, MAX_AIR, NETHER_COST, PLANTS, RESPAWN_COST, SURVEY_COST, TRIAL_VAULTS, WATER_BREATHING_SECONDS, WITHER_COST } from '../game/progression'
 import { JOURNEY_COST, LEADS, NEARBY_COST, RETURN_COST, SITES } from '../game/exploration'
 import {
-  ALLAY_ITEMS, CAMP_COOK, GUEST_TRADE, SHELTER_COST, available, actionAllowed, actionLock, atHome, canAfford, canBreatheUnderwater, canCampHere, canDiveHere, canSurvey, count, curLoc, diveLock, canRetreat, hasConduitPower, inNether,
+  ALLAY_ITEMS, CAMP_COOK, SHELTER_COST, available, actionAllowed, actionLock, atHome, canAfford, canBreatheUnderwater, canCampHere, canDiveHere, canSurvey, count, curLoc, diveLock, canRetreat, hasConduitPower, inNether,
   availableActions, canExploreNearby, canInviteVillager, expeditionLock, explorerMapChoices, foundSites, invitationCost, isNight, locationLeads,
-  locationCap, mineResources, pickTier, retainedLocation, survivedIndependently, travelAllowed, useGame, villageCommission, villageLeadChoices, wildlifeLock, wildlifeVisible,
+  locationCap, mineResources, pickTier, survivedIndependently, travelAllowed, useGame, wildlifeLock, wildlifeVisible,
 } from '../game/store'
 import { ActionTitle, Btn, Cost, EntryHeader, Section, bagText } from './kit'
 import { WILDLIFE } from '../game/wildlife'
@@ -21,6 +21,7 @@ import { useScrollReset } from './ScrollArea'
 export function Adventure({ onFirstChop }: { onFirstChop?: () => void }) {
   const s = useGame()
   const [tab, setTab] = useState('gather')
+  const [biomeFilter, setBiomeFilter] = useState('all')
   const resetScroll = useScrollReset()
   const moveFromMap = (move: () => void) => {
     const previousLocation = useGame.getState().locId
@@ -41,17 +42,16 @@ export function Adventure({ onFirstChop }: { onFirstChop?: () => void }) {
 
   const actions = availableActions(loc).filter((id) => actionAllowed(s, id))
   const wildlife = s.flags.explore ? wildlifeVisible(s) : []
+  const leads = locationLeads(loc).filter((id) => LEADS[id].destinations.some((dest) => !!BIOMES[dest].nether === nether))
   const discovered = foundSites(loc)
   const nearby = SITES[loc.sites?.[loc.discovered ?? 0] ?? '']
   const locationDescription = [
     biome.desc,
     discovered.length ? '附近发现了' + discovered.map((id) => SITES[id].name).join('、') + '。' : '',
-    ...locationLeads(loc).map((id) => LEADS[id].description),
     nearby ? nearby.hint + '。' : '',
   ].join('')
   const hasExplorerMap = !nether && count(s, 'explorer_map') > 0
   const protectedLoc = ['altar', 'rift', 'warped'].includes(loc.biome)
-  const commission = loc.biome === 'village' ? villageCommission(loc) : null
   const prepared = survivedIndependently(s)
   const divingIssue = diveLock(s)
   const canDive = canDiveHere(s)
@@ -63,14 +63,25 @@ export function Adventure({ onFirstChop }: { onFirstChop?: () => void }) {
   const camp = atHome(s) && count(s, 'campfire') > 0
   const foods = ITEM_LIST.filter((i) => i.food && count(s, i.id) > 0)
   const places = Object.values(s.locs)
-    .filter((place) => place.id !== s.locId && (retainedLocation(place) || place.id === s.previousLocId))
-    .filter((place) => !nether || place.id === s.homeId || inNether(place))
-    .sort((a, b) => Number(b.id === s.homeId) - Number(a.id === s.homeId) ||
-      Number(b.id === s.previousLocId) - Number(a.id === s.previousLocId))
-  const returnGroups = [
-    { title: '临时折返', places: places.filter((place) => !retainedLocation(place)), temporary: true },
-    { title: '回访', places: places.filter(retainedLocation), temporary: false },
-  ]
+  const recorded = places.filter((place) => place.saved)
+  const biomeTypes = [...new Set(recorded.map((place) => place.biome))]
+    .sort((a, b) => BIOMES[a].name.localeCompare(BIOMES[b].name, 'zh-CN'))
+  const filter = biomeTypes.includes(biomeFilter) ? biomeFilter : 'all'
+  const previous = s.previousLocId === null ? undefined : s.locs[s.previousLocId]
+  const travelButton = (place: typeof loc, label: string) => {
+    const here = place.id === loc.id
+    const access = travelAllowed(s, place)
+    const tired = s.hunger < RETURN_COST
+    const retreat = canRetreat(s, place.id)
+    const detail = here ? '当前位置' : !access ? '需经家中传送门' :
+      tired ? retreat ? '疲惫撤回' : '饱食不足' : '饱食 −' + RETURN_COST
+    return <Btn key={place.id} cd="move" disabled={here || busy || !access || (tired && !retreat)}
+      onClick={() => moveFromMap(() => s.travel(place.id))} sub={detail}>
+      <Texture src={BIOMES[place.biome].icon} /> {label}
+    </Btn>
+  }
+  const unmarkedStock = places.filter((place) => place.id !== loc.id && !place.saved &&
+    !place.shelter && (hasStock(place.stock) || hasStock(place.pending)))
   const tabs = [
     { id: 'gather', label: '采集', available: true },
     { id: 'map', label: '地图', available: s.flags.explore },
@@ -146,7 +157,7 @@ export function Adventure({ onFirstChop }: { onFirstChop?: () => void }) {
             })}
             {canOpenMine && (
               <Btn cd="survey" disabled={busy || !canSurvey(s) || !canAfford(s, SURVEY_COST)}
-                onClick={s.survey} sub="消耗 4 火把 · 补充矿脉">开拓矿道</Btn>
+                onClick={s.survey} sub={(loc.shaftsLeft ?? 1) > 0 ? '4 火把 · 剩 ' + (loc.shaftsLeft ?? 1) + ' 段' : '矿道已探尽'}>开拓矿道</Btn>
             )}
             {canDigTreasure && <Btn cd="treasure" disabled={busy || s.expedition?.id === 'buried_treasure'}
               onClick={s.digTreasure}>寻找埋藏的宝箱</Btn>}
@@ -165,21 +176,6 @@ export function Adventure({ onFirstChop }: { onFirstChop?: () => void }) {
           </Section>
         )}
         <SiteTasks />
-        {!s.submerged && commission && <Section title="村庄">
-          <ActionGrid>
-            <Btn cd="guest_trade" disabled={busy || !canAfford(s, GUEST_TRADE)} onClick={s.guestTrade}
-              sub="3 原木 → 1 面包">换取面包</Btn>
-            <Btn cd="directions" disabled={busy || !villageLeadChoices(loc).length}
-              onClick={s.askDirections}>打听附近</Btn>
-          </ActionGrid>
-          {!s.village && <article className="content-entry village-commission">
-            <EntryHeader actions={<Btn disabled={busy || !prepared || s.crop > 0 || !canAfford(s, commission.cost)}
-              onClick={s.settle}>完成委托并定居</Btn>}>{commission.name}</EntryHeader>
-            <Cost cost={commission.cost} />
-            {!prepared && <p className="notice">需要自己烹饪或收获一次作物，并带口粮远行。</p>}
-            {prepared && s.crop > 0 && <p className="notice">等营地作物成熟后即可搬迁。</p>}
-          </article>}
-        </Section>}
         {!s.submerged && s.flags.allay && (
           <Section title="悦灵">
             <div className="actions">
@@ -198,6 +194,9 @@ export function Adventure({ onFirstChop }: { onFirstChop?: () => void }) {
       </TabsContent>
 
       {canOpenStorage && <TabsContent value="storage">
+        {unmarkedStock.length > 0 && !s.submerged && <Section title="遗留物资">
+          <ActionGrid>{unmarkedStock.map((place) => travelButton(place, place.name))}</ActionGrid>
+        </Section>}
         <LocationStorage onOpenMap={() => { resetScroll(); setTab('map') }} />
       </TabsContent>}
 
@@ -209,9 +208,15 @@ export function Adventure({ onFirstChop }: { onFirstChop?: () => void }) {
         <>
           <Section title="远行" extra={loc.name}>
             <ActionGrid>
-              <Btn cd="move" disabled={busy || s.hunger < JOURNEY_COST}
-                onClick={() => moveFromMap(s.explore)}
-                sub={s.hunger < JOURNEY_COST ? '饱食不足 · 需要 ' + JOURNEY_COST : '饱食 −' + JOURNEY_COST}>远行</Btn>
+              {[undefined, ...leads].map((id) => {
+                const cost = id === undefined ? JOURNEY_COST : LEADS[id].hunger
+                return <Btn key={id ?? 'free'} cd="move" disabled={busy || s.hunger < cost}
+                  onClick={() => moveFromMap(() => s.explore(id))} sub={'饱食 −' + cost}>
+                  {id === undefined ? '自由探索' : LEADS[id].action}
+                </Btn>
+              })}
+              {previous && !previous.saved && previous.id !== s.homeId && previous.id !== loc.id &&
+                travelButton(previous, '原路折返')}
               {s.flags.waypoint && !loc.saved && <Btn disabled={busy} onClick={s.saveLoc}>记录当前位置</Btn>}
               {s.flags.waypoint && loc.marked && !loc.shelter && !protectedLoc && (
                 <Btn disabled={busy || !!loc.commissioned || s.furnace.job?.locId === loc.id || hasStock(loc.stock) || hasStock(loc.pending)}
@@ -220,24 +225,22 @@ export function Adventure({ onFirstChop }: { onFirstChop?: () => void }) {
               )}
             </ActionGrid>
           </Section>
-          {returnGroups.filter((group) => group.places.length > 0).map((group) => (
-            <Section key={group.title} title={group.title}>
-              <ActionGrid>
-                {group.places.map((place) => {
-                  const access = travelAllowed(s, place)
-                  const emergency = s.hunger < RETURN_COST
-                  const retreat = canRetreat(s, place.id)
-                  const detail = !access ? '需经家中传送门' : emergency ? retreat ? '疲惫撤回' : '饱食不足' :
-                    '饱食 −' + RETURN_COST
-                  return <Btn key={place.id} cd="move" disabled={busy || !access || (emergency && !retreat)}
-                    onClick={() => moveFromMap(() => s.travel(place.id))} sub={detail}>
-                    <Texture src={BIOMES[place.biome].icon} /> {place.name}
-                  </Btn>
-                })}
-              </ActionGrid>
-              {group.temporary && <p className="notice">离开后会更新临时折返点。</p>}
-            </Section>
-          ))}
+          {recorded.length > 0 && <Section title="已记录地点">
+            {biomeTypes.length > 1 && (
+              <div className="row recipe-filters" role="group" aria-label="按地形筛选地点">
+                {['all', ...biomeTypes].map((id) => (
+                  <Button key={id} className={`btn mini ${filter === id ? 'on' : ''}`}
+                    aria-pressed={filter === id} onClick={() => setBiomeFilter(id)}>
+                    {id === 'all' ? '全部' : BIOMES[id].name}
+                  </Button>
+                ))}
+              </div>
+            )}
+            <ActionGrid>
+              {recorded.filter((place) => filter === 'all' || place.biome === filter).map((place) =>
+                travelButton(place, place.name))}
+            </ActionGrid>
+          </Section>}
         </>
         )}
       </TabsContent>}
@@ -271,7 +274,7 @@ export function Adventure({ onFirstChop }: { onFirstChop?: () => void }) {
           </Section>
         )}
 
-        {s.flags.explore && !s.submerged && s.homeId === null && !commission && canCampHere(loc) && (
+        {s.flags.explore && !s.submerged && s.homeId === null && loc.biome !== 'village' && canCampHere(loc) && (
           <Section title="安家">
             <article className="content-entry shelter-entry">
               <EntryHeader actions={<Btn disabled={busy || !canAfford(s, SHELTER_COST)} onClick={s.buildShelter}>建立庇护所</Btn>}>
