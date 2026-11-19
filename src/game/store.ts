@@ -62,6 +62,7 @@ export interface GameState {
   log: LogEntry[]
   logId: number
   trackedAchievement: string | null
+  loggedAchievements: Record<string, boolean>
   flags: Record<string, boolean>
   combat: Combat | null
   furnace: { fuel: number; job: { r: string; left: number; prog: number; locId?: number } | null }
@@ -811,6 +812,7 @@ export const initial = (): GameState => ({
   ],
   logId: 2,
   trackedAchievement: null,
+  loggedAchievements: {},
   flags: {},
   combat: null,
   furnace: { fuel: 0, job: null },
@@ -832,7 +834,18 @@ const defaults = initial()
 
 export const useGame = create<Game>()(
   persist(
-    immer((set, get) => ({
+    immer((write, get) => {
+      const set = (update: (state: GameState) => GameState | void) => write((draft) => {
+        const replacement = update(draft)
+        const state = replacement ?? draft
+        for (const id of getCompletedAchievements(state)) {
+          if (state.loggedAchievements[id]) continue
+          state.loggedAchievements[id] = true
+          pushLog(state, `完成成就「${getAchievement(id)!.title}」。`, 'good')
+        }
+        return replacement
+      })
+      return {
       ...initial(),
 
       tick: (background = false) => set((draft) => {
@@ -887,7 +900,7 @@ export const useGame = create<Game>()(
       restore: (raw) => {
         const saved = decodeSave(raw, initial())
         if (typeof saved === 'string') return saved
-        set(() => saved)
+        write(() => saved)
         return null
       },
       trackAchievement: (id) => set((s) => {
@@ -1625,9 +1638,10 @@ export const useGame = create<Game>()(
 
       dismissWin: () => set((s) => { s.flags.showWin = false }),
 
-      reset: () => set(() => initial()),
+      reset: () => write(() => initial()),
 
-    })),
+      }
+    }),
     {
       name: SAVE_KEY,
       version: SAVE_VERSION,

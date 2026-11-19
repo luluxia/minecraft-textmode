@@ -1,7 +1,7 @@
 import { arriveAtVillage } from './village'
 import { BIOMES, BUILDING_MAP, ENCHANTS, EYES_NEEDED, ITEMS, JOB_MAP, MOBS, SMELTS, type Bag } from './data'
 import { LEADS, SITES, VARIANT_NAMES, distinctLocationName, nearbySites } from './exploration'
-import { getAchievement } from './advancements'
+import { getAchievement, getCompletedAchievements } from './advancements'
 import { LOG_LIMIT, LOG_TEXT_LIMIT, logOfflineSettlement } from './log'
 import { migrateMinecraftNames } from './migrate'
 import { EXPEDITIONS, LINES, MAX_AIR, PLANTS } from './progression'
@@ -9,7 +9,7 @@ import { PACK_LIMIT, addStock, carriesLimit, room } from './inventory'
 import type { GameState, Loc } from './store'
 
 export const SAVE_KEY = 'block-idle-save'
-export const SAVE_VERSION = 11
+export const SAVE_VERSION = 12
 export type SaveSnapshot = GameState
 
 type Fields = Record<string, unknown>
@@ -111,6 +111,7 @@ export function normalizeSave(input: unknown, version: number, defaults: GameSta
       typeof entry.kind === 'string' && ['info', 'good', 'bad', 'event'].includes(entry.kind))) return null
   if (s.trackedAchievement !== null &&
     (typeof s.trackedAchievement !== 'string' || !getAchievement(s.trackedAchievement))) return null
+  if (!bag(s.loggedAchievements, (id) => !!getAchievement(id), boolean)) return null
   if (!record(s.stats) || ![s.stats.actions, s.stats.kills, s.stats.deaths, s.stats.explored].every((n) => integer(n))) return null
   if (!bag(s.ench, (key) => ENCHANTS.some((entry) => entry.id === key), (n) => integer(n, 5))) return null
   if (!integer(s.eyesThrown, 3) || !integer(s.altarEyes, EYES_NEEDED)) return null
@@ -252,5 +253,7 @@ export function normalizeSave(input: unknown, version: number, defaults: GameSta
     })
   }
   arriveAtVillage(s)
+  s.loggedAchievements = { ...s.loggedAchievements }
+  for (const id of getCompletedAchievements(s)) s.loggedAchievements[id] = true
   return s
 }
