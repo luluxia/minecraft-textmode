@@ -49,7 +49,6 @@ const woodPick = item('pick_wood', 'equipment')
 const stonePick = item('pick_stone', 'equipment')
 const ironPick = item('pick_iron', 'equipment')
 const diamondPick = item('pick_diamond', 'equipment')
-const torch = item('torch', 'equipment')
 const shield = item('shield', 'equipment')
 const armor = item('armor_iron', 'equipment', '护甲')
 const food = item('steak', 'material', '熟食')
@@ -111,7 +110,7 @@ export const STORY: Milestone[] = [
   },
   {
     id: 'diamond-pick', requires: ['iron-pick'], title: '钻石！', icon: diamond,
-    hint: ['在', cave, '用', torch, '开拓矿道，在地图追踪钻石矿脉。到达废弃矿井后用', ironPick, '开采', diamond, '，再做一把', diamondPick, '。'],
+    hint: ['探索', cave, '附近的浅层矿脉，循线索前往废弃矿井。用', ironPick, '开采', diamond, '，再做一把', diamondPick, '。'],
     complete: (s) => PICKS.slice(3).some((id) => s.seen[id]),
   },
   {

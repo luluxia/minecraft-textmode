@@ -324,12 +324,16 @@ export const lineLimit = (s: GameState) => (s.village?.buildings.redstone ?? 0) 
 export const activeLines = (s: GameState) => LINES.filter((line) => line.id in s.lines).length
 export const foundSites = (loc: Loc) => (loc.sites ?? []).slice(0, loc.discovered ?? 0)
 const siteLeads: Record<string, string> = { dark: 'canopy', road: 'tracks', bank: 'river', ore: 'deep_ore', outcrop: 'rocks', spring: 'lava', masonry: 'copper', echo: 'sculk', drift: 'wreck', sand: 'pottery', ashes: 'nether' }
-export const locationLeads = (loc: Loc) => loc.leads ?? []
+const rareMineLead = (id: string) => id === 'deep_ore' || id === 'lava'
+const rareMineLocation = (loc: Loc) => loc.biome === 'mineshaft' || loc.biome === 'sulfur_caves'
+const permitsLead = (loc: Loc, id: string) => !rareMineLocation(loc) || !rareMineLead(id)
+export const locationLeads = (loc: Loc) => (loc.leads ?? []).filter((id) => permitsLead(loc, id))
 export const explorerMapChoices = (loc: Loc) =>
-  Object.keys(LEADS).filter((id) => id !== 'nether' && !locationLeads(loc).includes(id))
+  Object.keys(LEADS).filter((id) => id !== 'nether' && permitsLead(loc, id) && !loc.leads?.includes(id))
 const learnLocationLead = (s: GameState, id: string) => {
-  s.leads[id] = true
   const loc = curLoc(s)
+  if (!permitsLead(loc, id)) return
+  s.leads[id] = true
   if (!locationLeads(loc).includes(id)) (loc.leads ??= []).push(id)
 }
 export const availableActions = (loc: Loc) => [...new Set([
@@ -614,7 +618,7 @@ const checkUnlocks = (s: GameState) => {
   if (count(s, 'furnace') > 0) unlock(s, 'furnace', '熔炉里升起了第一缕火光。')
   if (count(s, 'enchant_table') > 0) unlock(s, 'enchant', '附魔台上的书页无风自动，低语着陌生的文字。')
   if (count(s, 'map') > 0) unlock(s, 'waypoint', '地图已标明方位，你可以记录走过的地点了。')
-  if (pickTier(s) >= 3) unlock(s, 'deepMine', '铁镐可以开采钻石。在洞穴开拓矿道，可找到废弃矿井和熔岩水迹的线索。')
+  if (pickTier(s) >= 3) unlock(s, 'deepMine', '铁镐可以开采钻石。探索洞穴附近，留意矿脉和热泉。')
   if (count(s, 'spyglass') && !s.flags.spyglass) {
     learnLocationLead(s, 'copper')
     unlock(s, 'spyglass', '望远镜发现了凝灰岩和铜片。')
@@ -639,6 +643,7 @@ const renewResources = (s: GameState) => {
   for (const loc of Object.values(s.locs)) replenish(loc, BIOMES[loc.biome].renew ?? [])
 }
 export const mineResources = (loc: Loc) => {
+  if (rareMineLocation(loc)) return []
   const biome = BIOMES[loc.biome]
   return availableActions(loc).flatMap((id) => {
     const action = ACTIONS[id]
@@ -972,12 +977,8 @@ export const useGame = create<Game>()(
         const amount = rand(2, 4)
         loc.res[ore] = (loc.res[ore] ?? 0) + amount
         loc.shaftsLeft = (loc.shaftsLeft ?? 1) - 1
-        if (!inNether(loc)) {
-          learnLocationLead(s, 'deep_ore')
-          learnLocationLead(s, 'lava')
-        }
         setCd(s, 'survey', 30, true)
-        pushLog(s, `新矿道增加了 ${amount} 次${ITEMS[ore]?.name ?? ore}开采机会。${inNether(loc) ? '' : '地图上已标出钻石与黑曜石的去向。'}`, 'good')
+        pushLog(s, `新矿道增加了 ${amount} 次${ITEMS[ore]?.name ?? ore}开采机会。`, 'good')
       }),
 
       buildNether: () => set((s) => {
@@ -1248,6 +1249,7 @@ export const useGame = create<Game>()(
         if (s.hunger < cost) return
         if (ITEM_LIST.some((item) => (item.food ?? 0) >= 3 && item.id !== 'rotten' && count(s, item.id) > 0)) s.flags.preparedTrip = true
         const destination = journeyDestination(origin.biome, leads, lead)
+        if (lead && rareMineLead(lead)) origin.leads = leads.filter((id) => id !== lead)
         leaveLoc(s)
         const loc = makeLoc(s, destination)
         s.locId = loc.id
@@ -1256,8 +1258,6 @@ export const useGame = create<Game>()(
         s.stats.explored++
         s.hunger -= cost
         if (lead) s.flags.followedLead = true
-        if (destination === 'mineshaft') learnLocationLead(s, 'lava')
-        if (destination === 'sulfur_caves') learnLocationLead(s, 'deep_ore')
         if (destination === 'trial_chamber') s.flags.trialVisited = true
         arriveAtVillage(s)
         setCd(s, 'move', moveTime(s, 7))
