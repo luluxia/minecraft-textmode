@@ -690,6 +690,8 @@ export const TRADES: Trade[] = [
   { id: 't_potato', give: { potato: 18 }, get: { emerald: 1 } },
   { id: 't_cookie', give: { emerald: 1 }, get: { cookie: 12 } },
   { id: 't_copper', give: { copper: 8 }, get: { emerald: 1 }, need: 'smithy' },
+  { id: 't_resin', give: { resin: 4 }, get: { emerald: 1 }, need: 'market' },
+  { id: 't_cinnabar', give: { cinnabar: 6 }, get: { emerald: 1 }, need: 'market' },
   { id: 't_nautilus', give: { emerald: 3 }, get: { nautilus: 1 }, need: 'market' },
   { id: 't_bread', give: { emerald: 1 }, get: { bread: 4 } },
   { id: 't_book', give: { emerald: 3 }, get: { book: 1 }, rep: 20 },

@@ -1,3 +1,4 @@
+import { companionIds } from './wildlife'
 import { arriveAtVillage } from './village'
 import { BIOMES, BUILDING_MAP, ENCHANTS, EYES_NEEDED, ITEMS, JOB_MAP, MOBS, SMELTS, type Bag } from './data'
 import { LEADS, SITES, VARIANT_NAMES, distinctLocationName, nearbySites } from './exploration'
@@ -9,7 +10,7 @@ import { PACK_LIMIT, addStock, carriesLimit, room } from './inventory'
 import type { GameState, Loc } from './store'
 
 export const SAVE_KEY = 'block-idle-save'
-export const SAVE_VERSION = 12
+export const SAVE_VERSION = 14
 export type SaveSnapshot = GameState
 
 type Fields = Record<string, unknown>
@@ -82,6 +83,9 @@ export function normalizeSave(input: unknown, version: number, defaults: GameSta
     (loc.pending === undefined || bag(loc.pending, known(ITEMS))) &&
     (loc.leads === undefined || (Array.isArray(loc.leads) && loc.leads.length <= Object.keys(LEADS).length &&
       loc.leads.every((id) => typeof id === 'string' && Object.hasOwn(LEADS, id)))) &&
+    (loc.metCompanions === undefined || (Array.isArray(loc.metCompanions) && loc.metCompanions.length <= companionIds.length &&
+      new Set(loc.metCompanions).size === loc.metCompanions.length && loc.metCompanions.every((id) =>
+        typeof id === 'string' && companionIds.includes(id) && s.flags['wildlife_' + id]))) &&
     (loc.sites === undefined || (Array.isArray(loc.sites) && loc.sites.length <= 3 &&
       loc.sites.every((id) => typeof id === 'string' && Object.hasOwn(SITES, id)))) &&
     (loc.discovered === undefined || integer(loc.discovered, Array.isArray(loc.sites) ? loc.sites.length : 0)) &&

@@ -4,7 +4,7 @@ import {
   STATION_NAMES, canUseStation, itemKnown, itemSources, recipeOptions, recipeUses, type RecipeTarget,
 } from '../game/recipes'
 import { SITES, VARIANT_NAMES } from '../game/exploration'
-import { WILDLIFE } from '../game/wildlife'
+import { wildlifeAt, WILDLIFE } from '../game/wildlife'
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '../components/minecraft/collapsible'
 import { Input } from '../components/minecraft/input'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/minecraft/tabs'
@@ -50,6 +50,16 @@ function Discoveries() {
             : <p className="notice">尚无记录。</p>}
         </BookBlock>
       ))}
+      {animals.some(([id]) => WILDLIFE[id].observation) && (
+        <BookBlock title="野外观察">
+          <p className="notice">你能辨认这些动物的踪迹。在下列栖息地探索附近时，饱食消耗从 1.5 降为 1。</p>
+          <ul className="book-chips">
+            {Object.values(BIOMES).filter((biome) => wildlifeAt(biome.id).some((id) =>
+              WILDLIFE[id].observation && s.flags['wildlife_' + id])).map((biome) =>
+              <li className="book-chip" key={biome.id}>{biome.name}</li>)}
+          </ul>
+        </BookBlock>
+      )}
     </div>
   )
 }

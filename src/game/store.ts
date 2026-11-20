@@ -22,7 +22,7 @@ import {
   TRADES, itemCostText, type Bag, type Drop, type IngredientAlternatives, type Recipe,
 } from './data'
 
-export interface Loc { id: number; biome: string; name: string; res: Bag; saved: boolean; shelter: boolean; sites?: string[]; leads?: string[]; discovered?: number; marked?: boolean; variant?: string; chest?: boolean; shaftsLeft?: number; villageLayout?: VillageLayout; visitorRep?: number; growingCrop?: boolean; commissioned?: boolean; cleared?: boolean; lootTaken?: boolean; stock?: Bag; pending?: Bag }
+export interface Loc { id: number; biome: string; name: string; res: Bag; saved: boolean; shelter: boolean; metCompanions?: string[]; sites?: string[]; leads?: string[]; discovered?: number; marked?: boolean; variant?: string; chest?: boolean; shaftsLeft?: number; villageLayout?: VillageLayout; visitorRep?: number; growingCrop?: boolean; commissioned?: boolean; cleared?: boolean; lootTaken?: boolean; stock?: Bag; pending?: Bag }
 export interface Village { villagers: number; jobs: Bag; buildings: Bag; rep: number; founded: boolean; mayor: boolean }
 export interface Combat {
   mob: string
@@ -178,7 +178,8 @@ const axes: [string, number][] = [
 ]
 
 export function currentAction(s: GameState, id: string) {
-  const action = ACTIONS[id]
+  const base = ACTIONS[id]
+  const action = base && s.flags.wildlife_horse && !s.submerged ? { ...base, hunger: base.hunger / 2 } : base
   if (!action || !id.startsWith('chop')) return action
   const axe = axes.find(([item]) => count(s, item) > 0)
   if (!axe) return action
@@ -209,7 +210,7 @@ export const attackPower = (s: GameState) =>
   1 + (SWORDS.find(([id]) => count(s, id) > 0)?.[1] ?? 0) + (s.ench.sharp ?? 0) +
   Number(!!s.flags.wildlife_wolf && !s.submerged) + Number(!!s.flags.wildlife_axolotl && s.submerged)
 export const defensePower = (s: GameState) =>
-  (ARMORS.find(([id]) => count(s, id) > 0)?.[1] ?? 0) + (count(s, 'shield') > 0 ? 1 : 0) + (s.ench.prot ?? 0) + Number(!!s.flags.wildlife_wolf && !!count(s, 'wolf_armor'))
+  (ARMORS.find(([id]) => count(s, id) > 0)?.[1] ?? 0) + (count(s, 'shield') > 0 ? 1 : 0) + (s.ench.prot ?? 0) + Number(!!s.flags.wildlife_wolf && !s.submerged && !!count(s, 'wolf_armor'))
 const netherElites = ['blaze', 'wither_skeleton', 'piglin_brute']
 export const combatInterval = (s: GameState, c: Combat) =>
   c.boss || netherElites.includes(c.mob) ? 3 : BIOMES[curLoc(s).biome].danger >= 1.2 ? 2 : 3
@@ -335,20 +336,41 @@ export const availableActions = (loc: Loc) => [...new Set([
   ...BIOMES[loc.biome].actions, ...foundSites(loc).flatMap((id) => SITES[id]?.actions ?? []),
 ])]
 export const ALLAY_ITEMS = ['wood', 'cobble', 'coal', 'seed', 'iron_ore']
+function discoverNearbySite(s: GameState, loc: Loc) {
+  const index = loc.discovered ?? 0
+  const id = loc.sites?.[index]
+  if (!id) return false
+  loc.discovered = index + 1
+  if (siteLeads[id]) learnLocationLead(s, siteLeads[id])
+  s.flags.nearbyFound = true
+  s.flags['site_' + id] = true
+  pushLog(s, '发现' + SITES[id].name + '。', 'event')
+  return true
+}
+
+export const isReunion = (s: GameState, id: string) => !!WILDLIFE[id].companion && !!s.flags['wildlife_' + id]
 export const wildlifeVisible = (s: GameState) => wildlifeAt(curLoc(s).biome).filter((id) =>
-  !!WILDLIFE[id].underwater === s.submerged && (WILDLIFE[id].repeatable || !s.flags['wildlife_' + id]))
+  !!WILDLIFE[id].underwater === s.submerged && (WILDLIFE[id].repeatable || !s.flags['wildlife_' + id] ||
+    (isReunion(s, id) && !curLoc(s).metCompanions?.includes(id))))
 export const wildlifeLock = (s: GameState, id: string) => {
   if (id === 'sulfur_cube' && s.flags.sulfurPath) return '可开采朱砂'
   if (id === 'armadillo' && !count(s, 'brush')) return '需要刷子'
   if (id === 'armadillo' && carryRoom(s, 'armadillo_scute') < 1) return '背包已满'
   if (id === 'mooshroom' && carryRoom(s, 'mushroom_stew') < 1) return '背包已满'
   if (s.submerged && s.air < 7 && !canBreatheUnderwater(s)) return '空气不足'
+  if (isReunion(s, id)) return ''
   const cost = WILDLIFE[id].cost
   if (cost && !canAfford(s, cost)) return itemCostText(cost)
   return ''
 }
+export const nearbyCost = (s: GameState) => wildlifeAt(curLoc(s).biome).some((id) =>
+  WILDLIFE[id].observation && s.flags['wildlife_' + id]) ? NEARBY_COST - 0.5 : NEARBY_COST
+export function journeyCost(s: GameState, lead?: string) {
+  const base = lead === undefined ? JOURNEY_COST : LEADS[lead].hunger
+  return s.flags.wildlife_camel && ['desert', 'savanna', 'badlands'].includes(curLoc(s).biome) ? base / 2 : base
+}
 export const canExploreNearby = (s: GameState) => !!s.flags.explore && !s.combat && !s.submerged &&
-  s.hunger >= NEARBY_COST && (curLoc(s).discovered ?? 0) < (curLoc(s).sites?.length ?? 0)
+  s.hunger >= nearbyCost(s) && (curLoc(s).discovered ?? 0) < (curLoc(s).sites?.length ?? 0)
 export const lineIssue = (s: GameState, line: typeof LINES[number]) => {
   const v = s.village
   if (!v?.villagers) return '需要村民'
@@ -535,6 +557,7 @@ const maybeEncounter = (s: GameState) => {
   const underground = ['cave', 'mineshaft', 'lush_caves', 'dripstone_caves', 'deep_dark', 'sulfur_caves', 'dark_forest'].includes(loc.biome) || inNether(loc)
   if (loc.shelter || (!night && !underground) || attackPower(s) <= 1) return
   let p = (underground ? 0.09 : 0.055) * BIOMES[loc.biome].danger
+  if (s.flags.wildlife_ocelot) p *= 0.5
   if (s.weather === 'storm') p *= 1.4
   if (count(s, 'torch') > 0) p *= 0.35
   if (Math.random() > p) return
@@ -601,7 +624,7 @@ const checkUnlocks = (s: GameState) => {
 }
 
 const moveTime = (s: GameState, base: number) => base * (count(s, 'elytra') ? 0.55 :
-  count(s, 'scaffolding') || s.flags.wildlife_horse || s.flags.wildlife_donkey || s.flags.wildlife_camel ? 0.85 : 1)
+  s.flags.wildlife_donkey ? 0.7 : count(s, 'scaffolding') ? 0.85 : 1)
 const depositRange = (loc: Loc, id: string) => BIOMES[loc.biome].res[id] ??
   foundSites(loc).map((site) => SITES[site].resource).find((resource) => resource?.id === id)?.range ?? [0, 0]
 const replenish = (loc: Loc, keys: string[]) => {
@@ -935,16 +958,9 @@ export const useGame = create<Game>()(
       exploreNearby: () => set((s) => {
         if (!canExploreNearby(s) || onCd(s, 'nearby')) return
         const loc = curLoc(s)
-        const index = loc.discovered ?? 0
-        const site = SITES[loc.sites![index]]
-        loc.discovered = index + 1
-        const clue = siteLeads[loc.sites![index]]
-        if (clue) learnLocationLead(s, clue)
-        s.hunger -= NEARBY_COST
-        s.flags.nearbyFound = true
-        s.flags['site_' + loc.sites![index]] = true
+        s.hunger -= nearbyCost(s)
+        discoverNearbySite(s, loc)
         setCd(s, 'nearby', 4)
-        pushLog(s, '发现' + site.name + '。', 'event')
       }),
 
       survey: () => set((s) => {
@@ -1228,7 +1244,7 @@ export const useGame = create<Game>()(
         const leads = locationLeads(origin)
         if (lead !== undefined && (!leads.includes(lead) ||
           !LEADS[lead]?.destinations.some((id) => !!BIOMES[id].nether === inNether(origin)))) return
-        const cost = lead === undefined ? JOURNEY_COST : LEADS[lead].hunger
+        const cost = journeyCost(s, lead)
         if (s.hunger < cost) return
         if (ITEM_LIST.some((item) => (item.food ?? 0) >= 3 && item.id !== 'rotten' && count(s, item.id) > 0)) s.flags.preparedTrip = true
         const destination = journeyDestination(origin.biome, leads, lead)
@@ -1455,10 +1471,26 @@ export const useGame = create<Game>()(
       interactWildlife: (id) => set((s) => {
         if (s.combat || !wildlifeVisible(s).includes(id) || wildlifeLock(s, id) || onCd(s, 'wildlife_' + id)) return
         const animal = WILDLIFE[id]
-        if (!pay(s, animal.cost ?? {})) return
+        const reunion = isReunion(s, id)
+        if (!reunion && !pay(s, animal.cost ?? {})) return
         if (animal.underwater && !canBreatheUnderwater(s)) s.air -= 7
-        s.flags['wildlife_' + id] = true
         setCd(s, 'wildlife_' + id, 25, true)
+        if (animal.companion) {
+          const loc = curLoc(s)
+          ;(loc.metCompanions ??= []).push(id)
+          if (reunion) {
+            pushLog(s, '你跟随' + animal.name + '熟悉的踪迹探索四周。')
+            if (!discoverNearbySite(s, loc)) {
+              gainXp(s, 2)
+              pushLog(s, '沿途熟悉了当地的地形，经验 +2。', 'good')
+            }
+          } else {
+            s.flags['wildlife_' + id] = true
+            pushLog(s, animal.name + '成为了你的伙伴。' + animal.companion, 'event')
+          }
+          return
+        }
+        s.flags['wildlife_' + id] = true
         if (animal.reward) giveItems(s, animal.reward)
         switch (id) {
           case 'dolphin': learnLocationLead(s, 'wreck'); break
@@ -1468,7 +1500,7 @@ export const useGame = create<Game>()(
             return
         }
         const received = animal.reward ? '，获得' + itemList(animal.reward) : ''
-        pushLog(s, animal.name + '：' + animal.action + received + '。', 'event')
+        pushLog(s, animal.name + '：' + animal.action + received + '。' + (animal.observation ? '认得了当地的踪迹，今后在其栖息地探索附近少耗 0.5 饱食。' : ''), 'event')
       }),
 
       digTreasure: () => set((s) => {
@@ -1554,7 +1586,9 @@ export const useGame = create<Game>()(
         }
         const dmg = c.crystals ? Math.max(1, Math.floor(power * 0.35)) : c.mob === 'dragon' && dragonLanded(c.turn) ? Math.ceil(power * 1.5) : power
         c.hp -= dmg
-        combatLine(c, `你${crit ? '打出暴击，' : ''}对${m.name}造成 ${dmg} 点伤害。`)
+        const allyId = s.submerged ? 'axolotl' : 'wolf'
+        const ally = s.flags['wildlife_' + allyId] ? WILDLIFE[allyId].name : ''
+        combatLine(c, `你${ally ? '和' + ally + '合击，' : ''}${crit ? '打出暴击，' : ''}对${m.name}造成 ${dmg} 点伤害。`)
         if (c.hp > 0) return
         s.combat = null
         s.stats.kills++

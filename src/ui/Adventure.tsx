@@ -5,14 +5,15 @@ import { Button } from '../components/minecraft/button'
 import { Texture } from './Texture'
 import { BIOMES, EYES_NEEDED, ITEM_LIST, ITEMS, itemCostText } from '../game/data'
 import { BARTER_COST, EXCAVATION_COST, EXPEDITIONS, MAX_AIR, NETHER_COST, PLANTS, RESPAWN_COST, SURVEY_COST, TRIAL_VAULTS, WATER_BREATHING_SECONDS, WITHER_COST } from '../game/progression'
-import { JOURNEY_COST, LEADS, NEARBY_COST, RETURN_COST, SITES } from '../game/exploration'
+import { LEADS, RETURN_COST, SITES } from '../game/exploration'
 import {
   ALLAY_ITEMS, CAMP_COOK, SHELTER_COST, available, actionAllowed, actionLock, atHome, canAfford, canBreatheUnderwater, canCampHere, canDiveHere, canSurvey, count, curLoc, diveLock, canRetreat, hasConduitPower, inNether,
-  availableActions, currentAction, currentLocationDescription, canExploreNearby, canInviteVillager, expeditionLock, explorerMapChoices, foundSites, invitationCost, isNight, locationLeads,
-  locationCap, mineResources, pickTier, survivedIndependently, travelAllowed, useGame, wildlifeLock, wildlifeVisible,
+  journeyCost, nearbyCost, availableActions, currentAction, currentLocationDescription, canExploreNearby, canInviteVillager, expeditionLock, explorerMapChoices, foundSites, invitationCost, isNight, locationLeads,
+  locationCap, mineResources, pickTier, survivedIndependently, travelAllowed, useGame, isReunion, wildlifeLock, wildlifeVisible,
 } from '../game/store'
 import { LocationName, ActionTitle, Btn, Cost, EntryHeader, Section, bagText } from './kit'
-import { WILDLIFE } from '../game/wildlife'
+import { Companions } from './Companions'
+import { companionIds, WILDLIFE } from '../game/wildlife'
 import { hasStock } from '../game/inventory'
 import { ActionGrid } from './ActionGrid'
 import { LocationStorage } from './LocationStorage'
@@ -87,6 +88,7 @@ export function Adventure({ onFirstChop }: { onFirstChop?: () => void }) {
     { id: 'map', label: '地图', available: s.flags.explore },
     { id: 'storage', label: '储存', available: canOpenStorage },
     { id: 'survival', label: '生存', available: s.flags.explore || s.flags.status },
+    { id: 'companions', label: '伙伴', available: companionIds.some((id) => s.flags['wildlife_' + id]) },
     { id: 'dimensions', label: '维度', available: tier >= 3 || s.flags.nether || s.flags.eye || loc.biome === 'altar' },
   ].filter((entry) => entry.available)
   const currentTab = tabs.some((entry) => entry.id === tab) ? tab : 'gather'
@@ -99,6 +101,7 @@ export function Adventure({ onFirstChop }: { onFirstChop?: () => void }) {
             aria-label={id === 'storage' && storagePending ? '储存，有待领取物资' : label}>{label}</TabsTrigger>
         ))}
       </TabsList>}
+      <TabsContent value="companions"><Companions /></TabsContent>
       <TabsContent value="gather" className="gather-panel">
         {s.flags.explore && (
           <Section title="当前位置">
@@ -114,7 +117,7 @@ export function Adventure({ onFirstChop }: { onFirstChop?: () => void }) {
             {!s.submerged && (nearby || hasExplorerMap) && (
               <ActionGrid className="location-actions">
                 {nearby && <Btn cd="nearby" disabled={!canExploreNearby(s)} onClick={s.exploreNearby}
-                  sub={'饱食 −' + NEARBY_COST}>探索附近</Btn>}
+                  sub={'饱食 −' + nearbyCost(s)}>探索附近</Btn>}
                 {hasExplorerMap && <Btn disabled={busy || !explorerMapChoices(loc).length}
                   onClick={s.readExplorerMap}>查看探险家地图</Btn>}
               </ActionGrid>
@@ -168,9 +171,12 @@ export function Adventure({ onFirstChop }: { onFirstChop?: () => void }) {
             <ActionGrid>
               {wildlife.map((id) => {
                 const encounter = WILDLIFE[id]
+                const reunion = isReunion(s, id)
+                const reward = (loc.discovered ?? 0) < (loc.sites?.length ?? 0) ? '发现附近地点' : '经验 +2'
+                const detail = reunion ? reward + (encounter.underwater && !breathing ? ' · 空气 −7' : '') : itemCostText(encounter.cost ?? {}, encounter.action) || encounter.name
                 const locked = wildlifeLock(s, id)
                 return <Btn key={id} cd={'wildlife_' + id} disabled={busy || !!locked}
-                  onClick={() => s.interactWildlife(id)} sub={locked || (itemCostText(encounter.cost ?? {}, encounter.action) || encounter.name)}>{encounter.action}</Btn>
+                  onClick={() => s.interactWildlife(id)} sub={locked || detail}>{reunion ? '跟随' + encounter.name + '探路' : encounter.action}</Btn>
               })}
             </ActionGrid>
           </Section>
@@ -209,7 +215,7 @@ export function Adventure({ onFirstChop }: { onFirstChop?: () => void }) {
           <Section title="远行" extra={<LocationName name={loc.name} />}>
             <ActionGrid>
               {[undefined, ...leads].map((id) => {
-                const cost = id === undefined ? JOURNEY_COST : LEADS[id].hunger
+                const cost = journeyCost(s, id)
                 return <Btn key={id ?? 'free'} cd="move" disabled={busy || s.hunger < cost}
                   onClick={() => moveFromMap(() => s.explore(id))} sub={'饱食 −' + cost}>
                   {id === undefined ? '自由探索' : LEADS[id].action}

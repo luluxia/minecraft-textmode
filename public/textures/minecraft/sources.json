@@ -321,5 +321,18 @@
       "mob_silverfish": "thumb/Silverfish_JE1_BE1.png/400px-Silverfish_JE1_BE1.png?83218"
     },
     "transform": "Complete inventory/block/entity renders, cropped to visible bounds and scaled proportionally to at most 128px. Animated sources use their first frame; stored as RGBA PNG. Entity UV sheets, face crops and spawn eggs must not be used as entity icons."
+  },
+  "companion_renders": {
+    "base": "https://minewiki.pl/images/",
+    "transform": "Complete inventory/block/entity renders, cropped to visible bounds and scaled proportionally to at most 128px. Animated sources use their first frame; stored as RGBA PNG. Entity UV sheets, face crops and spawn eggs must not be used as entity icons.",
+    "textures": {
+      "mob_wolf": "b/b2/Wilk_%28Oswojony%29.png",
+      "mob_ocelot": "0/0d/Ocelot.png",
+      "mob_horse": "1/1e/Brown_Horse.png",
+      "mob_donkey": "5/52/Osio%C5%82.png",
+      "mob_camel": "8/8e/Wielb%C5%82%C4%85d.png",
+      "mob_axolotl": "3/36/R%C3%B3%C5%BCowy_aksolotl.png",
+      "mob_nautilus_mob": "a/a8/%C5%81odzik.gif"
+    }
   }
 }
