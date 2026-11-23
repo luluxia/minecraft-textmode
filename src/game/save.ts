@@ -11,7 +11,7 @@ import { PACK_LIMIT, addStock, carriesLimit, room } from './inventory'
 import type { GameState, Loc } from './store'
 
 export const SAVE_KEY = 'block-idle-save'
-export const SAVE_VERSION = 17
+export const SAVE_VERSION = 19
 export type SaveSnapshot = GameState
 
 type Fields = Record<string, unknown>
@@ -69,6 +69,8 @@ export function normalizeSave(input: unknown, version: number, defaults: GameSta
     (loc.shaftsLeft === undefined || integer(loc.shaftsLeft, 2)) &&
     (loc.marked === undefined || boolean(loc.marked)) &&
     (loc.variant === undefined || (typeof loc.variant === 'string' && Object.hasOwn(VARIANT_NAMES, loc.variant))) &&
+    (loc.frameMold === undefined || boolean(loc.frameMold)) &&
+    (loc.placedLava === undefined || loc.placedLava === 'ground' || (loc.placedLava === 'frame' && loc.frameMold === true && !loc.netherGate)) &&
     (loc.castBlocks === undefined || integer(loc.castBlocks, 9)) &&
     (loc.cooledBlocks === undefined || integer(loc.cooledBlocks)) &&
     (loc.netherGate === undefined || boolean(loc.netherGate) || loc.netherGate === 'frame') &&
@@ -121,6 +123,8 @@ export function normalizeSave(input: unknown, version: number, defaults: GameSta
     (typeof s.trackedAchievement !== 'string' || !getAchievement(s.trackedAchievement))) return null
   if (!bag(s.loggedAchievements, (id) => !!getAchievement(id), boolean)) return null
   if (!record(s.stats) || ![s.stats.actions, s.stats.kills, s.stats.deaths, s.stats.explored].every((n) => integer(n))) return null
+  if (version < 18) s.stats = { ...defaults.stats, ...s.stats }
+  if (!Object.keys(defaults.stats).every((key) => integer(s.stats[key as keyof GameState['stats']]))) return null
   if (!bag(s.ench, (key) => ENCHANTS.some((entry) => entry.id === key), (n) => integer(n, 5))) return null
   if (!integer(s.eyesThrown, 3) || !integer(s.altarEyes, EYES_NEEDED)) return null
   if (s.combat !== null) {
@@ -194,6 +198,7 @@ export function normalizeSave(input: unknown, version: number, defaults: GameSta
   const usedNames = new Set<string>()
   const reservedNames = new Set(Object.values(s.locs).map((loc) => loc.name))
   for (const loc of Object.values(s.locs)) {
+    if (version < 19 && loc.castBlocks && !loc.netherGate) loc.frameMold = true
     if (version < 10 && loc.biome === 'village' && !loc.villageLayout && !(s.village && loc.id === s.homeId)) {
       loc.villageLayout = { villagers: 1, buildings: { house: 1, farm: 1 } }
     }

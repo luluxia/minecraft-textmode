@@ -157,7 +157,7 @@ export function Village() {
               const cost = buildCost(v, b.id)
               const full = (v.buildings[b.id] ?? 0) >= (b.limit ?? 40)
               const locked = b.project && !monumentReady(s)
-              const missingTool = b.tool && !count(s, b.tool) ? ITEMS[b.tool].name : undefined
+              const missingTool = b.tool && !s.freeResources && !count(s, b.tool) ? ITEMS[b.tool].name : undefined
               return (
                 <article key={b.id} className="content-entry">
                   <EntryHeader actions={
@@ -170,12 +170,14 @@ export function Village() {
                   {locked && <span className="sm bad">需要成为村长、点亮信标并完成远端群岛远征。</span>}
                   {missingTool && <span className="sm bad">需要{missingTool}</span>}
                   {b.id === 'beacon' ? <>
-                    <span className="sm">信标本体</span>
+                    <span className="sm dim">信标本体</span>
                     <Cost cost={{ nether_star: cost.nether_star, glass: cost.glass, obsidian: cost.obsidian }} />
-                    <span className="sm">3 × 3 铁块基座</span><Cost cost={{ iron_block: cost.iron_block }} />
+                    <span className="sm dim">3 × 3 铁块基座</span><Cost cost={{ iron_block: cost.iron_block }} />
                   </> : <Cost cost={cost} />}
-                  {b.id === 'apiary' && !!v.buildings.apiary && <Btn disabled={!home || !!s.combat || (v.honeyTicks ?? 0) < 30 || !canAfford(s, { bottle: 1 })}
-                    onClick={s.bottleApiary} sub={'可装 ' + Math.floor((v.honeyTicks ?? 0) / 30) + ' 瓶 · 每瓶需要 1 个玻璃瓶'}>收取蜂蜜</Btn>}
+                  {b.id === 'apiary' && !!v.buildings.apiary && <ActionGrid>
+                    <Btn disabled={!home || !!s.combat || (v.honeyTicks ?? 0) < 30 || !canAfford(s, { bottle: 1 })}
+                      onClick={s.bottleApiary} sub={'可装 ' + Math.floor((v.honeyTicks ?? 0) / 30) + ' 瓶 · 玻璃瓶 −1'}>收取蜂蜜</Btn>
+                  </ActionGrid>}
                 </article>
               )
             })}

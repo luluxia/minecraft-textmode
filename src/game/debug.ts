@@ -1,12 +1,18 @@
 import type { PersistStorage } from 'zustand/middleware'
 import { BIOMES, EYES_NEEDED, ITEM_LIST, type Bag } from './data'
+import { LEADS, SITES } from './exploration'
+import { EXPEDITIONS, MAX_AIR } from './progression'
+import { WILDLIFE } from './wildlife'
 import { carriesLimit, PACK_LIMIT } from './inventory'
-import { initial, useGame, type Game, type GameState } from './store'
+import { initial, makeLoc, useGame, type Game, type GameState } from './store'
 
 export const DEBUG_SCENARIOS = [
   { id: 'start', label: '新游戏', detail: '初生森林 · 空背包' },
   { id: 'village', label: '村庄经营', detail: '村民岗位 · 红石产线 · 熔炉' },
   { id: 'expansion', label: '遗迹与远航', detail: '备好刷子、望远镜和船 · 可沿线索远行或派队' },
+  { id: 'ocean', label: '暖水海洋', detail: '水肺药水与刷子 · 潜水、考古和驯服鹦鹉螺' },
+  { id: 'trial', label: '试炼密室', detail: '挑战旋风人 · 用试炼钥匙开启宝库' },
+  { id: 'wildlife', label: '森林伙伴', detail: '在初生森林用骨头驯狼 · 前往斑驳森林重逢' },
   { id: 'nether', label: '下界探索', detail: '下界门已建成 · 从家出发' },
   { id: 'stronghold', label: '末影龙战前', detail: '传送门房间 · 门已开启' },
   { id: 'endgame', label: '通关后经营', detail: '末地远征 · 纪念碑条件' },
@@ -28,13 +34,14 @@ export function startDebug() {
   const persist = useGame.persist
   session = { normal: useGame.getState(), storage: persist?.getOptions().storage }
   persist?.setOptions({ storage: sandbox })
+  useGame.setState({ freeResources: true })
 }
 
 export function exitDebug() {
   if (!session) return
   const { normal, storage } = session
   session = null
-  useGame.setState(normal)
+  useGame.setState({ ...normal, freeResources: false })
   if (storage) useGame.persist.setOptions({ storage })
   useGame.getState().tick(true)
 }
@@ -77,6 +84,24 @@ export function loadDebugScenario(id: DebugScenario) {
   s.lines.sawmill = 0
   s.furnace = { fuel: 20, job: { r: 'iron', left: 12, prog: 2 } }
   if (id === 'village') { useGame.setState(s); return }
+  if (id === 'ocean' || id === 'trial' || id === 'wildlife') {
+    const biome = id === 'ocean' ? 'warm_ocean' : id === 'trial' ? 'trial_chamber' : 'dappled_forest'
+    const loc = makeLoc(s, biome)
+    loc.saved = true
+    if (id === 'wildlife') addStock(s, { bone: 8 })
+    else {
+      s.previousLocId = s.locId
+      s.locId = loc.id
+      s.seenPlaces[biome] = true
+      if (id === 'ocean') addStock(s, { boat: 1, brush: 1, water_breathing: 4, fish: 4, pufferfish: 4 })
+      else {
+        s.flags.trialVisited = true
+        addStock(s, { trial_key: 1, potion: 4 })
+      }
+    }
+    useGame.setState(s)
+    return
+  }
   if (id === 'expansion') {
     s.leads = { copper: true, wreck: true, sculk: true }
     s.locs[s.locId].leads = Object.keys(s.leads)
@@ -97,7 +122,12 @@ export function loadDebugScenario(id: DebugScenario) {
     for (const item of ITEM_LIST) s.seen[item.id] = true
     Object.assign(s.flags, { trialVault: true, maceLeap: true, dragonAgain: true, cookedFood: true, nearbyFound: true, followedLead: true, returnedToMark: true, usedLocalStock: true, joinedVillage: true, invitedVillager: true, lineOutput: true, defeatedCreeper: true })
     Object.assign(s.village.buildings, { beacon: 1, monument: 1, shulker_store: 1, apiary: 1, end_store: 1 })
-    Object.assign(s.expeditions, { raid: 1, flight: 1, ocean_monument: 1, chorus_grove: 1 })
+    s.expeditions.raid = 1
+    for (const trip of EXPEDITIONS) s.expeditions[trip.id] = 1
+    for (const biome of Object.keys(BIOMES)) s.seenPlaces[biome] = true
+    for (const lead of Object.keys(LEADS)) s.leads[lead] = true
+    for (const site of Object.keys(SITES)) s.flags['site_' + site] = true
+    for (const animal of Object.keys(WILDLIFE)) s.flags['wildlife_' + animal] = true
   }
   useGame.setState(s)
   useGame.getState().buildNether()
@@ -114,7 +144,10 @@ export function loadDebugScenario(id: DebugScenario) {
     draft.flags.portal = true
     draft.eyesThrown = 3
     draft.altarEyes = EYES_NEEDED
-    if (id === 'stronghold') draft.locId = idOfAltar
+    if (id === 'stronghold') {
+      draft.locId = idOfAltar
+      draft.seenPlaces.altar = true
+    }
     else {
       draft.flags.won = true
       draft.flags.wither = true
@@ -129,6 +162,7 @@ export function refreshDebugSupplies() {
     s.flags.inv = true
     s.hp = 20
     s.hunger = 20
+    s.air = MAX_AIR
   })
 }
 

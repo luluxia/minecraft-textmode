@@ -34,6 +34,7 @@ const earlyTools = ['pick_stone', 'furnace', 'torch', 'charcoal', 'bread', 'rod'
 const metalworking = ['iron_ore', 'iron', 'flint', 'flint_and_steel', 'pick_iron', 'shield', 'compass', 'paper', 'map', 'brush', 'cane']
 
 export function itemKnown(s: GameState, id: string) {
+  if (s.freeResources) return true
   if (id === 'elytra' && s.flags.won) return true
   if (id === 'obsidian' && (s.seen.bucket || s.flags.site_ruined_portal)) return true
   if (id === 'water_bottle' && (s.seen.bottle || s.seen.brewing_stand)) return true
@@ -51,11 +52,11 @@ export const recipeUses = (s: GameState, item: string) => [...new Set(steps
   .filter((step) => Object.keys(step.cost).some((id) => materialOptions(id, step.alternatives).includes(item)) && recipeKnown(s, step))
   .map((step) => step.out))]
 export const canUseStation = (s: GameState, station: RecipeStep['station']) =>
-  station === 'furnace' ? count(s, 'furnace') > 0 : recipeStationReady(s, station)
+  station === 'furnace' ? !!s.freeResources || count(s, 'furnace') > 0 : recipeStationReady(s, station)
 
 const sourceHints: Record<string, string> = {
   flint: '在沙滩、隐蔽河岸或洞穴的砂砾中寻找燧石。',
-  obsidian: '在主世界用水冷却岩浆源。要把黑曜石收入背包，用钻石镐或下界合金镐开采。要建门，在采集页选择「就地浇筑一块门框」，也可以用背包里的黑曜石补齐。新门框需 10 块，废弃门框补 4 块，最后用打火石点燃。',
+  obsidian: '用水冷却岩浆，再用钻石镐或下界合金镐开采黑曜石。建门时可直接浇筑一块门框。有水源或岩浆源时，只需带另一种液体。余下部分也可用背包里的黑曜石补齐。新门框需 10 块，废弃门框补 4 块，最后用打火石点燃。',
   elytra: '击败末影龙后，到村庄的「远征」页组织「搜寻末地船」。首次完成可获得鞘翅。',
   awkward_potion: '加入闪烁的西瓜片可酿治疗药水，加入河豚可酿水肺药水，加入岩浆膏可酿抗火药水。',
   blaze_powder: '可用来制作末影之眼，也可作为酿造台燃料。一份烈焰粉可酿 20 批。',

@@ -25,9 +25,9 @@ export function Crafting({ target }: { target?: RecipeTarget }) {
     setCurrentTarget(target)
   }, [target])
   const tabs: [string, string, boolean][] = [
-    ['craft', count(s, 'table') > 0 ? '工作台' : '徒手合成', true],
-    ['furnace', '熔炉', !!s.flags.furnace],
-    ['enchant', '附魔', !!s.flags.enchant],
+    ['craft', recipeStationReady(s, 'table') ? '工作台' : '徒手合成', true],
+    ['furnace', '熔炉', !!s.freeResources || !!s.flags.furnace],
+    ['enchant', '附魔', !!s.freeResources || !!s.flags.enchant],
     ['bag', '背包', true],
   ]
   const cur = tabs.find(([id, , ok]) => id === sub && ok) ? sub : 'craft'
@@ -52,7 +52,7 @@ export function Crafting({ target }: { target?: RecipeTarget }) {
 function CraftList({ focusId }: { focusId?: string }) {
   const s = useGame()
   const [category, setCategory] = useState<Cat | 'all'>('all')
-  const hasTable = count(s, 'table') > 0
+  const hasTable = recipeStationReady(s, 'table')
   const unlocked = RECIPES.filter((recipe) => recipe.id === focusId || (recipeStationReady(s, recipe.station) &&
     recipeOptions(s, recipe.out).some((step) => step.kind === 'craft' && step.id === recipe.id)))
   const showFilters = unlocked.length > 18
@@ -83,11 +83,12 @@ function CraftList({ focusId }: { focusId?: string }) {
         const grid = <div className="entry-grid" key={station}>
           {recipes.map(recipe => <CraftEntry key={recipe.id} recipe={recipe} focused={recipe === focused} />)}
         </div>
-        if (station !== 'brewing' && station !== 'smithing') return grid
-        return <Section key={station} title={STATION_NAMES[station]}
-          extra={station === 'brewing' ? `剩余燃料 ${s.brewingFuel} 批` : undefined}>
-          {station === 'brewing' && <p className={brewingCapacity(s) ? 'sm dim' : 'sm bad'}>
-            燃料用尽时自动补充烈焰粉，每份可酿 20 批。
+        if (station === 'table' && groups.size === 1) return grid
+        const title = station === 'brewing' || station === 'smithing' ? STATION_NAMES[station] : (hasTable ? '工作台' : '徒手合成')
+        return <Section key={station} title={title}
+          extra={station === 'brewing' && !s.freeResources ? `剩余燃料 ${s.brewingFuel} 批` : undefined}>
+          {station === 'brewing' && !s.freeResources && <p className="notice">
+            {brewingCapacity(s) ? '燃料用尽时自动补充烈焰粉，每份可酿 20 批。' : <span className="bad">缺少燃料，每份烈焰粉可酿 20 批。</span>}
           </p>}
           {grid}
         </Section>
@@ -130,7 +131,7 @@ function Furnace({ focusId }: { focusId?: string }) {
   const s = useGame()
   const job = s.furnace.job
   const jobDef = job && SMELTS.find((x) => x.id === job.r)
-  const hasFuel = s.furnace.fuel >= 1
+  const hasFuel = s.freeResources || s.furnace.fuel >= 1
   const outputIssue = furnaceOutputBlocked(s)
   const away = job?.locId !== undefined && job.locId !== s.locId
   const fuels = Object.keys(FUELS)
@@ -138,12 +139,12 @@ function Furnace({ focusId }: { focusId?: string }) {
     .map((id) => ({ id, quantity: available(s, id) }))
     .filter(({ quantity }) => quantity > 0)
   const smelts = SMELTS.map((recipe) => ({ recipe, have: available(s, recipe.from) }))
-    .filter(({ have }) => have > 0)
+    .filter(({ have }) => s.freeResources || have > 0)
   const focused = focusId && smelts.find(({ recipe }) => recipe.id === focusId)
   const list = focused ? [focused, ...smelts.filter((entry) => entry !== focused)] : smelts
   return (
     <>
-      <Section title="炉膛" extra={`燃料 ${s.furnace.fuel}`}>
+      <Section title="炉膛" extra={s.freeResources ? '免燃料' : `燃料 ${s.furnace.fuel}`}>
         <div className="furnace-workspace">
           {job && jobDef ? (
             <>
@@ -161,10 +162,10 @@ function Furnace({ focusId }: { focusId?: string }) {
               {outputIssue && <span className="bad">{outputIssue}</span>}
             </>
           ) : (
-            <span className="dim sm">炉膛是空的。每熔炼一件物品消耗 1 点燃料。</span>
+            <span className="dim sm">炉膛是空的。{s.freeResources ? '可以直接选择熔炼配方。' : '每熔炼一件物品消耗 1 点燃料。'}</span>
           )}
           {(job || fuels.length > 0) && <ActionGrid>
-            {job && <Btn disabled={away} onClick={s.cancelSmelt}>取出原料</Btn>}
+            {job && <Btn disabled={away} onClick={s.cancelSmelt}>{s.freeResources ? '取消熔炼' : '取出原料'}</Btn>}
             {fuels.map(({ id, quantity }) => {
               const name = id === 'wood' ? '原木' : id === 'plank' ? '木板' : ITEMS[id].name
               return (
@@ -189,11 +190,11 @@ function Furnace({ focusId }: { focusId?: string }) {
                   <span className="sm dim">{r.time} 秒</span>
                 </div>
                 <div className="smelt-footer">
-                  <span className="tag material-tag">原料 {have}</span>
+                  <span className="tag material-tag">{s.freeResources ? '免原料' : `原料 ${have}`}</span>
                   <div className="entry-actions">
                     <Btn disabled={blocked} onClick={() => s.smelt(r.id, 1)}>×1</Btn>
                     <Btn disabled={blocked} onClick={() => s.smelt(r.id, 8)}>×8</Btn>
-                    <Btn disabled={blocked} onClick={() => s.smelt(r.id, have)}>全部</Btn>
+                    {!s.freeResources && <Btn disabled={blocked} onClick={() => s.smelt(r.id, have)}>全部</Btn>}
                   </div>
                 </div>
               </article>
@@ -232,7 +233,7 @@ function Enchant() {
           const lvl = s.ench[e.id] ?? 0
           const cost = enchantCost(s, e.id)
           const maxed = lvl >= e.max
-          const ok = !maxed && s.level >= cost.levels && available(s, 'lapis') >= cost.lapis
+          const ok = !maxed && (s.freeResources || s.level >= cost.levels && available(s, 'lapis') >= cost.lapis)
           return (
             <article key={e.id} className="content-entry">
               <EntryHeader actions={
@@ -244,7 +245,7 @@ function Enchant() {
               <span className="sm dim">{e.desc}</span>
               {!maxed && (
                 <div className="cost">
-                  <span className={`tag material-tag${s.level >= cost.levels ? '' : ' bad'}`}>等级 {s.level}/{cost.levels}</span>
+                  {s.freeResources ? <span className="tag g">免等级消耗</span> : <span className={`tag material-tag${s.level >= cost.levels ? '' : ' bad'}`}>等级 {s.level}/{cost.levels}</span>}
                   <Cost cost={{ lapis: cost.lapis }} />
                 </div>
               )}

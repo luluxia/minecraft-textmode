@@ -6,7 +6,7 @@ import { Button } from './components/minecraft/button'
 import { Texture } from './ui/Texture'
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { ITEM_CATEGORIES, ITEM_LIST, ITEMS, MOBS, itemCostText } from './game/data'
-import { canBreatheUnderwater, combatInterval, dragonLanded, nextStrike, combatMaxHp, count, dayOf, hourOf, isNight, useGame } from './game/store'
+import { canBreatheUnderwater, combatInterval, dragonLanded, nextStrike, combatMaxHp, canUseItem, count, dayOf, hourOf, isNight, useGame } from './game/store'
 import type { RecipeTarget } from './game/recipes'
 import { Adventure } from './ui/Adventure'
 import { ActionGrid } from './ui/ActionGrid'
@@ -34,7 +34,7 @@ export function App() {
   const [bookItem, setBookItem] = useState<string>()
   const [recipeTarget, setRecipeTarget] = useState<RecipeTarget>()
   const [menu, setMenu] = useState<GameMenu | 'debug' | null>(null)
-  const [debugActive, setDebugActive] = useState(false)
+  const debugActive = useGame((s) => !!s.freeResources)
   const [worldRevision, setWorldRevision] = useState(0)
   const [showSwipeGuide, setShowSwipeGuide] = useState(false)
   const closeMenu = () => setMenu(null)
@@ -81,11 +81,11 @@ export function App() {
 
   const tabs: [string, string, boolean][] = [
     ['adventure', '冒险', true],
-    ['crafting', '制造', !!flags.inv],
+    ['crafting', '制造', debugActive || !!flags.inv],
     ['village', '村庄', !!flags.metVillage || villagers !== null],
   ]
   const cur = tabs.find(([id, , ok]) => id === tab && ok) ? tab : 'adventure'
-  const early = !flags.inv && !flags.metVillage && villagers === null
+  const early = !debugActive && !flags.inv && !flags.metVillage && villagers === null
 
   return (
     <div className="app">
@@ -122,7 +122,7 @@ export function App() {
         <div className="sidebar-column sidebar-right">
           <div className="toolbar" role="group" aria-label="游戏菜单">
             {import.meta.env.DEV && debugActive && (
-              <Btn className="toolbar-button on" onClick={() => setMenu('debug')}>Debug</Btn>
+              <Btn className="toolbar-button on" onClick={() => setMenu('debug')}>作弊模式</Btn>
             )}
             <Button className="btn toolbar-button" aria-label="配方书" title="配方书" onClick={() => openBook()}>
               <Texture src="/textures/icons-essential/Book.png" />
@@ -152,7 +152,7 @@ export function App() {
       {import.meta.env.DEV && menu === 'debug' && (
         <GameDialog label="Debug" onClose={closeMenu}>
           <h2>Debug</h2>
-          <DebugPanel active={debugActive} onChange={setDebugActive} onWorldChange={showAdventure} />
+          <DebugPanel active={debugActive} onWorldChange={showAdventure} />
           <ActionGrid><Btn onClick={closeMenu}>关闭</Btn></ActionGrid>
         </GameDialog>
       )}
@@ -237,7 +237,7 @@ function CombatModal() {
   const c = s.combat
   if (!c) return null
   const m = MOBS[c.mob]
-  const food = ITEM_LIST.filter((i) => i.food && i.id !== 'rotten' && count(s, i.id) > 0).sort((a, b) => b.food! - a.food!)[0]
+  const food = ITEM_LIST.filter((i) => i.food && i.id !== 'rotten' && canUseItem(s, i.id)).sort((a, b) => b.food! - a.food!)[0]
   const maxHp = combatMaxHp(c)
   const mobHealth = `${Math.max(0, c.hp)} / ${maxHp}`
   const mobHp = Math.min(maxHp, Math.max(0, c.hp))
@@ -262,19 +262,19 @@ function CombatModal() {
       <ActionGrid>
         <Btn cd="attack" className="primary" onClick={c.crystals ? s.breakCrystal : s.attack}
           sub={c.crystals ? '剩余 ' + c.crystals + ' 座' : undefined}>{c.crystals ? '击碎末地水晶' : c.mob === 'creaking' ? c.heartLocated ? '破坏嘎枝之心' : '寻找嘎枝之心' : '攻击'}</Btn>
-        {count(s, 'shield') > 0 && <Btn cd="block" onClick={s.block} sub="持续 4 秒">举盾</Btn>}
+        {canUseItem(s, 'shield') && <Btn cd="block" onClick={s.block} sub="持续 4 秒">举盾</Btn>}
         {food && <Btn cd="eat" disabled={s.hunger >= 20 && s.hp >= 20} onClick={() => s.eat(food.id)} sub={`余 ${count(s, food.id)}`}>吃{food.name}</Btn>}
-        {count(s, 'potion') > 0 && <Btn cd="drink" disabled={s.hp >= 20} onClick={() => s.drink()} sub="回复 8 生命">治疗药水</Btn>}
-        {count(s, 'splash_healing') > 0 && <Btn cd="drink" disabled={s.hp >= 20} onClick={() => s.drink('splash_healing')} sub="回复 8 生命">喷溅型治疗药水</Btn>}
-        {count(s, 'lingering_healing') > 0 && <Btn cd="drink" disabled={s.hp >= 20} onClick={() => s.drink('lingering_healing')} sub="回复 12 生命">滞留型治疗药水</Btn>}
-        {['blaze', 'magma_cube', 'ghast'].includes(c.mob) && count(s, 'fire_resistance') > 0 && (
+        {canUseItem(s, 'potion') && <Btn cd="drink" disabled={s.hp >= 20} onClick={() => s.drink()} sub="回复 8 生命">治疗药水</Btn>}
+        {canUseItem(s, 'splash_healing') && <Btn cd="drink" disabled={s.hp >= 20} onClick={() => s.drink('splash_healing')} sub="回复 8 生命">喷溅型治疗药水</Btn>}
+        {canUseItem(s, 'lingering_healing') && <Btn cd="drink" disabled={s.hp >= 20} onClick={() => s.drink('lingering_healing')} sub="回复 12 生命">滞留型治疗药水</Btn>}
+        {['blaze', 'magma_cube', 'ghast'].includes(c.mob) && canUseItem(s, 'fire_resistance') && (
           <Btn cd="drink" disabled={fireWard} onClick={() => s.drink('fire_resistance')} sub={fireWard ? '抗火生效中' : '减轻火焰伤害'}>抗火药水</Btn>
         )}
-        {count(s, 'wind_charge') > 0 && <Btn cd="gust" onClick={s.gust} sub={count(s, 'mace') ? '强化下一击' : '打断敌人'}>投掷风弹</Btn>}
-        {c.mob === 'dragon' && count(s, 'bottle') > 0 && !c.breathTaken && (
+        {canUseItem(s, 'wind_charge') && <Btn cd="gust" onClick={s.gust} sub={count(s, 'mace') ? '强化下一击' : '打断敌人'}>投掷风弹</Btn>}
+        {c.mob === 'dragon' && canUseItem(s, 'bottle') && !c.breathTaken && (
           <Btn disabled={c.turn < 4} onClick={s.bottleBreath} sub={c.turn < 4 ? '等待龙息落下' : itemCostText({ bottle: 1 })}>收集龙息</Btn>
         )}
-        {s.submerged && count(s, 'water_breathing') > 0 && (
+        {s.submerged && canUseItem(s, 'water_breathing') && (
           <Btn cd="drink" disabled={canBreatheUnderwater(s)} onClick={s.drinkWaterBreathing}>水肺药水</Btn>
         )}
         {s.submerged

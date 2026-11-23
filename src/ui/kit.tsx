@@ -3,7 +3,7 @@ import { Button } from '../components/minecraft/button'
 import { Texture } from './Texture'
 import { useLayoutEffect, useRef, useState, type ReactNode } from 'react'
 import { ITEMS, type Bag, type IngredientAlternatives } from '../game/data'
-import { available, useGame } from '../game/store'
+import { available, gameTimer, useGame } from '../game/store'
 
 export function LocationName({ name }: { name: string }) {
   const suffix = / #?([2-9]|[1-9]\d+)(。?)$/.exec(name)
@@ -25,7 +25,7 @@ interface BtnProps {
 
 /** 带冷却遮罩的按钮：cd 为 store 中的冷却键 */
 export function Btn({ cd, onClick, disabled, children, sub, title, 'aria-label': ariaLabel, 'aria-pressed': ariaPressed, className = '' }: BtnProps) {
-  const info = useGame((s) => (cd ? s.cds[cd] : undefined))
+  const info = useGame((s) => (cd ? gameTimer(s, cd) : undefined))
   const mask = useRef<HTMLSpanElement>(null)
   const [, refresh] = useState(0)
   const cooling = info !== undefined && info.until > Date.now()
@@ -90,6 +90,7 @@ export function Bar({ value, max, color, label, valueText }: { value: number; ma
 
 export function Cost({ cost, alternatives }: { cost: Bag; alternatives?: IngredientAlternatives }) {
   const s = useGame()
+  if (s.freeResources) return <span className="tag g">免材料</span>
   return (
     <div className="cost">
       {Object.entries(cost).map(([k, n]) => {

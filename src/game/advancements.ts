@@ -115,7 +115,7 @@ export const STORY: Milestone[] = [
   },
   {
     id: 'nether', requires: ['iron-pick'], title: '勇往直下', icon: netherPortal,
-    hint: ['在主世界用水冷却岩浆源，选择「就地浇筑一块门框」。也可用', diamondPick, '采走', obsidian, '，从背包补齐余下部分。新门框共需 10 块，废弃门框补 4 块。用', item('flint_and_steel', 'equipment'), '点燃', netherPortal, '并进入下界。'],
+    hint: ['在主世界用水和岩浆逐块浇筑门框。也可用', diamondPick, '采走', obsidian, '，从背包补齐余下部分。新门框共需 10 块，废弃门框补 4 块。用', item('flint_and_steel', 'equipment'), '点燃', netherPortal, '并进入下界。'],
     complete: (s) => !!s.flags.enteredNether || !!s.flags.altar,
   },
   {
