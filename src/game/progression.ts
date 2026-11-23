@@ -1,6 +1,6 @@
 import type { Bag } from './data'
 
-export const NETHER_COST: Bag = { obsidian: 10, iron: 1 }
+export const NETHER_COST: Bag = { obsidian: 10 }
 export const WITHER_COST: Bag = { wither_skull: 3, soul_sand: 4 }
 export const RESPAWN_COST: Bag = { end_crystal: 4 }
 export const TRIAL_VAULTS: { id: 'normal' | 'ominous'; name: string; cost: Bag; reward: Bag; flag: string }[] = [
@@ -37,7 +37,7 @@ export const LINES: Line[] = [
   { id: 'kiln', name: '玻璃窑', input: { sand: 4, charcoal: 1 }, output: { glass: 4 }, seconds: 30 },
   { id: 'copper_blast', name: '铜熔炼线', input: { copper_ore: 4, coal: 1 }, output: { copper: 4 }, seconds: 28 },
   { id: 'waxing', name: '涂蜡线', input: { copper_block: 1, honeycomb: 1 }, output: { waxed_copper: 1 }, seconds: 20, building: 'crafter' },
-  { id: 'honey_bottler', name: '蜂场装瓶', input: { honeycomb: 2, bottle: 1 }, output: { honey: 1 }, seconds: 30, building: 'apiary' },
+  { id: 'honey_bottler', name: '蜂场装瓶', input: { bottle: 1 }, output: { honey: 1 }, seconds: 30, building: 'apiary' },
   { id: 'brick_kiln', name: '制砖窑', input: { clay: 4, coal: 1 }, output: { brick_block: 1 }, seconds: 24 },
   { id: 'potato_oven', name: '马铃薯烤炉', input: { potato: 4, charcoal: 1 }, output: { baked_potato: 4 }, seconds: 24 },
   { id: 'pastry', name: '甜点工坊', input: { pumpkin: 1, sugar: 1, egg: 1 }, output: { pumpkin_pie: 1 }, seconds: 28, building: 'crafter' },
@@ -77,7 +77,7 @@ export const EXPEDITIONS: ExpeditionDef[] = [
   { id: 'ocean_monument', name: '探访海底神殿', desc: '备好水肺药水，或带上潮涌核心。远征队可带回海晶材料和湿海绵。', cost: { bread: 8 }, reward: { prismarine_shard: 16, prismarine_crystal: 12, wet_sponge: 6, gold: 6 }, seconds: 420, xp: 35, region: 'ocean', tool: 'boat', after: 'buried_treasure', breathing: true },
   { id: 'hatch_sniffer', name: '孵化嗅探兽', desc: '在营地孵化嗅探兽蛋，等它首次找到远古植物的种子。', cost: { sniffer_egg: 1 }, reward: { torchflower_seed: 2, pitcher_pod: 2 }, seconds: 150, xp: 10, region: 'camp', after: 'warm_ruins' },
   { id: 'bridge', name: '架桥渡过虚空', desc: '架设栈桥，在最近的末地城搜寻潜影壳，顺路采集末地石。', cost: { cobble: 48, bread: 4 }, reward: { shulker_shell: 4, end_stone: 8, chorus_fruit: 8 }, seconds: 180, xp: 12, region: 'end' },
-  { id: 'city', name: '搜寻末地船', desc: '带着末影珍珠穿过塔楼，寻找末地船留下的宝藏。', cost: { pearl: 2, bread: 8, glass: 8 }, reward: { shulker_shell: 8, diamond: 4, chorus_flower: 2, end_stone: 12 }, first: { elytra: 1 }, seconds: 420, xp: 24, region: 'end' },
+  { id: 'city', name: '搜寻末地船', desc: '带着末影珍珠穿过塔楼登上末地船。首次远征带回鞘翅。', cost: { pearl: 2, bread: 8, glass: 8 }, reward: { shulker_shell: 8, diamond: 4, chorus_flower: 2, end_stone: 12 }, first: { elytra: 1 }, seconds: 420, xp: 24, region: 'end' },
   { id: 'flight', name: '飞往远端群岛', desc: '用鞘翅越过虚空，探索栈桥触及不到的岛屿。', cost: { bread: 12, paper: 16, gold: 4 }, reward: { shulker_shell: 16, diamond: 10, emerald: 10, chorus_fruit: 16, end_stone: 16 }, seconds: 720, xp: 50, region: 'end', tool: 'elytra' },
   { id: 'chorus_grove', name: '绘制紫颂林地图', desc: '带着末影箱建立补给点，回收紫颂花和潜影壳。', cost: { purpur: 8, bread: 8, end_stone: 6 }, reward: { chorus_flower: 5, chorus_fruit: 24, shulker_shell: 8, pearl: 4 }, seconds: 600, xp: 40, region: 'end', tool: 'ender_chest', after: 'flight' },
 ]

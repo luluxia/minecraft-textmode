@@ -8,7 +8,7 @@ import { wildlifeAt, WILDLIFE } from '../game/wildlife'
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '../components/minecraft/collapsible'
 import { Input } from '../components/minecraft/input'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/minecraft/tabs'
-import { available, canAfford, outputRoom, useGame } from '../game/store'
+import { brewingCapacity, available, canAfford, outputRoom, useGame } from '../game/store'
 import { LocationName, Btn, IngredientName, ItemName } from './kit'
 import { Texture } from './Texture'
 
@@ -131,6 +131,7 @@ function ItemDetail({ item, onBack, onSelect, onMake }: {
 }) {
   const s = useGame()
   const def = ITEMS[item]
+  const held = available(s, item, { [item]: [item] })
   const uses = recipeUses(s, item)
   const hasRecipe = recipeOptions(s, item).length > 0
   return (
@@ -144,7 +145,7 @@ function ItemDetail({ item, onBack, onSelect, onMake }: {
             <span className="tag">{CATEGORY_NAMES[def.cat]}</span>
             {s.seen[item] ? <span className="tag g">已收录</span> : <span className="tag">未收录</span>}
             {!!def.food && <span className="tag y">饱食 +{def.food}</span>}
-            {available(s, item) > 0 && <span className="tag">持有 {available(s, item)}</span>}
+            {held > 0 && <span className="tag">持有 {held}</span>}
           </div>
         </div>
       </header>
@@ -181,7 +182,7 @@ function RecipeDetails({ item, needed, ancestors, onMake }: {
   const batches = step ? Math.ceil(needed / step.amount) : 0
   const cost = step ? Object.fromEntries(Object.entries(step.cost).map(([id, n]) => [id, n * batches])) : {}
   const stationReady = step ? canUseStation(s, step.station) : false
-  const canMake = step && !s.combat && !s.submerged && stationReady &&
+  const canMake = step && !s.combat && !s.submerged && stationReady && (step.station !== 'brewing' || brewingCapacity(s) >= batches) &&
     canAfford(s, cost, step.alternatives) && outputRoom(s, step.out) >= step.amount
   const sources = [
     ['库存', source.stored],
@@ -196,6 +197,7 @@ function RecipeDetails({ item, needed, ancestors, onMake }: {
             <span className="recipe-station-info">
               <span className={stationReady ? undefined : 'bad'}>{STATION_NAMES[step.station]}</span>
               <span className="dim">产出 ×{batches * step.amount}</span>
+              {step.station === 'brewing' && <span className="dim">燃料：烈焰粉（每份 20 批）</span>}
               {!stationReady && <span className="bad">（缺少工作站）</span>}
             </span>
             {canMake && onMake && <Btn className="mini primary" onClick={() => onMake(step)}>前往制造</Btn>}

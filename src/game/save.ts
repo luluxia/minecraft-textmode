@@ -1,3 +1,4 @@
+import { consolidateGear } from './inventory'
 import { companionIds } from './wildlife'
 import { arriveAtVillage } from './village'
 import { BIOMES, BUILDING_MAP, ENCHANTS, EYES_NEEDED, ITEMS, JOB_MAP, MOBS, SMELTS, type Bag } from './data'
@@ -10,7 +11,7 @@ import { PACK_LIMIT, addStock, carriesLimit, room } from './inventory'
 import type { GameState, Loc } from './store'
 
 export const SAVE_KEY = 'block-idle-save'
-export const SAVE_VERSION = 14
+export const SAVE_VERSION = 17
 export type SaveSnapshot = GameState
 
 type Fields = Record<string, unknown>
@@ -68,6 +69,9 @@ export function normalizeSave(input: unknown, version: number, defaults: GameSta
     (loc.shaftsLeft === undefined || integer(loc.shaftsLeft, 2)) &&
     (loc.marked === undefined || boolean(loc.marked)) &&
     (loc.variant === undefined || (typeof loc.variant === 'string' && Object.hasOwn(VARIANT_NAMES, loc.variant))) &&
+    (loc.castBlocks === undefined || integer(loc.castBlocks, 9)) &&
+    (loc.cooledBlocks === undefined || integer(loc.cooledBlocks)) &&
+    (loc.netherGate === undefined || boolean(loc.netherGate) || loc.netherGate === 'frame') &&
     (loc.chest === undefined || boolean(loc.chest)) &&
     (loc.villageLayout === undefined || (loc.biome === 'village' && record(loc.villageLayout) &&
       integer(loc.villageLayout.villagers, 1000) && loc.villageLayout.villagers >= 1 &&
@@ -102,7 +106,7 @@ export function normalizeSave(input: unknown, version: number, defaults: GameSta
   if (s.homeId === null && s.village !== null) return null
   if (s.village !== null) {
     const v = s.village
-    if (!record(v) || !integer(v.villagers, 1000) || !integer(v.rep) || !boolean(v.founded) ||
+    if (!record(v) || (v.honeyTicks !== undefined && !integer(v.honeyTicks, 12000)) || !integer(v.villagers, 1000) || !integer(v.rep) || !boolean(v.founded) ||
       !boolean(v.mayor) || !bag(v.buildings, known(BUILDING_MAP), (n) => integer(n, 100)) ||
       !bag(v.jobs, known(JOB_MAP), (n) => integer(n, 1000))) return null
   }
@@ -130,6 +134,7 @@ export function normalizeSave(input: unknown, version: number, defaults: GameSta
       (c.breathTaken !== undefined && (c.mob !== 'dragon' || !boolean(c.breathTaken))) ||
       (s.submerged !== ['guardian', 'elder_guardian'].includes(c.mob))) return null
   }
+  if (!integer(s.brewingFuel, 19)) return null
   if (!record(s.furnace) || !integer(s.furnace.fuel)) return null
   if (s.furnace.job !== null) {
     const job = s.furnace.job
@@ -232,6 +237,14 @@ export function normalizeSave(input: unknown, version: number, defaults: GameSta
   }
   for (const bag of [s.inv, ...Object.values(s.locs).flatMap((loc) => [loc.stock, loc.pending])]) {
     for (const [item, amount] of Object.entries(bag ?? {})) if (amount > 0) s.seen[item] = true
+  }
+  consolidateGear(s.inv)
+  if (version < 15 && s.flags.nether) {
+    const origin = s.locs[s.homeId ?? 1]
+    if (origin) origin.netherGate = origin.saved = true
+    for (const loc of Object.values(s.locs)) {
+      if (['rift', 'warped'].includes(loc.biome)) loc.netherGate = loc.saved = true
+    }
   }
   if (s.flags.won && !s.seen.dragon_egg) {
     s.inv.dragon_egg = 1

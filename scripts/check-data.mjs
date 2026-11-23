@@ -64,6 +64,19 @@ for (const trip of EXPEDITIONS) {
    requirement = predecessor.after
  }
 }
+const recipeFor = (id) => RECIPES.find(recipe => recipe.id === id)
+assert.deepEqual(recipeFor('awkward_potion').cost, { water_bottle: 3, nether_wart: 1 })
+for (const [potion, ingredient] of [['potion', 'glistering_melon_slice'], ['water_breathing', 'pufferfish'], ['fire_resistance', 'magma_cream']]) {
+ assert.deepEqual(recipeFor(potion).cost, { awkward_potion: 3, [ingredient]: 1 })
+}
+assert.deepEqual(recipeFor('plank').alternatives.wood, ['wood'])
+assert.deepEqual(recipeFor('shulker_box').cost, { chest: 1, shulker_shell: 2 })
+assert.equal(recipeFor('elytra'), undefined)
+assert.equal(EXPEDITIONS.find(trip => trip.id === 'city').first.elytra, 1)
+assert.equal(BUILDING_MAP.beacon.cost.iron_block, 9)
+assert.equal(BUILDING_MAP.cobblegen.cost.lava_bucket, 1)
+assert.equal(BUILDING_MAP.cobblegen.cost.water_bucket, 1)
+assert.deepEqual(LINES.find(line => line.id === 'honey_bottler').input, { bottle: 1 })
 assert.equal(RECIPES.find((recipe) => recipe.id === 'conduit').cost.nautilus, 8)
 assert.equal(RECIPES.find((recipe) => recipe.id === 'pick_netherite').station, 'smithing')
 assert.equal(TRIAL_VAULTS.find((vault) => vault.id === 'ominous').reward.heavy_core, 1)

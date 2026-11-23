@@ -85,7 +85,7 @@ export function loadDebugScenario(id: DebugScenario) {
     return
   }
 
-  addStock(s, { pick_diamond: 1, sword_diamond: 1, armor_diamond: 1, diamond: 24, potion: 4, brewing_stand: 1 })
+  addStock(s, { flint_and_steel: 1, pick_diamond: 1, sword_diamond: 1, armor_diamond: 1, diamond: 24, potion: 4, brewing_stand: 1 })
   if (id === 'endgame' || id === 'complete') {
     addStock(s, { dragon_egg: 1, nether_star: 1, shulker_shell: 12, pearl: 8, elytra: 1 })
     s.village.villagers = 8
@@ -101,6 +101,7 @@ export function loadDebugScenario(id: DebugScenario) {
   }
   useGame.setState(s)
   useGame.getState().buildNether()
+  useGame.getState().igniteNether()
   if (id === 'nether') return
 
   useGame.setState((draft) => {

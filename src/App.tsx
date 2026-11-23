@@ -136,6 +136,9 @@ export function App() {
             <Button className="btn toolbar-button" aria-label="设置" title="设置" onClick={() => setMenu('settings')}>
               <Texture src="/textures/icons-essential/Gear.png" />
             </Button>
+            <Button className="btn toolbar-button" aria-label="关于" title="关于" onClick={() => setMenu('about')}>
+              <Texture src="/textures/icons-essential/Info.png" />
+            </Button>
           </div>
           {!early && <Sidebar />}
         </div>

@@ -1,4 +1,23 @@
-import { ITEMS, type Bag, type IngredientAlternatives } from './data'
+import { ITEMS, PICKS, type Bag, type IngredientAlternatives } from './data'
+
+const armorTiers = ['leather', 'iron', 'diamond', 'netherite']
+export const armorFamilies = ['armor', 'helmet', 'leggings', 'boots'].map(slot => armorTiers.map(tier => slot + '_' + tier))
+const families = [PICKS, PICKS.map(id => id.replace('pick_', 'sword_')),
+  ['axe_stone', 'axe_iron', 'axe_diamond', 'axe_netherite'], ...armorFamilies]
+
+export function ownsUpgrade(bag: Bag, item: string) {
+  const family = families.find(group => group.includes(item))
+  return family ? family.slice(family.indexOf(item)).some(id => bag[id] > 0) : bag[item] > 0
+}
+
+export function consolidateGear(bag: Bag) {
+  for (const family of families) {
+    const best = family.filter(id => bag[id] > 0).pop()
+    if (!best) continue
+    bag[best] = 1
+    for (const id of family.slice(0, family.indexOf(best))) delete bag[id]
+  }
+}
 
 export const PACK_LIMIT = 64
 export const CHEST_LIMIT = 160

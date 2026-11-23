@@ -33,7 +33,7 @@ export const SITES: Record<string, Site> = {
   thicket: { prefix: '莓丛', name: '野果灌木', hint: '灌木间有鸟啄过的痕迹', actions: ['gather_wild_berries'], resource: { id: 'wild_berries', range: [2, 4] } },
   outcrop: { prefix: '裸岩', name: '石料露头', hint: '地面散着碎石', actions: ['mine_stone'] },
   road: { prefix: '车辙', name: '旧车辙', hint: '草地上有两道凹痕' },
-  bank: { prefix: '河湾', name: '隐蔽河岸', hint: '能听见水声', actions: ['gather_cane', 'fish'] },
+  bank: { prefix: '河湾', name: '隐蔽河岸', hint: '能听见水声', actions: ['gather_cane', 'fish', 'search_gravel'] },
   campsite: { prefix: '营火', name: '废弃营地', hint: '倒木后露出一角旧草床', actions: ['search_campsite'], resource: { id: 'camp_supplies', range: [1, 1] } },
   traveler: { prefix: '驿路', name: '落脚的旅人', hint: '附近传来整理行装的声音', actions: ['meet_traveler'] },
   ore: { prefix: '铁脉', name: '浅层矿脉', hint: '岩石间泛着锈迹', actions: ['mine_iron'], resource: { id: 'iron', range: [4, 7] } },

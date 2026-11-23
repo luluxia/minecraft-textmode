@@ -15,7 +15,7 @@ import { Texture } from './Texture'
 import { Bar, Btn, EntryHeader } from './kit'
 import { UI_SCALES, useInterfaceSettings } from './interfaceSettings'
 
-const JOURNAL_TITLES = { catalog: '配方书', achievements: '成就', stats: '统计', settings: '设置' } as const
+const JOURNAL_TITLES = { catalog: '配方书', achievements: '成就', stats: '统计', settings: '设置', about: '关于' } as const
 export type GameMenu = keyof typeof JOURNAL_TITLES
 
 const ACHIEVEMENT_TABS = [
@@ -72,7 +72,12 @@ export function JournalModal({ menu, onClose, onDebug, bookItem, onRecipe }: {
   const s = useGame()
   const title = JOURNAL_TITLES[menu]
   return (
-    <GameDialog label={title} onClose={onClose} className={`journal-dialog ${menu}-dialog`} showHeader>
+    <GameDialog label={title} onClose={onClose} className={menu === 'about' ? 'about-dialog' : `journal-dialog ${menu}-dialog`} showHeader>
+      {menu === 'about' && <>
+        <img className="about-logo" src="/logo/minecraft-text-mode.png" width="2006" height="397" alt="我的世界：文字模式" />
+        <p>从初生森林出发，采集、合成，建起自己的村庄。在这款文字放置游戏里，你还可以穿过下界，前往末地挑战末影龙。</p>
+        <a className="about-source" href="https://github.com/luluxia/minecraft-textmode" target="_blank" rel="noopener noreferrer">GitHub 源码 · luluxia/minecraft-textmode</a>
+      </>}
       {menu === 'catalog' && <RecipeBook key={bookItem} initialItem={bookItem} onMake={onRecipe} />}
       {menu === 'settings' && <SaveSettings onClose={onClose} onDebug={onDebug} />}
       {menu === 'achievements' && <Achievements />}

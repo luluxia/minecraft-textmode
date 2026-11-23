@@ -6,7 +6,7 @@ import {
   BUILDINGS, BUILDING_MAP, CONTROL_REP, ITEMS, JOBS, MAYOR_POP, MAYOR_REP, TRADES, repTier, villageLevel,
 } from '../game/data'
 import {
-  activeLines, attackPower, atHome, buildCost, canAfford, canControl, canVisitMarket, curLoc, marketReputation, count, cropMultiplier, defensePower, employed,
+  localLine, activeLines, attackPower, atHome, buildCost, canAfford, canControl, canVisitMarket, curLoc, marketReputation, count, cropMultiplier, defensePower, employed,
   expeditionCost, expeditionLock, expeditionTime, expeditionVisible, housing,
   jobSlots, lineIssue, lineLimit, mayBuildVillage, monumentReady, villageGrowthReady, production, raidStrength, recruitTime, useGame, villageCap, villageDefense, wheatDemand,
 } from '../game/store'
@@ -169,7 +169,13 @@ export function Village() {
                   <span className="sm dim">{b.desc}</span>
                   {locked && <span className="sm bad">需要成为村长、点亮信标并完成远端群岛远征。</span>}
                   {missingTool && <span className="sm bad">需要{missingTool}</span>}
-                  <Cost cost={cost} />
+                  {b.id === 'beacon' ? <>
+                    <span className="sm">信标本体</span>
+                    <Cost cost={{ nether_star: cost.nether_star, glass: cost.glass, obsidian: cost.obsidian }} />
+                    <span className="sm">3 × 3 铁块基座</span><Cost cost={{ iron_block: cost.iron_block }} />
+                  </> : <Cost cost={cost} />}
+                  {b.id === 'apiary' && !!v.buildings.apiary && <Btn disabled={!home || !!s.combat || (v.honeyTicks ?? 0) < 30 || !canAfford(s, { bottle: 1 })}
+                    onClick={s.bottleApiary} sub={'可装 ' + Math.floor((v.honeyTicks ?? 0) / 30) + ' 瓶 · 每瓶需要 1 个玻璃瓶'}>收取蜂蜜</Btn>}
                 </article>
               )
             })}
@@ -252,7 +258,8 @@ function Automation() {
   return (
     <Section title="红石产线" extra={active + '/' + cap}>
       <div className="entry-grid">
-        {LINES.filter((line) => line.id in s.lines || Object.keys(line.input).some((item) => s.seen[item])).map((line) => {
+        {LINES.filter((line) => line.id in s.lines || Object.keys(line.input).some((item) => s.seen[item])).map((def) => {
+          const line = localLine(s, def)
           const running = line.id in s.lines
           const issue = running ? lineIssue(s, line) : ''
           const building = line.building && !s.village?.buildings[line.building] ? BUILDINGS.find((entry) => entry.id === line.building) : undefined
@@ -269,7 +276,7 @@ function Automation() {
               {building && <span className="sm bad">需要{building.name}</span>}
               {issue && <span className="sm bad">{issue}</span>}
               <div className="item-flow">{bagText(line.output)}</div>
-              <Cost cost={line.input} />
+              {line.id === 'sawmill' ? <span className="sm dim">每份原木产出 4 块同树种木板</span> : <Cost cost={line.input} />}
             </article>
           )
         })}

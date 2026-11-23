@@ -5,8 +5,8 @@ import { Texture } from './Texture'
 import { useEffect, useState } from 'react'
 import { ActionGrid } from './ActionGrid'
 import { ENCHANTS, FUELS, ITEM_CATEGORIES, ITEMS, ITEM_LIST, RECIPES, SMELTS, type Cat, type Recipe } from '../game/data'
-import { PACK_LIMIT, carriesLimit, materialOptions } from '../game/inventory'
-import { available, canAfford, count, enchantCost, furnaceOutputBlocked, outputRoom, recipeStationReady, useGame } from '../game/store'
+import { PACK_LIMIT, carriesLimit, ownsUpgrade, materialOptions } from '../game/inventory'
+import { brewingCapacity, available, canAfford, count, enchantCost, furnaceOutputBlocked, outputRoom, recipeStationReady, useGame } from '../game/store'
 import { STATION_NAMES, recipeOptions, type RecipeTarget } from '../game/recipes'
 import { ActionTitle, Btn, Cost, EntryHeader, ItemName, Section } from './kit'
 import { useScrollReset } from './ScrollArea'
@@ -59,6 +59,13 @@ function CraftList({ focusId }: { focusId?: string }) {
   const filtered = showFilters && category !== 'all' ? unlocked.filter((recipe) => ITEMS[recipe.out].cat === category) : unlocked
   const focused = focusId ? unlocked.find((recipe) => recipe.id === focusId) : undefined
   const list = focused ? [focused, ...filtered.filter((recipe) => recipe !== focused)] : filtered
+  const groups = new Map<string, Recipe[]>()
+  for (const recipe of list) {
+    const group = recipe.station === 'hand' ? 'table' : recipe.station
+    const entries = groups.get(group)
+    if (entries) entries.push(recipe)
+    else groups.set(group, [recipe])
+  }
   return (
     <>
       {!hasTable && <p className="notice">双手能做的东西有限。先做一张工作台吧。</p>}
@@ -72,9 +79,20 @@ function CraftList({ focusId }: { focusId?: string }) {
         </div>
       )}
       {list.length === 0 && <p className="notice">还没有发现这类配方。</p>}
-      <div className="entry-grid">
-        {list.map((recipe) => <CraftEntry key={recipe.id} recipe={recipe} focused={recipe === focused} />)}
-      </div>
+      {Array.from(groups, ([station, recipes]) => {
+        const grid = <div className="entry-grid" key={station}>
+          {recipes.map(recipe => <CraftEntry key={recipe.id} recipe={recipe} focused={recipe === focused} />)}
+        </div>
+        if (station !== 'brewing' && station !== 'smithing') return grid
+        return <Section key={station} title={STATION_NAMES[station]}
+          extra={station === 'brewing' ? `剩余燃料 ${s.brewingFuel} 批` : undefined}>
+          {station === 'brewing' && <p className={brewingCapacity(s) ? 'sm dim' : 'sm bad'}>
+            燃料用尽时自动补充烈焰粉，每份可酿 20 批。
+          </p>}
+          {grid}
+        </Section>
+      })}
+
     </>
   )
 }
@@ -84,15 +102,16 @@ function CraftEntry({ recipe, focused }: { recipe: Recipe; focused: boolean }) {
   const { out, station, cost, alternatives } = recipe
   const def = ITEMS[out]
   const amount = count(s, out)
-  const unique = def.cat === 'tool' || def.cat === 'gear'
+  const unique = (def.cat === 'tool' || def.cat === 'gear') && out !== 'bucket'
+  const owned = unique && ownsUpgrade(s.inv, out)
   const full = outputRoom(s, out) < recipe.n
-  const ok = !s.combat && !s.submerged && !full && recipeStationReady(s, station) && canAfford(s, cost, alternatives)
+  const ok = !s.combat && !s.submerged && !full && (station !== 'brewing' || brewingCapacity(s) > 0) && recipeStationReady(s, station) && canAfford(s, cost, alternatives)
   const action = station === 'brewing' ? '酿造' : station === 'smithing' ? '升级' : '合成'
 
   return (
     <article className={focused ? 'content-entry recipe-focus' : 'content-entry fade-in'}>
       <EntryHeader actions={<>
-        {unique && amount > 0
+        {owned
           ? <span className="tag g">已拥有</span>
           : <Btn disabled={!ok} onClick={() => s.craft(recipe.id)}>{action}</Btn>}
         {!unique && <Btn disabled={!ok} onClick={() => s.craft(recipe.id, 10)}>×10</Btn>}
@@ -100,11 +119,9 @@ function CraftEntry({ recipe, focused }: { recipe: Recipe; focused: boolean }) {
         <span className="icon-text"><Texture src={def.icon} /> {def.name}{recipe.n > 1 ? ` ×${recipe.n}` : ''}</span>
       </EntryHeader>
       {!unique && <span className="sm dim">持有 {amount}</span>}
-      {(def.desc || station === 'brewing' || station === 'smithing') && (
-        <span className="sm dim">{station === 'brewing' || station === 'smithing' ? `${STATION_NAMES[station]} ` : ''}{def.desc}</span>
-      )}
+      {def.desc && <span className="sm dim">{def.desc}</span>}
       {full && <span className="bad">储存空间不足</span>}
-      <Cost cost={cost} alternatives={alternatives} />
+      {!owned && <Cost cost={cost} alternatives={alternatives} />}
     </article>
   )
 }

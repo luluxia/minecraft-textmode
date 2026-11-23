@@ -5,8 +5,8 @@ import {
 } from './progression'
 import { JOURNEY_COST, LEADS, NEARBY_COST, RETURN_COST, SITES, distinctLocationName, journeyDestination, journeyVariant, nearbySites } from './exploration'
 import {
-  CHEST_COST, CHEST_LIMIT, PACK_LIMIT, addStock, applyPayment, carriesLimit, hasStock,
-  materialQuantity, planPayment, quantity, room, takeStock, whole,
+  armorFamilies, consolidateGear, ownsUpgrade, CHEST_COST, CHEST_LIMIT, PACK_LIMIT, addStock, applyPayment, carriesLimit, hasStock,
+  materialOptions, materialQuantity, planPayment, quantity, room, takeStock, whole,
 } from './inventory'
 import { WILDLIFE, wildlifeAt } from './wildlife'
 import { achievementVisible, getAchievement, getCompletedAchievements } from './advancements'
@@ -22,8 +22,8 @@ import {
   TRADES, itemCostText, type Bag, type Drop, type IngredientAlternatives, type Recipe,
 } from './data'
 
-export interface Loc { id: number; biome: string; name: string; res: Bag; saved: boolean; shelter: boolean; metCompanions?: string[]; sites?: string[]; leads?: string[]; discovered?: number; marked?: boolean; variant?: string; chest?: boolean; shaftsLeft?: number; villageLayout?: VillageLayout; visitorRep?: number; growingCrop?: boolean; commissioned?: boolean; cleared?: boolean; lootTaken?: boolean; stock?: Bag; pending?: Bag }
-export interface Village { villagers: number; jobs: Bag; buildings: Bag; rep: number; founded: boolean; mayor: boolean }
+export interface Loc { id: number; biome: string; name: string; res: Bag; saved: boolean; shelter: boolean; castBlocks?: number; cooledBlocks?: number; netherGate?: boolean | 'frame'; metCompanions?: string[]; sites?: string[]; leads?: string[]; discovered?: number; marked?: boolean; variant?: string; chest?: boolean; shaftsLeft?: number; villageLayout?: VillageLayout; visitorRep?: number; growingCrop?: boolean; commissioned?: boolean; cleared?: boolean; lootTaken?: boolean; stock?: Bag; pending?: Bag }
+export interface Village { honeyTicks?: number; villagers: number; jobs: Bag; buildings: Bag; rep: number; founded: boolean; mayor: boolean }
 export interface Combat {
   mob: string
   hp: number
@@ -65,6 +65,7 @@ export interface GameState {
   loggedAchievements: Record<string, boolean>
   flags: Record<string, boolean>
   combat: Combat | null
+  brewingFuel: number
   furnace: { fuel: number; job: { r: string; left: number; prog: number; locId?: number } | null }
   ench: Bag
   village: Village | null
@@ -87,7 +88,12 @@ export interface GameActions {
   trackAchievement(id: string | null): void
   exploreNearby(): void
   survey(): void
+  bottleApiary(): void
+  carvePumpkin(): void
+  summonCopperGolem(): void
+  useBucket(action: BucketAction): void
   buildNether(): void
+  igniteNether(): void
   rest(): void
   plant(id?: string): void
   startTrial(ominous: boolean): void
@@ -210,6 +216,7 @@ export const attackPower = (s: GameState) =>
   1 + (SWORDS.find(([id]) => count(s, id) > 0)?.[1] ?? 0) + (s.ench.sharp ?? 0) +
   Number(!!s.flags.wildlife_wolf && !s.submerged) + Number(!!s.flags.wildlife_axolotl && s.submerged)
 export const defensePower = (s: GameState) =>
+  armorFamilies.slice(1).reduce((sum, family) => sum + Math.ceil((family.findIndex(id => count(s, id) > 0) + 1) / 2), 0) +
   (ARMORS.find(([id]) => count(s, id) > 0)?.[1] ?? 0) + (count(s, 'shield') > 0 ? 1 : 0) + (s.ench.prot ?? 0) + Number(!!s.flags.wildlife_wolf && !s.submerged && !!count(s, 'wolf_armor'))
 const netherElites = ['blaze', 'wither_skeleton', 'piglin_brute']
 export const combatInterval = (s: GameState, c: Combat) =>
@@ -243,8 +250,7 @@ export const canRetreat = (s: GameState, id: number) =>
 export const canCampHere = (loc: Loc) => !inNether(loc) && !['altar', 'trial_chamber', 'ancient_city', 'village', 'outpost', 'mansion', 'warm_ocean', 'cold_ocean', 'deep_ocean', 'monument'].includes(loc.biome)
 export const travelAllowed = (s: GameState, target: Loc) => {
   if (s.submerged || (!retainedLocation(target) && target.id !== s.previousLocId)) return false
-  if (!s.flags.nether || s.homeId === null || inNether(curLoc(s)) === inNether(target)) return true
-  return inNether(target) ? atHome(s) : target.id === s.homeId
+  return inNether(curLoc(s)) === inNether(target) || !!(s.flags.nether && curLoc(s).netherGate === true && target.netherGate === true)
 }
 export const marketReputation = (s: GameState) => s.village?.rep ?? curLoc(s).visitorRep ?? 0
 const gainMarketReputation = (s: GameState, amount: number) => {
@@ -284,7 +290,7 @@ export const villageDefense = (v: Village) =>
 export const buildCost = (v: Village, id: string): Bag => {
   const n = v.buildings[id] ?? 0
   return Object.fromEntries(
-    Object.entries(BUILDING_MAP[id].cost).map(([k, c]) => [k, Math.ceil(c * Math.pow(COST_RATIO, Math.min(n, 10)) * (1 + Math.max(0, n - 10) * 0.14))]),
+    Object.entries(BUILDING_MAP[id].cost).map(([k, c]) => [k, k === 'water_bucket' || k === 'lava_bucket' ? c : Math.ceil(c * Math.pow(COST_RATIO, Math.min(n, 10)) * (1 + Math.max(0, n - 10) * 0.14))]),
   )
 }
 export const monumentReady = (s: GameState) =>
@@ -319,9 +325,56 @@ export const recipeStationReady = (s: GameState, station: Recipe['station']) => 
   const item = station === 'brewing' ? 'brewing_stand' : station === 'smithing' ? 'smithing_table' : 'table'
   return count(s, item) > 0
 }
+export const brewingCapacity = (s: GameState) => s.brewingFuel + available(s, 'blaze_powder') * 20
 export const raidStrength = (s: GameState) => 8 + (s.village?.villagers ?? 0) + 3 * (s.expeditions.raid ?? 0)
 export const lineLimit = (s: GameState) => (s.village?.buildings.redstone ?? 0) + (s.village?.buildings.crafter ?? 0)
 export const activeLines = (s: GameState) => LINES.filter((line) => line.id in s.lines).length
+export type BucketAction = 'water' | 'lava' | 'cool' | 'cast' | 'mineCooled' | 'fillBottle' | 'releaseAxolotl' | 'irrigate' | 'emptyWater' | 'emptyLava'
+interface BucketUse { detail?: string; lock?: string; action: BucketAction; name: string; cost: Bag; reward: Bag }
+export function bucketUses(s: GameState): BucketUse[] {
+  const loc = curLoc(s)
+  if (s.submerged) return []
+  const sites = foundSites(loc)
+  const water = BIOMES[loc.biome].diving || ['swamp', 'mangrove', 'lush_caves', 'sulfur_caves'].includes(loc.biome) || sites.includes('bank') || sites.includes('spring') || availableActions(loc).includes('fish')
+  const lava = inNether(loc) || loc.biome === 'sulfur_caves'
+  const uses: BucketUse[] = []
+  if (count(s, 'bucket')) {
+    if (water) uses.push({ action: 'water', name: '用铁桶取水', cost: { bucket: 1 }, reward: { water_bucket: 1 } })
+    if (lava) uses.push({ action: 'lava', name: '用铁桶装岩浆', cost: { bucket: 1 }, reward: { lava_bucket: 1 } })
+  }
+  if (water && count(s, 'bottle')) uses.push({ action: 'fillBottle', name: '用玻璃瓶装水', cost: { bottle: 1 }, reward: { water_bottle: 1 } })
+  if (water && count(s, 'axolotl_bucket')) uses.push({ action: 'releaseAxolotl', name: '放出美西螈', detail: '成为潜水伙伴，收回铁桶', cost: { axolotl_bucket: 1 }, reward: { bucket: 1 } })
+  const wet = count(s, 'water_bucket') > 0
+  const hot = count(s, 'lava_bucket') > 0
+  const coolingCost: Bag = {}
+  if (hot && water) coolingCost.lava_bucket = 1
+  else if (wet && lava) coolingCost.water_bucket = 1
+  else if (wet && hot) Object.assign(coolingCost, { water_bucket: 1, lava_bucket: 1 })
+  const buckets = Object.keys(coolingCost).length
+  if (buckets && !inNether(loc)) {
+    const detail = itemCostText(coolingCost) + ' · 返还铁桶 ×' + buckets
+    uses.push({ action: 'cool', name: '冷却岩浆源', detail: detail + ' · 原地生成黑曜石', cost: coolingCost, reward: { bucket: buckets } })
+    if (!loc.netherGate && gateCost(loc).obsidian > 0) uses.push({
+      action: 'cast', name: '就地浇筑一块门框', detail: detail + ' · 门框还缺 ' + gateCost(loc).obsidian + ' 块',
+      cost: coolingCost, reward: { bucket: buckets },
+    })
+  }
+  if (loc.cooledBlocks) uses.push({ action: 'mineCooled', name: '开采冷却的黑曜石', detail: '原地剩余 ' + loc.cooledBlocks + ' 块',
+    lock: pickTier(s) < 4 ? '需要钻石镐或下界合金镐' : undefined, cost: {}, reward: { obsidian: 1 } })
+  if (wet && atHome(s) && s.crop > 1) uses.push({ action: 'irrigate', name: '浇灌作物', cost: { water_bucket: 1 }, reward: { bucket: 1 } })
+  if (wet) uses.push({ action: 'emptyWater', name: '倒空水桶', cost: { water_bucket: 1 }, reward: { bucket: 1 } })
+  if (hot) uses.push({ action: 'emptyLava', name: '倒空岩浆桶', cost: { lava_bucket: 1 }, reward: { bucket: 1 } })
+  return uses
+}
+
+function finishFrame(s: GameState, loc: Loc) {
+  loc.saved = true
+  loc.netherGate = 'frame'
+  delete loc.castBlocks
+  pushLog(s, '黑曜石门框已完工。用打火石点燃门框即可通行。', 'event')
+}
+
+export const gateCost = (loc: Loc): Bag => ({ obsidian: Math.max(0, (foundSites(loc).includes('ruined_portal') ? 4 : NETHER_COST.obsidian) - (loc.castBlocks ?? 0)) })
 export const foundSites = (loc: Loc) => (loc.sites ?? []).slice(0, loc.discovered ?? 0)
 const siteLeads: Record<string, string> = { dark: 'canopy', road: 'tracks', bank: 'river', ore: 'deep_ore', outcrop: 'rocks', spring: 'lava', masonry: 'copper', echo: 'sculk', drift: 'wreck', sand: 'pottery', ashes: 'nether' }
 const rareMineLead = (id: string) => id === 'deep_ore' || id === 'lava'
@@ -363,6 +416,7 @@ export const wildlifeLock = (s: GameState, id: string) => {
   if (id === 'mooshroom' && carryRoom(s, 'mushroom_stew') < 1) return '背包已满'
   if (s.submerged && s.air < 7 && !canBreatheUnderwater(s)) return '空气不足'
   if (isReunion(s, id)) return ''
+  if (id === 'axolotl' && available(s, 'axolotl_bucket')) return '先在水边放出美西螈'
   const cost = WILDLIFE[id].cost
   if (cost && !canAfford(s, cost)) return itemCostText(cost)
   return ''
@@ -375,9 +429,20 @@ export function journeyCost(s: GameState, lead?: string) {
 }
 export const canExploreNearby = (s: GameState) => !!s.flags.explore && !s.combat && !s.submerged &&
   s.hunger >= nearbyCost(s) && (curLoc(s).discovered ?? 0) < (curLoc(s).sites?.length ?? 0)
+export function localLine(s: GameState, line: typeof LINES[number]) {
+  if (line.id !== 'sawmill') return line
+  const stock = villageStock(s)
+  const logs = materialOptions('wood').filter(id => quantity(stock, id) >= 1)
+  const plank = (log: string) => log === 'wood' ? 'plank' : log.replace('_log', '_plank')
+  const log = logs.find(id => room(stock, plank(id), villageCap(s)) >= 4) ?? logs[0] ?? 'wood'
+  return { ...line, input: { [log]: 1 }, output: { [plank(log)]: 4 } }
+}
+
 export const lineIssue = (s: GameState, line: typeof LINES[number]) => {
   const v = s.village
   if (!v?.villagers) return '需要村民'
+  if (line.building && !v.buildings[line.building]) return '缺少所需建筑'
+  if (line.id === 'honey_bottler' && (v.honeyTicks ?? 0) < 30) return '等待蜂蜜成熟'
   const stock = villageStock(s)
   if (line.reserveWheat && quantity(stock, 'wheat') < line.input.wheat + wheatDemand(v) * 60) return '需预留村民口粮'
   if (!planPayment(line.input, [stock])) return '仓库原料不足'
@@ -464,6 +529,7 @@ const receive = (s: GameState, loc: Loc, item: string, n: number, toStock = fals
     if (s.flags.copperSorting && loc.id === s.homeId && count(s, 'copper_golem') && ITEMS[item].cat === 'material') n -= toLocal(n)
     const carried = Math.min(n, carryRoom(s, item))
     addStock(s.inv, item, carried)
+    if (ITEMS[item].cat === 'tool' || ITEMS[item].cat === 'gear') consolidateGear(s.inv)
     n -= carried
     n -= toLocal(n)
   }
@@ -729,14 +795,17 @@ const advanceEconomy = (s: GameState, live: boolean) => {
         if (live) pushLog(s, '一位村民搬进了空房子。', 'good')
       }
     }
-    for (const line of LINES) {
-      if (!(line.id in s.lines)) continue
+    if (v.buildings.apiary) v.honeyTicks = Math.min(120 * v.buildings.apiary, (v.honeyTicks ?? 0) + v.buildings.apiary)
+    for (const def of LINES) {
+      if (!(def.id in s.lines)) continue
+      const line = localLine(s, def)
       const ready = Math.min(line.seconds, s.lines[line.id] + 1)
       s.lines[line.id] = ready
       if (ready < line.seconds || lineIssue(s, line)) continue
       const payment = planPayment(line.input, [stock])
       if (!payment) continue
       applyPayment(payment, stock)
+      if (line.id === 'honey_bottler') v.honeyTicks = (v.honeyTicks ?? 0) - 30
       for (const [item, n] of Object.entries(line.output)) {
         addStock(stock, item, n)
         s.seen[item] = true
@@ -843,6 +912,7 @@ export const initial = (): GameState => ({
   loggedAchievements: {},
   flags: {},
   combat: null,
+  brewingFuel: 0,
   furnace: { fuel: 0, job: null },
   ench: {},
   village: null,
@@ -981,12 +1051,59 @@ export const useGame = create<Game>()(
         pushLog(s, `新矿道增加了 ${amount} 次${ITEMS[ore]?.name ?? ore}开采机会。`, 'good')
       }),
 
+      bottleApiary: () => set((s) => {
+        const v = s.village
+        if (!v?.buildings.apiary || s.combat || !atHome(s) || (v.honeyTicks ?? 0) < 30 || !pay(s, { bottle: 1 })) return
+        v.honeyTicks = (v.honeyTicks ?? 0) - 30
+        give(s, 'honey', 1)
+        pushLog(s, '你从蜂场装了一瓶成熟的蜂蜜。')
+      }),
+      carvePumpkin: () => set((s) => {
+        if (s.combat || s.submerged || !count(s, 'shears') || !pay(s, { pumpkin: 1 })) return
+        give(s, 'carved_pumpkin', 1)
+        pushLog(s, '你用剪刀雕刻了一个南瓜。')
+      }),
+      summonCopperGolem: () => set((s) => {
+        if (s.combat || s.submerged || count(s, 'copper_golem') || !pay(s, { carved_pumpkin: 1, copper_block: 1 })) return
+        give(s, 'copper_golem', 1)
+        pushLog(s, '你把雕刻南瓜放上铜块，铜傀儡活动起来了。', 'event')
+      }),
+      useBucket: (action) => set((s) => {
+        if (s.combat) return
+        const use = bucketUses(s).find(entry => entry.action === action)
+        if (!use || use.lock || !pay(s, use.cost, true)) return
+        const loc = curLoc(s)
+        if (action === 'cast') {
+          loc.saved = true
+          loc.castBlocks = (loc.castBlocks ?? 0) + 1
+          if (gateCost(loc).obsidian === 0) finishFrame(s, loc)
+        }
+        if (action === 'cool') {
+          loc.saved = true
+          loc.cooledBlocks = (loc.cooledBlocks ?? 0) + 1
+        }
+        if (action === 'mineCooled') loc.cooledBlocks = (loc.cooledBlocks ?? 1) - 1
+        if (action === 'releaseAxolotl') s.flags.wildlife_axolotl = true
+        if (action === 'irrigate') s.crop = Math.max(1, s.crop - 30)
+        giveItems(s, use.reward)
+        pushLog(s, use.name + '，获得' + itemList(use.reward) + '。')
+      }),
       buildNether: () => set((s) => {
-        if (!atHome(s) || s.combat || s.flags.nether || !canAfford(s, NETHER_COST)) return
-        pay(s, NETHER_COST)
+        const origin = curLoc(s)
+        if (s.submerged || s.combat || origin.netherGate || !pay(s, gateCost(origin))) return
+        finishFrame(s, origin)
+      }),
+      igniteNether: () => set((s) => {
+        const origin = curLoc(s)
+        if (s.submerged || s.combat || origin.netherGate !== 'frame' || !count(s, 'flint_and_steel')) return
+        origin.netherGate = true
+        if (s.flags.nether) {
+          pushLog(s, origin.name + '的下界传送门亮起。', 'event')
+          return
+        }
         for (const id of ['rift', 'warped']) {
           const loc = Object.values(s.locs).find((entry) => entry.biome === id) ?? makeLoc(s, id)
-          loc.saved = true
+          loc.saved = loc.netherGate = true
         }
         unlock(s, 'nether', '下界传送门亮起。下界要塞与诡异森林已标记在路线中。')
       }),
@@ -1295,7 +1412,7 @@ export const useGame = create<Game>()(
 
       forgetLoc: (id) => set((s) => {
         const loc = s.locs[id]
-        if (!loc || loc.shelter || loc.biome === 'altar' || loc.biome === 'rift' || loc.biome === 'warped') return
+        if (!loc || loc.castBlocks || loc.cooledBlocks || loc.netherGate || loc.shelter || loc.biome === 'altar' || loc.biome === 'rift' || loc.biome === 'warped') return
         if (loc.commissioned || s.furnace.job?.locId === loc.id || hasStock(loc.stock) || hasStock(loc.pending)) return
         loc.saved = false
         loc.marked = false
@@ -1329,6 +1446,7 @@ export const useGame = create<Game>()(
         if (!stock || !ITEMS[item] || s.combat) return
         const amount = Math.min(carryRoom(s, item), whole(quantity(stock, item)))
         addStock(s.inv, item, takeStock(stock, item, amount))
+        if (ITEMS[item].cat === 'tool' || ITEMS[item].cat === 'gear') consolidateGear(s.inv)
       }),
 
       claim: (item) => set((s) => {
@@ -1337,6 +1455,7 @@ export const useGame = create<Game>()(
         const stock = (loc.stock ??= {})
         const carried = Math.min(carryRoom(s, item), whole(quantity(loc.pending, item)))
         addStock(s.inv, item, takeStock(loc.pending, item, carried))
+        if (ITEMS[item].cat === 'tool' || ITEMS[item].cat === 'gear') consolidateGear(s.inv)
         const stored = Math.min(whole(room(stock, item, locationCap(s, loc))), whole(quantity(loc.pending, item)))
         addStock(stock, item, takeStock(loc.pending, item, stored))
       }),
@@ -1381,11 +1500,15 @@ export const useGame = create<Game>()(
       craft: (id, times = 1) => set((s) => {
         const r = RECIPES.find((x) => x.id === id)
         if (!r || s.combat || s.submerged || !Number.isSafeInteger(times) || times <= 0 || !recipeStationReady(s, r.station)) return
-        const unique = ['tool', 'gear'].includes(ITEMS[r.out].cat)
-        if (unique && count(s, r.out)) return
+        const unique = ['tool', 'gear'].includes(ITEMS[r.out].cat) && r.out !== 'bucket'
+        if (unique && ownsUpgrade(s.inv, r.out)) return
         let made = 0
         for (let i = 0; i < Math.min(unique ? 1 : 100, times) && outputRoom(s, r.out) >= r.n; i++) {
-          if (!pay(s, r.cost, false, true, r.alternatives)) break
+          const brewing = r.station === 'brewing'
+          const refuel = brewing && !s.brewingFuel
+          const cost = refuel ? { ...r.cost, blaze_powder: 1 } : r.cost
+          if (!pay(s, cost, false, true, r.alternatives)) break
+          if (brewing) s.brewingFuel = (refuel ? 20 : s.brewingFuel) - 1
           give(s, r.out, r.n)
           for (const [item, n] of Object.entries(r.returns ?? {})) give(s, item, n)
           made += r.n
@@ -1399,6 +1522,7 @@ export const useGame = create<Game>()(
       addFuel: (item) => set((s) => {
         if (s.combat || s.submerged || !FUELS[item] || available(s, item) < 1 || count(s, 'furnace') < 1) return
         pay(s, { [item]: 1 })
+        if (item === 'lava_bucket') give(s, 'bucket', 1)
         s.furnace.fuel += FUELS[item]
       }),
 
@@ -1475,6 +1599,11 @@ export const useGame = create<Game>()(
         if (!reunion && !pay(s, animal.cost ?? {})) return
         if (animal.underwater && !canBreatheUnderwater(s)) s.air -= 7
         setCd(s, 'wildlife_' + id, 25, true)
+        if (id === 'axolotl' && !reunion) {
+          give(s, 'axolotl_bucket', 1)
+          pushLog(s, '美西螈游进水桶。在水边放出它即可结伴，并收回铁桶。')
+          return
+        }
         if (animal.companion) {
           const loc = curLoc(s)
           ;(loc.metCompanions ??= []).push(id)
@@ -1522,6 +1651,7 @@ export const useGame = create<Game>()(
         const cost = buildCost(v, id)
         if (!canAfford(s, cost)) return
         pay(s, cost, false, true)
+        if (id === 'cobblegen') give(s, 'bucket', 2)
         v.buildings[id] = (v.buildings[id] ?? 0) + 1
         if (v.villagers > 0) v.rep += 2
         pushLog(s, `你建造了一座${building.name}。`, 'good')
