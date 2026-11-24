@@ -23,7 +23,7 @@ export function DebugPanel({ active, onWorldChange }: {
       <Section title="调试场景">
         <ActionGrid>
           {DEBUG_SCENARIOS.map((entry) => (
-            <Btn key={entry.id} sub={entry.detail} onClick={() => {
+            <Btn key={entry.id} title={entry.detail} onClick={() => {
               startDebug()
               loadDebugScenario(entry.id)
               onWorldChange()
@@ -52,7 +52,7 @@ export function DebugPanel({ active, onWorldChange }: {
             <Btn onClick={clearDebugCooldowns}>清除持续效果</Btn>
             <Btn onClick={() => { simulateDebugOffline(300); onWorldChange() }}>模拟离线 5 分钟</Btn>
             <Btn onClick={() => { simulateDebugOffline(3600); onWorldChange() }}>模拟离线 1 小时</Btn>
-            <Btn onClick={() => { simulateDebugOffline(9 * 3600); onWorldChange() }} sub="核对 8 小时上限">模拟离线 9 小时</Btn>
+            <Btn onClick={() => { simulateDebugOffline(9 * 3600); onWorldChange() }} title="核对 8 小时上限">模拟离线 9 小时</Btn>
             <Btn onClick={() => { exitDebug(); onWorldChange() }}>退出 Debug</Btn>
           </ActionGrid>
         </Section>

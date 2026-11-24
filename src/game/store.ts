@@ -423,13 +423,13 @@ export const wildlifeVisible = (s: GameState) => wildlifeAt(curLoc(s).biome).fil
   !!WILDLIFE[id].underwater === s.submerged && (WILDLIFE[id].repeatable || !s.flags['wildlife_' + id] ||
     (isReunion(s, id) && !curLoc(s).metCompanions?.includes(id))))
 export const wildlifeLock = (s: GameState, id: string) => {
-  if (id === 'sulfur_cube' && s.flags.sulfurPath) return '可开采朱砂'
+  if (id === 'sulfur_cube' && s.flags.sulfurPath) return '已发现朱砂'
   if (id === 'armadillo' && !canUseItem(s, 'brush')) return '需要刷子'
   if (id === 'armadillo' && carryRoom(s, 'armadillo_scute') < 1) return '背包已满'
   if (id === 'mooshroom' && carryRoom(s, 'mushroom_stew') < 1) return '背包已满'
   if (!s.freeResources && s.submerged && s.air < 7 && !canBreatheUnderwater(s)) return '空气不足'
   if (isReunion(s, id)) return ''
-  if (id === 'axolotl' && available(s, 'axolotl_bucket')) return '先在水边放出美西螈'
+  if (id === 'axolotl' && available(s, 'axolotl_bucket')) return '已装入桶中'
   const cost = WILDLIFE[id].cost
   if (cost && !canAfford(s, cost)) return itemCostText(cost)
   return ''
@@ -473,7 +473,7 @@ export const actionLock = (s: GameState, action: typeof ACTIONS[string]) => {
   const tool = [action.tool, ...(action.needs ?? [])].find((id) => id && count(s, id) < 1)
   if (action.id === 'meet_traveler' && s.flags.metTraveler) return '已结识'
   if (action.id === 'rescue_igloo_villager' && curLoc(s).cleared) return '已得到帮助'
-  if (action.id === 'free_allay') return s.flags.allay ? '已救出' : curLoc(s).cleared ? '' : '先击退守卫'
+  if (action.id === 'free_allay') return s.flags.allay ? '已救出' : curLoc(s).cleared ? '' : '守卫尚在'
   if (action.id === 'hunt_slime' && !isNight(s.minute)) return '夜晚可搜寻'
   if (action.id === 'dive_warm_ruins' && s.expedition?.id === 'warm_ruins') return '远征队正在调查'
   if (action.id === 'track_creaking' && !isNight(s.minute)) return '夜晚可追查'
@@ -481,10 +481,10 @@ export const actionLock = (s: GameState, action: typeof ACTIONS[string]) => {
   if (!s.freeResources && tool) return '需要' + ITEMS[tool].name
   const primary = action.drops?.[0]?.item
   if (primary && carriesLimit(primary) && carryRoom(s, primary) < 1) return '背包已满'
-  if (action.drops?.some(({ item }) => (curLoc(s).pending?.[item] ?? 0) > 0 && carryRoom(s, item) < 1)) return '先领取物资'
+  if (action.drops?.some(({ item }) => (curLoc(s).pending?.[item] ?? 0) > 0 && carryRoom(s, item) < 1)) return '背包已满'
   if (!s.freeResources && action.enchant && !s.ench[action.enchant]) return '需要精准采集'
   if (!s.freeResources && action.finite && (curLoc(s).res[action.finite] ?? 0) <= 0) return '已枯竭'
-  if (!s.freeResources && action.diveAir && s.air < action.diveAir && !canBreatheUnderwater(s)) return '空气不足，先上浮换气'
+  if (!s.freeResources && action.diveAir && s.air < action.diveAir && !canBreatheUnderwater(s)) return '空气不足'
   if (action.cost && !canAfford(s, action.cost)) {
     return itemCostText(action.cost)
   }

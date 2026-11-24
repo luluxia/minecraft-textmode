@@ -11,7 +11,7 @@ import {
   jobSlots, lineIssue, lineLimit, mayBuildVillage, monumentReady, villageGrowthReady, production, raidStrength, recruitTime, useGame, villageCap, villageDefense, wheatDemand,
 } from '../game/store'
 import { EXPEDITIONS, LINES, seasonAt, type ExpeditionDef } from '../game/progression'
-import { LocationName, Bar, Btn, Cost, EntryHeader, Section, bagText } from './kit'
+import { LocationName, ActionTitle, Bar, Btn, Cost, EntryHeader, Section, bagText } from './kit'
 import { useScrollReset } from './ScrollArea'
 import { villageBeforeSettlement } from '../game/village'
 
@@ -45,7 +45,7 @@ export function Village() {
   )
   const changeTab = (value: unknown) => { resetScroll(); setSub(String(value)) }
   const talkButton = <Btn cd="talk" disabled={!market || !!s.combat} onClick={s.talk}
-    sub={'声望 +' + (marketReputation(s) < CONTROL_REP ? 4 : 2)}>与村民交谈</Btn>
+    title={'声望 +' + (marketReputation(s) < CONTROL_REP ? 4 : 2)}>与村民交谈</Btn>
   if (!v) {
     if (!s.flags.metVillage) return null
     if (!market) return <p className="notice">到村庄后可与村民交谈和交易。</p>
@@ -136,12 +136,12 @@ export function Village() {
               {talkButton}
               {!v.mayor && hasVillagers && <Btn className="primary"
                 disabled={!home || v.rep < MAYOR_REP || v.villagers < MAYOR_POP}
-                onClick={s.runMayor} sub={`声望 ${v.rep}/${MAYOR_REP} · 村民 ${v.villagers}/${MAYOR_POP}`}>
+                onClick={s.runMayor} sub={v.rep < MAYOR_REP ? `声望 ${v.rep}/${MAYOR_REP}` : v.villagers < MAYOR_POP ? `村民 ${v.villagers}/${MAYOR_POP}` : undefined}>
                 竞选村长
               </Btn>}
               {!!v.buildings.watchtower && v.villagers >= 2 && (
                 <Btn cd="raid" disabled={!home || readyDefense < raid} onClick={s.challengeRaid}
-                  sub={'防御 ' + readyDefense + '/' + raid + ' · 声望 +12'}>敲钟迎击袭击</Btn>
+                  sub={'防御 ' + readyDefense + '/' + raid}>敲钟迎击袭击</Btn>
               )}
             </ActionGrid>
           )}
@@ -176,7 +176,7 @@ export function Village() {
                   </> : <Cost cost={cost} />}
                   {b.id === 'apiary' && !!v.buildings.apiary && <ActionGrid>
                     <Btn disabled={!home || !!s.combat || (v.honeyTicks ?? 0) < 30 || !canAfford(s, { bottle: 1 })}
-                      onClick={s.bottleApiary} sub={'可装 ' + Math.floor((v.honeyTicks ?? 0) / 30) + ' 瓶 · 玻璃瓶 −1'}>收取蜂蜜</Btn>
+                      onClick={s.bottleApiary} sub={s.freeResources ? undefined : '玻璃瓶 −1'}><ActionTitle name="收取蜂蜜" quantity={Math.floor((v.honeyTicks ?? 0) / 30)} /></Btn>
                   </ActionGrid>}
                 </article>
               )
