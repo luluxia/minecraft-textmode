@@ -454,7 +454,6 @@ body, button, input, select, textarea,
 .book-cell[data-unseen]::after { content: ''; position: absolute; top: 4px; right: 4px; width: 4px; height: 4px; background: var(--gold); }
 .book-legend { display: flex; align-items: center; gap: 6px; font-size: 14px; color: var(--faint); }
 .book-legend::before { content: ''; width: 4px; height: 4px; background: var(--gold); }
-.book-back { justify-self: start; }
 .book-hero { display: flex; align-items: center; gap: 12px; padding: 10px; border: 2px solid var(--lo); background: #00000033; box-shadow: inset 2px 2px 0 #ffffff12; }
 .book-hero-icon { display: grid; place-items: center; flex: none; width: 52px; height: 52px; border: 2px solid var(--lo); background: #8b8b8b40; box-shadow: inset 2px 2px 0 #00000055, inset -2px -2px 0 #ffffff1f; }
 .book-hero-icon .texture { width: 32px; height: 32px; }

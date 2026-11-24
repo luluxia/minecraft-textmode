@@ -68,13 +68,26 @@ function ItemsBook({ initialItem, onMake }: RecipeBookProps) {
   const s = useGame()
   const [query, setQuery] = useState('')
   const [category, setCategory] = useState<Cat | 'all'>('all')
-  const [selected, setSelected] = useState(initialItem ?? '')
+  const [itemPath, setItemPath] = useState<string[]>(() => initialItem && ITEMS[initialItem] ? [initialItem] : [])
+  const selected = itemPath.at(-1)
+  const previous = itemPath.at(-2)
+  const openItem = (id: string) => setItemPath(path => [...path, id])
   const search = query.trim()
   const known = ITEM_LIST.filter((item) => itemKnown(s, item.id) || recipeOptions(s, item.id).length > 0)
   const items = known.filter((item) => search ? item.name.includes(search) : category === 'all' || item.cat === category)
 
   if (selected && ITEMS[selected]) {
-    return <ItemDetail item={selected} onBack={() => setSelected('')} onSelect={setSelected} onMake={onMake} />
+    return (
+      <div className="book-detail fade-in" key={selected}>
+        <div className="row">
+          {previous && <Btn className="mini" onClick={() => setItemPath(path => path.slice(0, -1))}>
+            ‹ 返回{ITEMS[previous].name}
+          </Btn>}
+          <Btn className="mini" onClick={() => setItemPath([])}>返回列表</Btn>
+        </div>
+        <ItemDetail item={selected} onSelect={openItem} onMake={onMake} />
+      </div>
+    )
   }
 
   // 全部分类且未搜索时按分类分组，其余情况为单一列表。
@@ -98,7 +111,7 @@ function ItemsBook({ initialItem, onMake }: RecipeBookProps) {
       {groups.map(([label, list], index) => (
         <section key={label ?? index} className="book-group">
           {label && <h4 className="book-group-title"><span>{label}</span><span className="book-count">{list.length}</span></h4>}
-          <ItemGrid ids={list.map((item) => item.id)} onSelect={setSelected} />
+          <ItemGrid ids={list.map((item) => item.id)} onSelect={openItem} />
         </section>
       ))}
       {items.some((item) => !s.seen[item.id]) && <p className="book-legend">未收录：已知配方但尚未获得</p>}
@@ -123,9 +136,8 @@ function ItemGrid({ ids, onSelect }: { ids: string[]; onSelect: (id: string) => 
   )
 }
 
-function ItemDetail({ item, onBack, onSelect, onMake }: {
+function ItemDetail({ item, onSelect, onMake }: {
   item: string
-  onBack: () => void
   onSelect: (id: string) => void
   onMake?: (target: RecipeTarget) => void
 }) {
@@ -135,8 +147,7 @@ function ItemDetail({ item, onBack, onSelect, onMake }: {
   const uses = recipeUses(s, item)
   const hasRecipe = recipeOptions(s, item).length > 0
   return (
-    <div className="book-detail fade-in" key={item}>
-      <Btn className="mini book-back" onClick={onBack}>‹ 返回列表</Btn>
+    <>
       <header className="book-hero">
         <span className="book-hero-icon"><Texture src={def.icon} /></span>
         <div className="book-hero-text">
@@ -156,7 +167,7 @@ function ItemDetail({ item, onBack, onSelect, onMake }: {
       {uses.length > 0 && <BookBlock title="用途" extra={<span className="book-count">{uses.length}</span>}>
         <ItemGrid ids={uses} onSelect={onSelect} />
       </BookBlock>}
-    </div>
+    </>
   )
 }
 
