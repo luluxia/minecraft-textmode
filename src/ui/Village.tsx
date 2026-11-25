@@ -45,7 +45,7 @@ export function Village() {
   )
   const changeTab = (value: unknown) => { resetScroll(); setSub(String(value)) }
   const talkButton = <Btn cd="talk" disabled={!market || !!s.combat} onClick={s.talk}
-    title={'声望 +' + (marketReputation(s) < CONTROL_REP ? 4 : 2)}>与村民交谈</Btn>
+    sub={'声望 +' + (marketReputation(s) < CONTROL_REP ? 4 : 2)}>与村民交谈</Btn>
   if (!v) {
     if (!s.flags.metVillage) return null
     if (!market) return <p className="notice">到村庄后可与村民交谈和交易。</p>
@@ -141,7 +141,7 @@ export function Village() {
               </Btn>}
               {!!v.buildings.watchtower && v.villagers >= 2 && (
                 <Btn cd="raid" disabled={!home || readyDefense < raid} onClick={s.challengeRaid}
-                  sub={'防御 ' + readyDefense + '/' + raid}>敲钟迎击袭击</Btn>
+                  sub={readyDefense < raid ? `防御 ${readyDefense}/${raid}` : '声望 +12'}>敲钟迎击袭击</Btn>
               )}
             </ActionGrid>
           )}

@@ -170,7 +170,7 @@ function Furnace({ focusId }: { focusId?: string }) {
               const name = id === 'wood' ? '原木' : id === 'plank' ? '木板' : ITEMS[id].name
               return (
                 <Btn key={id} disabled={!!s.combat || s.submerged} onClick={() => s.addFuel(id)}
-                  title={`燃料 +${FUELS[id]}`}>
+                  sub={`燃料 +${FUELS[id]}`}>
                   <ActionTitle name={name} quantity={quantity} />
                 </Btn>
               )
