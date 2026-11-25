@@ -15,7 +15,7 @@ import { Crafting } from './ui/Crafting'
 import { Village } from './ui/Village'
 import { LocationName, ActionTitle, Btn } from './ui/kit'
 import { CurrentGoal, JournalModal, type GameMenu } from './ui/GameJournal'
-import { MAX_AIR, seasonAt } from './game/progression'
+import { MAX_AIR, WATER_BREATHING_SECONDS, seasonAt } from './game/progression'
 import { DebugPanel } from './ui/DebugPanel'
 import { SwipeGuide } from './ui/SwipeGuide'
 
@@ -262,24 +262,26 @@ function CombatModal() {
       <ActionGrid>
         <Btn cd="attack" className="primary" onClick={c.crystals ? s.breakCrystal : s.attack}>
           {c.crystals ? <ActionTitle name="击碎末地水晶" quantity={c.crystals} /> : c.mob === 'creaking' ? c.heartLocated ? '破坏嘎枝之心' : '寻找嘎枝之心' : '攻击'}</Btn>
-        {canUseItem(s, 'shield') && <Btn cd="block" onClick={s.block} title="持续 4 秒">举盾</Btn>}
-        {food && <Btn cd="eat" disabled={s.hunger >= 20 && s.hp >= 20} onClick={() => s.eat(food.id)}><ActionTitle name={'吃' + food.name} quantity={count(s, food.id)} /></Btn>}
-        {canUseItem(s, 'potion') && <Btn cd="drink" disabled={s.hp >= 20} onClick={() => s.drink()} title="回复 8 生命"><ActionTitle name="治疗药水" quantity={count(s, 'potion')} /></Btn>}
-        {canUseItem(s, 'splash_healing') && <Btn cd="drink" disabled={s.hp >= 20} onClick={() => s.drink('splash_healing')} title="回复 8 生命"><ActionTitle name="喷溅型治疗药水" quantity={count(s, 'splash_healing')} /></Btn>}
-        {canUseItem(s, 'lingering_healing') && <Btn cd="drink" disabled={s.hp >= 20} onClick={() => s.drink('lingering_healing')} title="回复 12 生命"><ActionTitle name="滞留型治疗药水" quantity={count(s, 'lingering_healing')} /></Btn>}
+        {canUseItem(s, 'shield') && <Btn cd="block" onClick={s.block} sub="格挡 4 秒">举盾</Btn>}
+        {food && <Btn cd="eat" disabled={s.hunger >= 20 && s.hp >= 20} onClick={() => s.eat(food.id)}
+          sub={s.hp < 20 ? `生命 +${Math.ceil(food.food! / 2)}` : `饱食 +${food.food}`}><ActionTitle name={'吃' + food.name} quantity={count(s, food.id)} /></Btn>}
+        {canUseItem(s, 'potion') && <Btn cd="drink" disabled={s.hp >= 20} onClick={() => s.drink()} sub="生命 +8"><ActionTitle name="治疗药水" quantity={count(s, 'potion')} /></Btn>}
+        {canUseItem(s, 'splash_healing') && <Btn cd="drink" disabled={s.hp >= 20} onClick={() => s.drink('splash_healing')} sub="生命 +8"><ActionTitle name="喷溅型治疗药水" quantity={count(s, 'splash_healing')} /></Btn>}
+        {canUseItem(s, 'lingering_healing') && <Btn cd="drink" disabled={s.hp >= 20} onClick={() => s.drink('lingering_healing')} sub="生命 +12"><ActionTitle name="滞留型治疗药水" quantity={count(s, 'lingering_healing')} /></Btn>}
         {['blaze', 'magma_cube', 'ghast'].includes(c.mob) && canUseItem(s, 'fire_resistance') && (
-          <Btn cd="drink" disabled={fireWard} onClick={() => s.drink('fire_resistance')} title={fireWard ? '抗火生效中' : '减轻火焰伤害'}><ActionTitle name="抗火药水" quantity={count(s, 'fire_resistance')} /></Btn>
+          <Btn cd="drink" disabled={fireWard} onClick={() => s.drink('fire_resistance')} sub={fireWard ? '抗火生效中' : '抗火 60 秒'}><ActionTitle name="抗火药水" quantity={count(s, 'fire_resistance')} /></Btn>
         )}
-        {canUseItem(s, 'wind_charge') && <Btn cd="gust" onClick={s.gust} title={count(s, 'mace') ? '强化下一击' : '打断敌人'}><ActionTitle name="投掷风弹" quantity={count(s, 'wind_charge')} /></Btn>}
+        {canUseItem(s, 'wind_charge') && <Btn cd="gust" onClick={s.gust} sub={count(s, 'mace') ? '强化下一击' : '打断敌人'}><ActionTitle name="投掷风弹" quantity={count(s, 'wind_charge')} /></Btn>}
         {c.mob === 'dragon' && canUseItem(s, 'bottle') && !c.breathTaken && (
           <Btn disabled={c.turn < 4} onClick={s.bottleBreath} sub={c.turn < 4 ? `龙息 ${c.turn}/4` : s.freeResources ? undefined : itemCostText({ bottle: 1 })}>收集龙息</Btn>
         )}
         {s.submerged && canUseItem(s, 'water_breathing') && (
-          <Btn cd="drink" disabled={canBreatheUnderwater(s)} onClick={s.drinkWaterBreathing}><ActionTitle name="水肺药水" quantity={count(s, 'water_breathing')} /></Btn>
+          <Btn cd="drink" disabled={canBreatheUnderwater(s)} onClick={s.drinkWaterBreathing}
+            sub={canBreatheUnderwater(s) ? '水下呼吸生效中' : `水下呼吸 ${WATER_BREATHING_SECONDS} 秒`}><ActionTitle name="水肺药水" quantity={count(s, 'water_breathing')} /></Btn>
         )}
         {s.submerged
           ? <Btn onClick={s.surface}>上浮撤退</Btn>
-          : <Btn cd="flee" onClick={s.flee} title={c.boss ? '下次挑战重新开始' : undefined}>撤退</Btn>}
+          : <Btn cd="flee" onClick={s.flee} sub={c.boss ? '重置挑战进度' : undefined}>撤退</Btn>}
       </ActionGrid>
     </GameDialog>
   )
