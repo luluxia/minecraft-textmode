@@ -2,6 +2,27 @@
   "version": "1.21.4",
   "base": "https://raw.githubusercontent.com/InventivetalentDev/minecraft-assets/1.21.4/assets/minecraft/textures/",
   "textures": {
+    "flint": "item/flint.png",
+    "flint_and_steel": "item/flint_and_steel.png",
+    "gold_nugget": "item/gold_nugget.png",
+    "glistering_melon_slice": "item/glistering_melon_slice.png",
+    "carved_pumpkin": "block/carved_pumpkin.png",
+    "axolotl_bucket": "item/axolotl_bucket.png",
+    "water_bottle": "item/potion.png + tinted item/potion_overlay.png",
+    "awkward_potion": "item/potion.png + tinted item/potion_overlay.png",
+    "water_bucket": "item/water_bucket.png",
+    "leather_helmet": "item/leather_helmet.png",
+    "iron_helmet": "item/iron_helmet.png",
+    "diamond_helmet": "item/diamond_helmet.png",
+    "netherite_helmet": "item/netherite_helmet.png",
+    "leather_leggings": "item/leather_leggings.png",
+    "iron_leggings": "item/iron_leggings.png",
+    "diamond_leggings": "item/diamond_leggings.png",
+    "netherite_leggings": "item/netherite_leggings.png",
+    "leather_boots": "item/leather_boots.png",
+    "iron_boots": "item/iron_boots.png",
+    "diamond_boots": "item/diamond_boots.png",
+    "netherite_boots": "item/netherite_boots.png",
     "stick": "item/stick.png",
     "wheat_seeds": "item/wheat_seeds.png",
     "wheat": "item/wheat.png",
@@ -253,6 +274,7 @@
       "mob_witch": "Witch_JE4.png",
       "mob_shade": "Enderman_JE3.png",
       "mob_blaze": "Blaze_JE2.gif",
+      "mob_breeze": "Breeze_JE1.gif",
       "mob_dragon": "Ender_Dragon_JE1_BE1.png"
     }
   },
@@ -265,7 +287,6 @@
       "mob_villager": "d5c459cce8b48ecd1a270a49b16eb525.webp",
       "mob_wither": "6ddfdcf55bfe46ba9b256907af794a1f.webp",
       "mob_wither_skeleton": "ad30b517d7c6ebfb057cc034aedc0eff.webp",
-      "mob_breeze": "4551927a8ba001f85d5a50e762fd28bb.webp",
       "mob_warden": "50d822f42a2be52628458ea5f88cc693.webp",
       "mob_guardian": "db257fea03aa47a9e874719118de8331.webp",
       "mob_piglin_brute": "d5d2f2e11b7506eae0a54f35b49f4ed7.webp",
@@ -321,5 +342,18 @@
       "mob_silverfish": "thumb/Silverfish_JE1_BE1.png/400px-Silverfish_JE1_BE1.png?83218"
     },
     "transform": "Complete inventory/block/entity renders, cropped to visible bounds and scaled proportionally to at most 128px. Animated sources use their first frame; stored as RGBA PNG. Entity UV sheets, face crops and spawn eggs must not be used as entity icons."
+  },
+  "companion_renders": {
+    "base": "https://minewiki.pl/images/",
+    "transform": "Complete inventory/block/entity renders, cropped to visible bounds and scaled proportionally to at most 128px. Animated sources use their first frame; stored as RGBA PNG. Entity UV sheets, face crops and spawn eggs must not be used as entity icons.",
+    "textures": {
+      "mob_wolf": "b/b2/Wilk_%28Oswojony%29.png",
+      "mob_ocelot": "0/0d/Ocelot.png",
+      "mob_horse": "1/1e/Brown_Horse.png",
+      "mob_donkey": "5/52/Osio%C5%82.png",
+      "mob_camel": "8/8e/Wielb%C5%82%C4%85d.png",
+      "mob_axolotl": "3/36/R%C3%B3%C5%BCowy_aksolotl.png",
+      "mob_nautilus_mob": "a/a8/%C5%81odzik.gif"
+    }
   }
 }

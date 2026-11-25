@@ -5,15 +5,15 @@ import { Card } from './components/minecraft/card'
 import { Button } from './components/minecraft/button'
 import { Texture } from './ui/Texture'
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
-import { ITEM_CATEGORIES, ITEM_LIST, ITEMS, MOBS, villageLevel } from './game/data'
-import { canBreatheUnderwater, combatMaxHp, count, dayOf, hourOf, isNight, useGame } from './game/store'
+import { ITEM_CATEGORIES, ITEM_LIST, ITEMS, MOBS, itemCostText } from './game/data'
+import { canBreatheUnderwater, combatInterval, dragonLanded, nextStrike, combatMaxHp, canUseItem, count, dayOf, hourOf, isNight, useGame } from './game/store'
 import type { RecipeTarget } from './game/recipes'
 import { Adventure } from './ui/Adventure'
 import { ActionGrid } from './ui/ActionGrid'
 import { PlayerHud } from './ui/PlayerHud'
 import { Crafting } from './ui/Crafting'
 import { Village } from './ui/Village'
-import { Btn } from './ui/kit'
+import { LocationName, ActionTitle, Btn } from './ui/kit'
 import { CurrentGoal, JournalModal, type GameMenu } from './ui/GameJournal'
 import { MAX_AIR, seasonAt } from './game/progression'
 import { DebugPanel } from './ui/DebugPanel'
@@ -34,7 +34,7 @@ export function App() {
   const [bookItem, setBookItem] = useState<string>()
   const [recipeTarget, setRecipeTarget] = useState<RecipeTarget>()
   const [menu, setMenu] = useState<GameMenu | 'debug' | null>(null)
-  const [debugActive, setDebugActive] = useState(false)
+  const debugActive = useGame((s) => !!s.freeResources)
   const [worldRevision, setWorldRevision] = useState(0)
   const [showSwipeGuide, setShowSwipeGuide] = useState(false)
   const closeMenu = () => setMenu(null)
@@ -81,11 +81,11 @@ export function App() {
 
   const tabs: [string, string, boolean][] = [
     ['adventure', '冒险', true],
-    ['crafting', '制造', !!flags.inv],
-    ['village', villagers === null ? '村庄' : villageLevel(villagers), villagers !== null],
+    ['crafting', '制造', debugActive || !!flags.inv],
+    ['village', '村庄', !!flags.metVillage || villagers !== null],
   ]
   const cur = tabs.find(([id, , ok]) => id === tab && ok) ? tab : 'adventure'
-  const early = !flags.inv
+  const early = !debugActive && !flags.inv && !flags.metVillage && villagers === null
 
   return (
     <div className="app">
@@ -122,7 +122,7 @@ export function App() {
         <div className="sidebar-column sidebar-right">
           <div className="toolbar" role="group" aria-label="游戏菜单">
             {import.meta.env.DEV && debugActive && (
-              <Btn className="toolbar-button on" onClick={() => setMenu('debug')}>Debug</Btn>
+              <Btn className="toolbar-button on" onClick={() => setMenu('debug')}>作弊模式</Btn>
             )}
             <Button className="btn toolbar-button" aria-label="配方书" title="配方书" onClick={() => openBook()}>
               <Texture src="/textures/icons-essential/Book.png" />
@@ -135,6 +135,9 @@ export function App() {
             </Button>
             <Button className="btn toolbar-button" aria-label="设置" title="设置" onClick={() => setMenu('settings')}>
               <Texture src="/textures/icons-essential/Gear.png" />
+            </Button>
+            <Button className="btn toolbar-button" aria-label="关于" title="关于" onClick={() => setMenu('about')}>
+              <Texture src="/textures/icons-essential/Info.png" />
             </Button>
           </div>
           {!early && <Sidebar />}
@@ -149,7 +152,7 @@ export function App() {
       {import.meta.env.DEV && menu === 'debug' && (
         <GameDialog label="Debug" onClose={closeMenu}>
           <h2>Debug</h2>
-          <DebugPanel active={debugActive} onChange={setDebugActive} onWorldChange={showAdventure} />
+          <DebugPanel active={debugActive} onWorldChange={showAdventure} />
           <ActionGrid><Btn onClick={closeMenu}>关闭</Btn></ActionGrid>
         </GameDialog>
       )}
@@ -189,7 +192,7 @@ function LogPanel() {
       <ScrollArea className="sidebar-scroll log-scroll" tabIndex={0} aria-label="滚动冒险日志">
       {log.slice(0, 40).map((l, i) => (
         <p key={l.id} className={l.kind === 'info' ? '' : l.kind} style={{ opacity: Math.max(0.25, 1 - i * 0.045) }}>
-          {l.text}
+          {/^(抵达|返回|撤回|你在地图上标记了)/.test(l.text) ? <LocationName name={l.text} /> : l.text}
         </p>
       ))}
       </ScrollArea>
@@ -234,11 +237,11 @@ function CombatModal() {
   const c = s.combat
   if (!c) return null
   const m = MOBS[c.mob]
-  const food = ITEM_LIST.filter((i) => i.food && i.id !== 'rotten' && count(s, i.id) > 0).sort((a, b) => b.food! - a.food!)[0]
+  const food = ITEM_LIST.filter((i) => i.food && i.id !== 'rotten' && canUseItem(s, i.id)).sort((a, b) => b.food! - a.food!)[0]
   const maxHp = combatMaxHp(c)
   const mobHealth = `${Math.max(0, c.hp)} / ${maxHp}`
   const mobHp = Math.min(maxHp, Math.max(0, c.hp))
-  const interval = c.boss ? 4 : 3
+  const interval = combatInterval(s, c)
   const fireWard = (s.cds.fire_ward?.until ?? 0) > Date.now()
   return (
     <GameDialog label="战斗" className="combat-dialog" scrollable={false}>
@@ -251,32 +254,32 @@ function CombatModal() {
         </div>
       </div>
       <div key={c.hp} className="mob-icon shake"><Texture src={m.icon} className="combat-mob" /></div>
-      {m.atk > 0 && <p className="sm dim">距下一次攻击 {interval - (c.turn % interval)} 秒</p>}
+      {m.atk > 0 && <p className="sm dim">{c.mob === 'dragon' && dragonLanded(c.turn) ? '落地破绽 · ' : ''}{nextStrike(c)}倒计时 {interval - (c.turn % interval)} 秒</p>}
       <PlayerHud />
       <ScrollArea className="combat-lines" tabIndex={0} role="region" aria-label="战斗日志">
         {c.lines.map((l, i) => <p key={c.lines.length - i}>{l}</p>)}
       </ScrollArea>
       <ActionGrid>
-        <Btn cd="attack" className="primary" onClick={c.crystals ? s.breakCrystal : s.attack}
-          sub={c.crystals ? '剩余 ' + c.crystals + ' 座' : undefined}>{c.crystals ? '击碎末地水晶' : c.mob === 'creaking' ? c.heartLocated ? '破坏嘎枝之心' : '寻找嘎枝之心' : '攻击'}</Btn>
-        {count(s, 'shield') > 0 && <Btn cd="block" onClick={s.block} sub="持续 4 秒">举盾</Btn>}
-        {food && <Btn cd="eat" disabled={s.hunger >= 20 && s.hp >= 20} onClick={() => s.eat(food.id)} sub={`余 ${count(s, food.id)}`}>吃{food.name}</Btn>}
-        {count(s, 'potion') > 0 && <Btn cd="drink" disabled={s.hp >= 20} onClick={() => s.drink()} sub="回复 8 生命">治疗药水</Btn>}
-        {count(s, 'splash_healing') > 0 && <Btn cd="drink" disabled={s.hp >= 20} onClick={() => s.drink('splash_healing')} sub="回复 8 生命">喷溅型治疗药水</Btn>}
-        {count(s, 'lingering_healing') > 0 && <Btn cd="drink" disabled={s.hp >= 20} onClick={() => s.drink('lingering_healing')} sub="回复 12 生命">滞留型治疗药水</Btn>}
-        {['blaze', 'magma_cube', 'ghast'].includes(c.mob) && count(s, 'fire_resistance') > 0 && (
-          <Btn cd="drink" disabled={fireWard} onClick={() => s.drink('fire_resistance')} sub={fireWard ? '抗火生效中' : '减轻火焰伤害'}>抗火药水</Btn>
+        <Btn cd="attack" className="primary" onClick={c.crystals ? s.breakCrystal : s.attack}>
+          {c.crystals ? <ActionTitle name="击碎末地水晶" quantity={c.crystals} /> : c.mob === 'creaking' ? c.heartLocated ? '破坏嘎枝之心' : '寻找嘎枝之心' : '攻击'}</Btn>
+        {canUseItem(s, 'shield') && <Btn cd="block" onClick={s.block} title="持续 4 秒">举盾</Btn>}
+        {food && <Btn cd="eat" disabled={s.hunger >= 20 && s.hp >= 20} onClick={() => s.eat(food.id)}><ActionTitle name={'吃' + food.name} quantity={count(s, food.id)} /></Btn>}
+        {canUseItem(s, 'potion') && <Btn cd="drink" disabled={s.hp >= 20} onClick={() => s.drink()} title="回复 8 生命"><ActionTitle name="治疗药水" quantity={count(s, 'potion')} /></Btn>}
+        {canUseItem(s, 'splash_healing') && <Btn cd="drink" disabled={s.hp >= 20} onClick={() => s.drink('splash_healing')} title="回复 8 生命"><ActionTitle name="喷溅型治疗药水" quantity={count(s, 'splash_healing')} /></Btn>}
+        {canUseItem(s, 'lingering_healing') && <Btn cd="drink" disabled={s.hp >= 20} onClick={() => s.drink('lingering_healing')} title="回复 12 生命"><ActionTitle name="滞留型治疗药水" quantity={count(s, 'lingering_healing')} /></Btn>}
+        {['blaze', 'magma_cube', 'ghast'].includes(c.mob) && canUseItem(s, 'fire_resistance') && (
+          <Btn cd="drink" disabled={fireWard} onClick={() => s.drink('fire_resistance')} title={fireWard ? '抗火生效中' : '减轻火焰伤害'}><ActionTitle name="抗火药水" quantity={count(s, 'fire_resistance')} /></Btn>
         )}
-        {count(s, 'wind_charge') > 0 && <Btn cd="gust" onClick={s.gust} sub={count(s, 'mace') ? '强化下一击' : '打断敌人'}>投掷风弹</Btn>}
-        {c.mob === 'dragon' && count(s, 'bottle') > 0 && !c.breathTaken && (
-          <Btn disabled={c.turn < 4} onClick={s.bottleBreath} sub={c.turn < 4 ? '等待龙息落下' : '消耗一个玻璃瓶'}>收集龙息</Btn>
+        {canUseItem(s, 'wind_charge') && <Btn cd="gust" onClick={s.gust} title={count(s, 'mace') ? '强化下一击' : '打断敌人'}><ActionTitle name="投掷风弹" quantity={count(s, 'wind_charge')} /></Btn>}
+        {c.mob === 'dragon' && canUseItem(s, 'bottle') && !c.breathTaken && (
+          <Btn disabled={c.turn < 4} onClick={s.bottleBreath} sub={c.turn < 4 ? `龙息 ${c.turn}/4` : s.freeResources ? undefined : itemCostText({ bottle: 1 })}>收集龙息</Btn>
         )}
-        {s.submerged && count(s, 'water_breathing') > 0 && (
-          <Btn cd="drink" disabled={canBreatheUnderwater(s)} onClick={s.drinkWaterBreathing}>水肺药水</Btn>
+        {s.submerged && canUseItem(s, 'water_breathing') && (
+          <Btn cd="drink" disabled={canBreatheUnderwater(s)} onClick={s.drinkWaterBreathing}><ActionTitle name="水肺药水" quantity={count(s, 'water_breathing')} /></Btn>
         )}
         {s.submerged
           ? <Btn onClick={s.surface}>上浮撤退</Btn>
-          : <Btn cd="flee" onClick={s.flee} sub={c.boss ? '下次挑战重新开始' : undefined}>撤退</Btn>}
+          : <Btn cd="flee" onClick={s.flee} title={c.boss ? '下次挑战重新开始' : undefined}>撤退</Btn>}
       </ActionGrid>
     </GameDialog>
   )

@@ -3,16 +3,17 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/minecraf
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/minecraft/select'
 import { Button } from '../components/minecraft/button'
 import { Texture } from './Texture'
-import { ACTIONS, BIOMES, EYES_NEEDED, ITEM_LIST, ITEMS } from '../game/data'
-import { BARTER_COST, EXCAVATION_COST, EXPEDITIONS, MAX_AIR, NETHER_COST, PLANTS, RESPAWN_COST, SURVEY_COST, TRIAL_VAULTS, WATER_BREATHING_SECONDS, WITHER_COST } from '../game/progression'
-import { JOURNEY_COST, LEADS, NEARBY_COST, RETURN_COST, SITES } from '../game/exploration'
+import { BIOMES, EYES_NEEDED, ITEM_LIST, ITEMS, itemCostText } from '../game/data'
+import { BARTER_COST, EXCAVATION_COST, EXPEDITIONS, MAX_AIR, PLANTS, RESPAWN_COST, SURVEY_COST, TRIAL_VAULTS, WITHER_COST } from '../game/progression'
+import { LEADS, RETURN_COST, SITES } from '../game/exploration'
 import {
-  ALLAY_ITEMS, CAMP_COOK, GUEST_TRADE, SHELTER_COST, available, actionAllowed, actionLock, atHome, canAfford, canBreatheUnderwater, canCampHere, canDiveHere, canSurvey, count, curLoc, diveLock, canRetreat, hasConduitPower, inNether,
-  availableActions, canExploreNearby, canInviteVillager, expeditionLock, explorerMapChoices, foundSites, invitationCost, isNight, locationLeads,
-  locationCap, mineResources, pickTier, retainedLocation, survivedIndependently, travelAllowed, useGame, villageCommission, villageLeadChoices, wildlifeLock, wildlifeVisible,
+  bucketUses, gateCost, ALLAY_ITEMS, CAMP_COOK, SHELTER_COST, available, canUseItem, actionAllowed, actionLock, atHome, canAfford, canBreatheUnderwater, canCampHere, canDiveHere, canSurvey, count, curLoc, diveLock, canRetreat, hasConduitPower, inNether,
+  journeyCost, nearbyCost, availableActions, currentAction, currentLocationDescription, canExploreNearby, canInviteVillager, expeditionLock, explorerMapChoices, foundSites, invitationCost, isNight, locationLeads,
+  locationCap, mineResources, pickTier, survivedIndependently, travelAllowed, useGame, isReunion, wildlifeLock, wildlifeVisible,
 } from '../game/store'
-import { ActionTitle, Btn, Cost, EntryHeader, Section, bagText } from './kit'
-import { WILDLIFE } from '../game/wildlife'
+import { LocationName, ActionTitle, Btn, Cost, EntryHeader, Section, bagText } from './kit'
+import { Companions } from './Companions'
+import { companionIds, WILDLIFE } from '../game/wildlife'
 import { hasStock } from '../game/inventory'
 import { ActionGrid } from './ActionGrid'
 import { LocationStorage } from './LocationStorage'
@@ -21,6 +22,7 @@ import { useScrollReset } from './ScrollArea'
 export function Adventure({ onFirstChop }: { onFirstChop?: () => void }) {
   const s = useGame()
   const [tab, setTab] = useState('gather')
+  const [biomeFilter, setBiomeFilter] = useState('all')
   const resetScroll = useScrollReset()
   const moveFromMap = (move: () => void) => {
     const previousLocation = useGame.getState().locId
@@ -41,42 +43,59 @@ export function Adventure({ onFirstChop }: { onFirstChop?: () => void }) {
 
   const actions = availableActions(loc).filter((id) => actionAllowed(s, id))
   const wildlife = s.flags.explore ? wildlifeVisible(s) : []
+  const leads = locationLeads(loc).filter((id) => LEADS[id].destinations.some((dest) => !!BIOMES[dest].nether === nether))
   const discovered = foundSites(loc)
+  const liquids = bucketUses(s)
+  const frameUses = liquids.filter(use => use.frame)
+  const containerUses = liquids.filter(use => !use.frame)
+  const canCarve = !s.submerged && canAfford(s, { pumpkin: 1 })
+  const canSummon = !s.submerged && !!s.seen.carved_pumpkin && !count(s, 'copper_golem')
+  const canChallengeWither = !s.submerged && loc.biome === 'rift' && s.flags.nether && !s.flags.wither
+  const ruined = discovered.includes('ruined_portal')
   const nearby = SITES[loc.sites?.[loc.discovered ?? 0] ?? '']
   const locationDescription = [
-    biome.desc,
+    currentLocationDescription(s),
     discovered.length ? '附近发现了' + discovered.map((id) => SITES[id].name).join('、') + '。' : '',
-    ...locationLeads(loc).map((id) => LEADS[id].description),
     nearby ? nearby.hint + '。' : '',
   ].join('')
-  const hasExplorerMap = !nether && count(s, 'explorer_map') > 0
-  const protectedLoc = ['altar', 'rift', 'warped'].includes(loc.biome)
-  const commission = loc.biome === 'village' ? villageCommission(loc) : null
+  const hasExplorerMap = !nether && canUseItem(s, 'explorer_map')
+  const protectedLoc = loc.placedLava || loc.frameMold || loc.castBlocks || loc.cooledBlocks || loc.netherGate || ['altar', 'rift', 'warped'].includes(loc.biome)
   const prepared = survivedIndependently(s)
   const divingIssue = diveLock(s)
   const canDive = canDiveHere(s)
-  const canDigTreasure = !s.submerged && canDive && available(s, 'treasure_map') > 0
-  const canOpenMine = !s.submerged && tier >= 2 && mineResources(loc).length > 0
+  const canDigTreasure = !s.submerged && canDive && canAfford(s, { treasure_map: 1 })
+  const canOpenMine = !s.submerged && (s.freeResources || tier >= 2) && mineResources(loc).length > 0
   const storagePending = hasStock(loc.pending)
   const canOpenStorage = !!s.flags.explore || locationCap(s, loc) > 0 || storagePending
   const incubation = EXPEDITIONS.find((entry) => entry.id === 'hatch_sniffer')!
-  const camp = atHome(s) && count(s, 'campfire') > 0
-  const foods = ITEM_LIST.filter((i) => i.food && count(s, i.id) > 0)
+  const camp = atHome(s) && canUseItem(s, 'campfire')
+  const foods = ITEM_LIST.filter((i) => i.food && canUseItem(s, i.id))
   const places = Object.values(s.locs)
-    .filter((place) => place.id !== s.locId && (retainedLocation(place) || place.id === s.previousLocId))
-    .filter((place) => !nether || place.id === s.homeId || inNether(place))
-    .sort((a, b) => Number(b.id === s.homeId) - Number(a.id === s.homeId) ||
-      Number(b.id === s.previousLocId) - Number(a.id === s.previousLocId))
-  const returnGroups = [
-    { title: '临时折返', places: places.filter((place) => !retainedLocation(place)), temporary: true },
-    { title: '回访', places: places.filter(retainedLocation), temporary: false },
-  ]
+  const recorded = places.filter((place) => place.saved)
+  const biomeTypes = [...new Set(recorded.map((place) => place.biome))]
+    .sort((a, b) => BIOMES[a].name.localeCompare(BIOMES[b].name, 'zh-CN'))
+  const filter = biomeTypes.includes(biomeFilter) ? biomeFilter : 'all'
+  const previous = s.previousLocId === null ? undefined : s.locs[s.previousLocId]
+  const travelButton = (place: typeof loc, label: string) => {
+    const here = place.id === loc.id
+    const access = travelAllowed(s, place)
+    const tired = !s.freeResources && s.hunger < RETURN_COST
+    const retreat = canRetreat(s, place.id)
+    const detail = here || s.freeResources ? undefined : !access ? '缺少传送门' :
+      tired ? retreat ? undefined : '饱食不足' : '饱食 −' + RETURN_COST
+    return <Btn key={place.id} cd="move" disabled={here || busy || !access || (tired && !retreat)}
+      onClick={() => moveFromMap(() => s.travel(place.id))} sub={detail}>
+      <Texture src={BIOMES[place.biome].icon} /> <LocationName name={label} />
+    </Btn>
+  }
+  const unmarkedStock = places.filter((place) => place.id !== loc.id && !place.saved &&
+    !place.shelter && (hasStock(place.stock) || hasStock(place.pending)))
   const tabs = [
     { id: 'gather', label: '采集', available: true },
     { id: 'map', label: '地图', available: s.flags.explore },
     { id: 'storage', label: '储存', available: canOpenStorage },
     { id: 'survival', label: '生存', available: s.flags.explore || s.flags.status },
-    { id: 'dimensions', label: '维度', available: tier >= 3 || s.flags.nether || s.flags.eye || loc.biome === 'altar' },
+    { id: 'companions', label: '伙伴', available: companionIds.some((id) => s.flags['wildlife_' + id]) },
   ].filter((entry) => entry.available)
   const currentTab = tabs.some((entry) => entry.id === tab) ? tab : 'gather'
 
@@ -88,11 +107,12 @@ export function Adventure({ onFirstChop }: { onFirstChop?: () => void }) {
             aria-label={id === 'storage' && storagePending ? '储存，有待领取物资' : label}>{label}</TabsTrigger>
         ))}
       </TabsList>}
+      <TabsContent value="companions"><Companions /></TabsContent>
       <TabsContent value="gather" className="gather-panel">
         {s.flags.explore && (
           <Section title="当前位置">
             <div className="location-heading">
-              <span className="loc-name icon-text"><Texture src={biome.icon} /> {s.submerged ? loc.name + ' · 海底' : loc.name}</span>
+              <span className="loc-name icon-text"><Texture src={biome.icon} /> <LocationName name={loc.name} />{s.submerged && ' · 海底'}</span>
               <div className="location-status">
                 {loc.shelter && !s.submerged && <span className="tag g">{loc.id === s.homeId ? '家' : '补给点'}</span>}
                 {loc.saved && <span className="tag y">已记录</span>}
@@ -103,7 +123,7 @@ export function Adventure({ onFirstChop }: { onFirstChop?: () => void }) {
             {!s.submerged && (nearby || hasExplorerMap) && (
               <ActionGrid className="location-actions">
                 {nearby && <Btn cd="nearby" disabled={!canExploreNearby(s)} onClick={s.exploreNearby}
-                  sub={'饱食 −' + NEARBY_COST}>探索附近</Btn>}
+                  sub={s.freeResources ? undefined : '饱食 −' + nearbyCost(s)}>探索附近</Btn>}
                 {hasExplorerMap && <Btn disabled={busy || !explorerMapChoices(loc).length}
                   onClick={s.readExplorerMap}>查看探险家地图</Btn>}
               </ActionGrid>
@@ -118,21 +138,21 @@ export function Adventure({ onFirstChop }: { onFirstChop?: () => void }) {
               {s.submerged
                 ? <Btn onClick={s.surface}>上浮换气</Btn>
                 : <Btn disabled={busy || !!divingIssue || s.air < MAX_AIR} onClick={s.dive}
-                  sub={divingIssue || (s.air < MAX_AIR ? '正在换气' : '空气 ' + MAX_AIR)}>潜入海底</Btn>}
-              {count(s, 'water_breathing') > 0 && !hasConduitPower(s) && (
+                  sub={divingIssue || (s.air < MAX_AIR ? `空气 ${s.air}/${MAX_AIR}` : undefined)}>潜入海底</Btn>}
+              {canUseItem(s, 'water_breathing') && !hasConduitPower(s) && (
                 <Btn cd="drink" disabled={breathing || busy} onClick={s.drinkWaterBreathing}
-                  sub={breathing ? '水下呼吸生效中' : '持续 ' + WATER_BREATHING_SECONDS + ' 秒'}>饮用水肺药水</Btn>
+                  title={breathing ? '水下呼吸生效中' : undefined}><ActionTitle name="饮用水肺药水" quantity={count(s, 'water_breathing')} /></Btn>
               )}
             </ActionGrid>
           </Section>
         )}
-        {(actions.length > 0 || canDigTreasure || canOpenMine) && <Section title="当地行动">
+        {(actions.length > 0 || canDigTreasure || canOpenMine || canCarve || canSummon || canChallengeWither) && <Section title="当地行动">
           <ActionGrid>
             {actions.map((id) => {
-              const a = ACTIONS[id]
+              const a = currentAction(s, id)
               const lock = actionLock(s, a)
-              const quantity = a.finite ? (loc.res[a.finite] ?? 0) : undefined
-              const detail = lock || (a.diveAir && !breathing ? `空气 −${a.diveAir}` : '')
+              const quantity = a.finite && !s.freeResources ? (loc.res[a.finite] ?? 0) : undefined
+              const detail = lock || [a.cost && !s.freeResources && itemCostText(a.cost, a.name), a.diveAir && !s.freeResources && !breathing && `空气 −${a.diveAir}`].filter(Boolean).join('，')
               return (
                 <Btn key={id} cd={id} disabled={busy || !!lock} onClick={() => {
                   const firstChop = id === 'chop' && !useGame.getState().flags.inv
@@ -144,12 +164,36 @@ export function Adventure({ onFirstChop }: { onFirstChop?: () => void }) {
                 </Btn>
               )
             })}
+            {canChallengeWither &&
+              <Btn disabled={busy || (!s.flags.witherSummoned && !canAfford(s, WITHER_COST))} onClick={s.summonWither}
+                sub={s.flags.witherSummoned ? undefined : itemCostText(WITHER_COST)}>挑战凋灵</Btn>}
             {canOpenMine && (
               <Btn cd="survey" disabled={busy || !canSurvey(s) || !canAfford(s, SURVEY_COST)}
-                onClick={s.survey} sub="消耗 4 火把 · 补充矿脉">开拓矿道</Btn>
+                onClick={s.survey} sub={(loc.shaftsLeft ?? 1) > 0 ? itemCostText(SURVEY_COST) : '矿道已探尽'}>开拓矿道</Btn>
             )}
             {canDigTreasure && <Btn cd="treasure" disabled={busy || s.expedition?.id === 'buried_treasure'}
-              onClick={s.digTreasure}>寻找埋藏的宝箱</Btn>}
+              onClick={s.digTreasure} sub={itemCostText({ treasure_map: 1 })}>寻找埋藏的宝箱</Btn>}
+            {canCarve && <Btn disabled={busy || !canUseItem(s, 'shears')} onClick={s.carvePumpkin}
+              sub={canUseItem(s, 'shears') ? itemCostText({ pumpkin: 1 }) : '需要剪刀'}>雕刻南瓜</Btn>}
+            {canSummon && <Btn disabled={busy || !canAfford(s, { carved_pumpkin: 1, copper_block: 1 })} onClick={s.summonCopperGolem}
+              sub={itemCostText({ carved_pumpkin: 1, copper_block: 1 })}>召唤铜傀儡</Btn>}
+          </ActionGrid>
+        </Section>}
+        {containerUses.length > 0 && <Section title="液体与容器">
+          <ActionGrid>
+            {containerUses.map(use => <Btn key={use.action} disabled={busy || !!use.lock} onClick={() => s.useBucket(use.action)}
+            sub={use.lock || (!s.freeResources && itemCostText(use.cost, use.name)) || undefined}><ActionTitle name={use.name} quantity={use.action === 'mineCooled' ? loc.cooledBlocks : undefined} /></Btn>)}
+          </ActionGrid>
+        </Section>}
+        {!s.submerged && (frameUses.length > 0 || loc.frameMold || loc.castBlocks || loc.netherGate || ruined || tier >= 3 || s.seen.obsidian) && <Section title="下界传送门" extra={!loc.netherGate && (frameUses.length || loc.castBlocks || ruined) ? '还缺 ' + gateCost(loc).obsidian + ' 块' : undefined}>
+          <ActionGrid>
+            {frameUses.map(use => <Btn key={use.action} disabled={busy || !!use.lock} onClick={() => s.useBucket(use.action)} sub={use.lock || (!s.freeResources && itemCostText(use.cost, use.name)) || undefined}>{use.name}</Btn>)}
+            {loc.netherGate === true ? recorded.filter(place => place.netherGate === true && inNether(place) !== nether)
+              .map(place => travelButton(place, place.name)) :
+              loc.netherGate === 'frame' ? <Btn disabled={busy || !canUseItem(s, 'flint_and_steel')} onClick={s.igniteNether}
+                sub={canUseItem(s, 'flint_and_steel') ? undefined : '需要打火石'}>点燃传送门</Btn> :
+              loc.placedLava !== 'frame' && <Btn disabled={busy || !canAfford(s, gateCost(loc))} onClick={s.buildNether}
+                sub={itemCostText(gateCost(loc))}>{ruined ? '补全废弃门框' : '搭建黑曜石门框'}</Btn>}
           </ActionGrid>
         </Section>}
         {wildlife.length > 0 && (
@@ -157,29 +201,49 @@ export function Adventure({ onFirstChop }: { onFirstChop?: () => void }) {
             <ActionGrid>
               {wildlife.map((id) => {
                 const encounter = WILDLIFE[id]
+                const reunion = isReunion(s, id)
+                const detail = s.freeResources ? undefined : [!reunion && itemCostText(encounter.cost ?? {}, encounter.action), encounter.underwater && !breathing && '空气 −7'].filter(Boolean).join('，')
                 const locked = wildlifeLock(s, id)
                 return <Btn key={id} cd={'wildlife_' + id} disabled={busy || !!locked}
-                  onClick={() => s.interactWildlife(id)} sub={locked || encounter.name}>{encounter.action}</Btn>
+                  onClick={() => s.interactWildlife(id)} sub={locked || detail}>{reunion ? '跟随' + encounter.name + '探路' : encounter.action}</Btn>
               })}
             </ActionGrid>
           </Section>
         )}
+        {!s.submerged && s.flags.nether && inNether(loc) && (
+          <Section title="猪灵交易">
+            <p className="notice">猪灵会用末影珍珠、黑曜石或石英等物资交换金锭。</p>
+            <ActionGrid>
+              <Btn cd="barter" disabled={busy || !canAfford(s, BARTER_COST)} onClick={s.barter}
+                sub={s.freeResources ? undefined : itemCostText(BARTER_COST)}>递上金锭</Btn>
+            </ActionGrid>
+          </Section>
+        )}
+
+        {!s.submerged && !inNether(loc) && (s.flags.eye || loc.biome === 'altar') && (
+          <Section title="末地">
+            {s.flags.won && <p className="notice">末影龙已被击败。回到村庄，可组织远征探索末地外岛。</p>}
+            {s.flags.altar && !s.flags.won && loc.biome !== 'altar' && (
+              <p className="notice">要塞已定位。可在地图页前往要塞传送门房间。</p>
+            )}
+            <ActionGrid>
+              {!s.flags.altar && (
+                <Btn cd="eye" disabled={busy || !canUseItem(s, 'eye')} onClick={s.throwEye} sub={`已追踪 ${s.eyesThrown}/3`}>投掷末影之眼</Btn>
+              )}
+              {loc.biome === 'altar' && !s.flags.portal && (
+                <Btn disabled={busy || !canUseItem(s, 'eye')} onClick={s.insertEyes} sub={s.freeResources ? undefined : count(s, 'eye') ? `−${Math.min(count(s, 'eye'), EYES_NEEDED - s.altarEyes)}` : '缺少末影之眼'}>嵌入末影之眼</Btn>
+              )}
+              {loc.biome === 'altar' && s.flags.portal && !s.flags.won && (
+                <Btn className="danger" disabled={busy} onClick={s.enterPortal}>踏入传送门</Btn>
+              )}
+              {loc.biome === 'altar' && s.flags.portal && s.flags.won && (
+                <Btn className="danger" disabled={busy || !canAfford(s, RESPAWN_COST)} onClick={s.enterPortal}
+                  sub={itemCostText(RESPAWN_COST)}>复活末影龙</Btn>
+              )}
+            </ActionGrid>
+          </Section>
+        )}
         <SiteTasks />
-        {!s.submerged && commission && <Section title="村庄">
-          <ActionGrid>
-            <Btn cd="guest_trade" disabled={busy || !canAfford(s, GUEST_TRADE)} onClick={s.guestTrade}
-              sub="3 原木 → 1 面包">换取面包</Btn>
-            <Btn cd="directions" disabled={busy || !villageLeadChoices(loc).length}
-              onClick={s.askDirections}>打听附近</Btn>
-          </ActionGrid>
-          {!s.village && <article className="content-entry village-commission">
-            <EntryHeader actions={<Btn disabled={busy || !prepared || s.crop > 0 || !canAfford(s, commission.cost)}
-              onClick={s.settle}>完成委托并定居</Btn>}>{commission.name}</EntryHeader>
-            <Cost cost={commission.cost} />
-            {!prepared && <p className="notice">需要自己烹饪或收获一次作物，并带口粮远行。</p>}
-            {prepared && s.crop > 0 && <p className="notice">等营地作物成熟后即可搬迁。</p>}
-          </article>}
-        </Section>}
         {!s.submerged && s.flags.allay && (
           <Section title="悦灵">
             <div className="actions">
@@ -198,6 +262,9 @@ export function Adventure({ onFirstChop }: { onFirstChop?: () => void }) {
       </TabsContent>
 
       {canOpenStorage && <TabsContent value="storage">
+        {unmarkedStock.length > 0 && !s.submerged && <Section title="遗留物资">
+          <ActionGrid>{unmarkedStock.map((place) => travelButton(place, place.netherGate ? place.name + (place.netherGate === 'frame' ? ' · 未点燃门框' : ' · 传送门') : place.name))}</ActionGrid>
+        </Section>}
         <LocationStorage onOpenMap={() => { resetScroll(); setTab('map') }} />
       </TabsContent>}
 
@@ -207,37 +274,41 @@ export function Adventure({ onFirstChop }: { onFirstChop?: () => void }) {
           <ActionGrid><Btn onClick={s.surface}>上浮换气</Btn></ActionGrid>
         </Section> : (
         <>
-          <Section title="远行" extra={loc.name}>
+          <Section title="远行" extra={<LocationName name={loc.name} />}>
             <ActionGrid>
-              <Btn cd="move" disabled={busy || s.hunger < JOURNEY_COST}
-                onClick={() => moveFromMap(s.explore)}
-                sub={s.hunger < JOURNEY_COST ? '饱食不足 · 需要 ' + JOURNEY_COST : '饱食 −' + JOURNEY_COST}>远行</Btn>
+              {[undefined, ...leads].map((id) => {
+                const cost = journeyCost(s, id)
+                return <Btn key={id ?? 'free'} cd="move" disabled={busy || s.hunger < cost}
+                  onClick={() => moveFromMap(() => s.explore(id))} sub={cost ? '饱食 −' + cost : undefined}>
+                  {id === undefined ? '自由探索' : LEADS[id].action}
+                </Btn>
+              })}
+              {previous && !previous.saved && previous.id !== s.homeId && previous.id !== loc.id &&
+                travelButton(previous, '原路折返')}
               {s.flags.waypoint && !loc.saved && <Btn disabled={busy} onClick={s.saveLoc}>记录当前位置</Btn>}
               {s.flags.waypoint && loc.marked && !loc.shelter && !protectedLoc && (
                 <Btn disabled={busy || !!loc.commissioned || s.furnace.job?.locId === loc.id || hasStock(loc.stock) || hasStock(loc.pending)}
-                  sub={s.furnace.job?.locId === loc.id ? '熔炼进行中' : hasStock(loc.stock) || hasStock(loc.pending) ? '还有物资' : undefined}
+                  title={s.furnace.job?.locId === loc.id ? '熔炼进行中' : hasStock(loc.stock) || hasStock(loc.pending) ? '还有物资' : undefined}
                   onClick={() => s.forgetLoc(loc.id)}>移除标记</Btn>
               )}
             </ActionGrid>
           </Section>
-          {returnGroups.filter((group) => group.places.length > 0).map((group) => (
-            <Section key={group.title} title={group.title}>
-              <ActionGrid>
-                {group.places.map((place) => {
-                  const access = travelAllowed(s, place)
-                  const emergency = s.hunger < RETURN_COST
-                  const retreat = canRetreat(s, place.id)
-                  const detail = !access ? '需经家中传送门' : emergency ? retreat ? '疲惫撤回' : '饱食不足' :
-                    '饱食 −' + RETURN_COST
-                  return <Btn key={place.id} cd="move" disabled={busy || !access || (emergency && !retreat)}
-                    onClick={() => moveFromMap(() => s.travel(place.id))} sub={detail}>
-                    <Texture src={BIOMES[place.biome].icon} /> {place.name}
-                  </Btn>
-                })}
-              </ActionGrid>
-              {group.temporary && <p className="notice">离开后会更新临时折返点。</p>}
-            </Section>
-          ))}
+          {recorded.length > 0 && <Section title="已记录地点">
+            {biomeTypes.length > 1 && (
+              <div className="row recipe-filters" role="group" aria-label="按地形筛选地点">
+                {['all', ...biomeTypes].map((id) => (
+                  <Button key={id} className={`btn mini ${filter === id ? 'on' : ''}`}
+                    aria-pressed={filter === id} onClick={() => setBiomeFilter(id)}>
+                    {id === 'all' ? '全部' : BIOMES[id].name}
+                  </Button>
+                ))}
+              </div>
+            )}
+            <ActionGrid>
+              {recorded.filter((place) => filter === 'all' || place.biome === filter).map((place) =>
+                travelButton(place, place.netherGate ? place.name + (place.netherGate === 'frame' ? ' · 未点燃门框' : ' · 传送门') : place.name))}
+            </ActionGrid>
+          </Section>}
         </>
         )}
       </TabsContent>}
@@ -256,22 +327,22 @@ export function Adventure({ onFirstChop }: { onFirstChop?: () => void }) {
             {foods.length === 0 && <p className="notice">没有可以吃的东西。</p>}
             <ActionGrid>
               <Btn cd="rest" disabled={s.submerged || busy || s.hp >= 20} onClick={s.rest}
-                sub={camp ? '回复 10 生命' : '回复 4 生命'}>休整</Btn>
+                title={camp ? '回复 10 生命' : '回复 4 生命'}>休整</Btn>
               {foods.map((f) => (
-                <Btn key={f.id} cd="eat" disabled={s.hunger >= 20} onClick={() => s.eat(f.id)} sub={`饱食 +${f.food}`}>
+                <Btn key={f.id} cd="eat" disabled={s.hunger >= 20} onClick={() => s.eat(f.id)} title={`饱食 +${f.food}`}>
                   <ActionTitle name={'吃' + f.name} quantity={count(s, f.id)} />
                 </Btn>
               ))}
-              {count(s, 'potion') > 0 && <Btn cd="drink" disabled={s.hp >= 20} onClick={() => s.drink()} sub="回复 8 生命"><ActionTitle name="饮用治疗药水" quantity={count(s, 'potion')} /></Btn>}
-              {count(s, 'fire_resistance') > 0 && <Btn cd="drink" disabled={busy || fireWard} onClick={() => s.drink('fire_resistance')} sub={fireWard ? '抗火生效中' : '持续 60 秒'}><ActionTitle name="饮用抗火药水" quantity={count(s, 'fire_resistance')} /></Btn>}
-              {atHome(s) && count(s, 'bed') > 0 && (
-                <Btn disabled={busy || !night} onClick={s.sleep} sub={night ? '跳过夜晚' : '只能在夜晚入睡'}>睡觉</Btn>
+              {canUseItem(s, 'potion') && <Btn cd="drink" disabled={s.hp >= 20} onClick={() => s.drink()} title="回复 8 生命"><ActionTitle name="饮用治疗药水" quantity={count(s, 'potion')} /></Btn>}
+              {canUseItem(s, 'fire_resistance') && <Btn cd="drink" disabled={busy || fireWard} onClick={() => s.drink('fire_resistance')} title={fireWard ? '抗火生效中' : '持续 60 秒'}><ActionTitle name="饮用抗火药水" quantity={count(s, 'fire_resistance')} /></Btn>}
+              {atHome(s) && canUseItem(s, 'bed') && (
+                <Btn disabled={busy || !night} onClick={s.sleep} title={night ? '跳过夜晚' : '只能在夜晚入睡'}>睡觉</Btn>
               )}
             </ActionGrid>
           </Section>
         )}
 
-        {s.flags.explore && !s.submerged && s.homeId === null && !commission && canCampHere(loc) && (
+        {s.flags.explore && !s.submerged && s.homeId === null && loc.biome !== 'village' && canCampHere(loc) && (
           <Section title="安家">
             <article className="content-entry shelter-entry">
               <EntryHeader actions={<Btn disabled={busy || !canAfford(s, SHELTER_COST)} onClick={s.buildShelter}>建立庇护所</Btn>}>
@@ -285,23 +356,23 @@ export function Adventure({ onFirstChop }: { onFirstChop?: () => void }) {
         {atHome(s) && (
           <Section title="营地">
             <ActionGrid>
-              {PLANTS.filter((plant) => plant.id === 'wheat' || Object.keys(plant.cost).every((id) => s.seen[id])).map((plant) => (
+              {PLANTS.filter((plant) => s.freeResources || plant.id === 'wheat' || Object.keys(plant.cost).every((id) => s.seen[id])).map((plant) => (
                 <Btn key={plant.id} disabled={busy || s.crop > 0 || !canAfford(s, plant.cost)} onClick={() => s.plant(plant.id)}
                   sub={s.crop && s.cropKind === plant.id
-                    ? '成熟还需 ' + s.crop + ' 秒'
-                    : Object.entries(plant.cost).map(([id, n]) => ITEMS[id].name + ' ×' + n).join('、')}>
+                    ? '还需 ' + s.crop + ' 秒'
+                    : itemCostText(plant.cost, plant.name)}>
                   播种{plant.name}
                 </Btn>
               ))}
-              {camp && CAMP_COOK.filter((recipe) => available(s, recipe.from) > 0).map((recipe) => (
-                <Btn key={recipe.id} cd="cook" disabled={busy} onClick={() => s.cook(recipe.from)}>
+              {camp && CAMP_COOK.filter((recipe) => canAfford(s, { [recipe.from]: 1 })).map((recipe) => (
+                <Btn key={recipe.id} cd="cook" disabled={busy} onClick={() => s.cook(recipe.from)} sub={itemCostText({ [recipe.from]: 1 })}>
                   <ActionTitle name={'烤制' + ITEMS[recipe.out].name} quantity={available(s, recipe.from)} />
                 </Btn>
               ))}
               {s.seen.sniffer_egg && !s.expeditions.hatch_sniffer && (
                 <Btn disabled={busy || !!s.expedition || !!expeditionLock(s, incubation) || !canAfford(s, incubation.cost)}
                   onClick={() => s.launch(incubation.id)}
-                  sub={s.expedition?.id === incubation.id ? '剩余 ' + s.expedition.left + ' 秒' : '消耗 1 枚嗅探兽蛋'}>
+                  sub={s.expedition?.id === incubation.id ? '剩余 ' + s.expedition.left + ' 秒' : itemCostText(incubation.cost)}>
                   孵化嗅探兽
                 </Btn>
               )}
@@ -318,64 +389,6 @@ export function Adventure({ onFirstChop }: { onFirstChop?: () => void }) {
         {s.homeId !== null && !atHome(s) && <p className="notice">回到营地可播种、烹饪或使用床铺。</p>}
       </TabsContent>
 
-      <TabsContent value="dimensions">
-        {tier >= 3 && !s.flags.nether && !atHome(s) && (
-          <p className="notice">{s.homeId === null ? '先在生存页建立庇护所，再建造下界传送门。' : '回到家中即可建造下界传送门。'}</p>
-        )}
-        {s.flags.nether && !inNether(loc) && (
-          <p className="notice">在地图页从家的传送门前往下界要塞或诡异森林。</p>
-        )}
-        {((tier >= 3 && atHome(s) && !s.flags.nether) || (s.flags.nether && loc.biome === 'rift' && !s.flags.wither)) && (
-          <Section title="下界">
-            <article className="content-entry">
-              <EntryHeader actions={s.flags.nether
-                ? <Btn disabled={busy || (!s.flags.witherSummoned && !canAfford(s, WITHER_COST))} onClick={s.summonWither}>挑战凋灵</Btn>
-                : <Btn disabled={busy || !canAfford(s, NETHER_COST)} onClick={s.buildNether}>建造下界传送门</Btn>
-              }>
-                <p className="sm dim">{s.flags.nether ? '用灵魂沙和三颗凋灵骷髅头颅召来凋灵。它的下界之星可以点亮信标。' : '在家搭建传送门，打通前往下界要塞和诡异森林的路线。'}</p>
-              </EntryHeader>
-              {(!s.flags.nether || !s.flags.witherSummoned) && <Cost cost={s.flags.nether ? WITHER_COST : NETHER_COST} />}
-            </article>
-          </Section>
-        )}
-
-        {s.flags.nether && inNether(loc) && (
-          <Section title="猪灵交易">
-            <article className="content-entry">
-              <EntryHeader actions={
-                <Btn cd="barter" disabled={busy || !canAfford(s, BARTER_COST)} onClick={s.barter}>递上金锭</Btn>
-              }>
-                <p className="sm dim">猪灵会用末影珍珠、黑曜石、石英或其他物资交换金锭。</p>
-              </EntryHeader>
-              <Cost cost={BARTER_COST} />
-            </article>
-          </Section>
-        )}
-
-        {!inNether(loc) && (s.flags.eye || loc.biome === 'altar') && (
-          <Section title="末地">
-            {s.flags.won && <p className="notice">末影龙已被击败。回到村庄，可组织远征探索末地外岛。</p>}
-            {s.flags.altar && !s.flags.won && loc.biome !== 'altar' && (
-              <p className="notice">要塞已定位。可在地图页前往要塞传送门房间。</p>
-            )}
-            <ActionGrid>
-              {!s.flags.altar && (
-                <Btn cd="eye" disabled={busy || count(s, 'eye') < 1} onClick={s.throwEye} sub={`已追踪 ${s.eyesThrown}/3`}>投掷末影之眼</Btn>
-              )}
-              {loc.biome === 'altar' && !s.flags.portal && (
-                <Btn disabled={busy || count(s, 'eye') < 1} onClick={s.insertEyes} sub={`${s.altarEyes}/${EYES_NEEDED}`}>嵌入末影之眼</Btn>
-              )}
-              {loc.biome === 'altar' && s.flags.portal && !s.flags.won && (
-                <Btn className="danger" disabled={busy} onClick={s.enterPortal} sub="护甲与熟食可帮助战斗，玻璃瓶可收集龙息">踏入传送门</Btn>
-              )}
-              {loc.biome === 'altar' && s.flags.portal && s.flags.won && (
-                <Btn className="danger" disabled={busy || !canAfford(s, RESPAWN_COST)} onClick={s.enterPortal}
-                  sub="消耗 4 座末地水晶">复活末影龙</Btn>
-              )}
-            </ActionGrid>
-          </Section>
-        )}
-      </TabsContent>
     </Tabs>
   )
 }
@@ -391,8 +404,8 @@ function SiteTasks() {
         <p className="notice">击败旋风人后可取得钥匙。开启普通宝库获得不祥之瓶，再用它挑战强化试炼。</p>
         <ActionGrid>
           <Btn cd="trial" disabled={busy} onClick={() => s.startTrial(false)}>开始试炼</Btn>
-          <Btn cd="trial" disabled={busy || !s.flags.trialVault || count(s, 'ominous_bottle') < 1}
-            onClick={() => s.startTrial(true)} sub="消耗 1 瓶不祥之瓶">开启不祥试炼</Btn>
+          <Btn cd="trial" disabled={busy || !s.flags.trialVault || !canUseItem(s, 'ominous_bottle')}
+            onClick={() => s.startTrial(true)} sub={itemCostText({ ominous_bottle: 1 })}>开启不祥试炼</Btn>
         </ActionGrid>
         <div className="entry-grid trial-vaults">
           {TRIAL_VAULTS.map((vault) => (
@@ -416,7 +429,7 @@ function SiteTasks() {
       <Section title="考古">
         <ActionGrid>
           <Btn cd="excavation" disabled={busy || (loc.res.suspicious ?? 0) > 0 || !canAfford(s, EXCAVATION_COST)}
-            onClick={s.searchDig} sub="消耗 1 面包和 2 火把">寻找下一片沙层</Btn>
+            onClick={s.searchDig} sub={itemCostText(EXCAVATION_COST)}>寻找下一片沙层</Btn>
         </ActionGrid>
       </Section>
     )
@@ -426,7 +439,7 @@ function SiteTasks() {
     return (
       <Section title="堡垒藏宝箱">
         <ActionGrid>
-          <Btn disabled={busy || !!loc.lootTaken || !(loc.cleared || s.flags.bastionCleared)} onClick={s.openBastion} sub={!loc.cleared && !s.flags.bastionCleared ? '先击败猪灵蛮兵' : undefined}>{loc.lootTaken ? '宝箱已开启' : '取出锻造模板'}</Btn>
+          <Btn disabled={busy || !!loc.lootTaken || !(loc.cleared || s.flags.bastionCleared)} onClick={s.openBastion} title={!loc.cleared && !s.flags.bastionCleared ? '先击败猪灵蛮兵' : undefined}>{loc.lootTaken ? '宝箱已开启' : '取出锻造模板'}</Btn>
         </ActionGrid>
       </Section>
     )

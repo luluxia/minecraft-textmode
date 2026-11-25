@@ -4,12 +4,12 @@ import {
   STATION_NAMES, canUseStation, itemKnown, itemSources, recipeOptions, recipeUses, type RecipeTarget,
 } from '../game/recipes'
 import { SITES, VARIANT_NAMES } from '../game/exploration'
-import { WILDLIFE } from '../game/wildlife'
+import { wildlifeAt, WILDLIFE } from '../game/wildlife'
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '../components/minecraft/collapsible'
 import { Input } from '../components/minecraft/input'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/minecraft/tabs'
-import { available, canAfford, outputRoom, useGame } from '../game/store'
-import { Btn, IngredientName, ItemName } from './kit'
+import { brewingCapacity, available, canAfford, outputRoom, useGame } from '../game/store'
+import { LocationName, Btn, IngredientName, ItemName } from './kit'
 import { Texture } from './Texture'
 
 interface RecipeBookProps {
@@ -50,6 +50,16 @@ function Discoveries() {
             : <p className="notice">尚无记录。</p>}
         </BookBlock>
       ))}
+      {animals.some(([id]) => WILDLIFE[id].observation) && (
+        <BookBlock title="野外观察">
+          <p className="notice">你能辨认这些动物的踪迹。在下列栖息地探索附近时，饱食消耗从 1.5 降为 1。</p>
+          <ul className="book-chips">
+            {Object.values(BIOMES).filter((biome) => wildlifeAt(biome.id).some((id) =>
+              WILDLIFE[id].observation && s.flags['wildlife_' + id])).map((biome) =>
+              <li className="book-chip" key={biome.id}>{biome.name}</li>)}
+          </ul>
+        </BookBlock>
+      )}
     </div>
   )
 }
@@ -58,13 +68,26 @@ function ItemsBook({ initialItem, onMake }: RecipeBookProps) {
   const s = useGame()
   const [query, setQuery] = useState('')
   const [category, setCategory] = useState<Cat | 'all'>('all')
-  const [selected, setSelected] = useState(initialItem ?? '')
+  const [itemPath, setItemPath] = useState<string[]>(() => initialItem && ITEMS[initialItem] ? [initialItem] : [])
+  const selected = itemPath.at(-1)
+  const previous = itemPath.at(-2)
+  const openItem = (id: string) => setItemPath(path => [...path, id])
   const search = query.trim()
   const known = ITEM_LIST.filter((item) => itemKnown(s, item.id) || recipeOptions(s, item.id).length > 0)
   const items = known.filter((item) => search ? item.name.includes(search) : category === 'all' || item.cat === category)
 
   if (selected && ITEMS[selected]) {
-    return <ItemDetail item={selected} onBack={() => setSelected('')} onSelect={setSelected} onMake={onMake} />
+    return (
+      <div className="book-detail fade-in" key={selected}>
+        <div className="row">
+          {previous && <Btn className="mini" onClick={() => setItemPath(path => path.slice(0, -1))}>
+            ‹ 返回{ITEMS[previous].name}
+          </Btn>}
+          <Btn className="mini" onClick={() => setItemPath([])}>返回列表</Btn>
+        </div>
+        <ItemDetail item={selected} onSelect={openItem} onMake={onMake} />
+      </div>
+    )
   }
 
   // 全部分类且未搜索时按分类分组，其余情况为单一列表。
@@ -88,7 +111,7 @@ function ItemsBook({ initialItem, onMake }: RecipeBookProps) {
       {groups.map(([label, list], index) => (
         <section key={label ?? index} className="book-group">
           {label && <h4 className="book-group-title"><span>{label}</span><span className="book-count">{list.length}</span></h4>}
-          <ItemGrid ids={list.map((item) => item.id)} onSelect={setSelected} />
+          <ItemGrid ids={list.map((item) => item.id)} onSelect={openItem} />
         </section>
       ))}
       {items.some((item) => !s.seen[item.id]) && <p className="book-legend">未收录：已知配方但尚未获得</p>}
@@ -113,19 +136,18 @@ function ItemGrid({ ids, onSelect }: { ids: string[]; onSelect: (id: string) => 
   )
 }
 
-function ItemDetail({ item, onBack, onSelect, onMake }: {
+function ItemDetail({ item, onSelect, onMake }: {
   item: string
-  onBack: () => void
   onSelect: (id: string) => void
   onMake?: (target: RecipeTarget) => void
 }) {
   const s = useGame()
   const def = ITEMS[item]
+  const held = available(s, item, { [item]: [item] })
   const uses = recipeUses(s, item)
   const hasRecipe = recipeOptions(s, item).length > 0
   return (
-    <div className="book-detail fade-in" key={item}>
-      <Btn className="mini book-back" onClick={onBack}>‹ 返回列表</Btn>
+    <>
       <header className="book-hero">
         <span className="book-hero-icon"><Texture src={def.icon} /></span>
         <div className="book-hero-text">
@@ -134,7 +156,7 @@ function ItemDetail({ item, onBack, onSelect, onMake }: {
             <span className="tag">{CATEGORY_NAMES[def.cat]}</span>
             {s.seen[item] ? <span className="tag g">已收录</span> : <span className="tag">未收录</span>}
             {!!def.food && <span className="tag y">饱食 +{def.food}</span>}
-            {available(s, item) > 0 && <span className="tag">持有 {available(s, item)}</span>}
+            {held > 0 && <span className="tag">持有 {held}</span>}
           </div>
         </div>
       </header>
@@ -145,7 +167,7 @@ function ItemDetail({ item, onBack, onSelect, onMake }: {
       {uses.length > 0 && <BookBlock title="用途" extra={<span className="book-count">{uses.length}</span>}>
         <ItemGrid ids={uses} onSelect={onSelect} />
       </BookBlock>}
-    </div>
+    </>
   )
 }
 
@@ -171,7 +193,7 @@ function RecipeDetails({ item, needed, ancestors, onMake }: {
   const batches = step ? Math.ceil(needed / step.amount) : 0
   const cost = step ? Object.fromEntries(Object.entries(step.cost).map(([id, n]) => [id, n * batches])) : {}
   const stationReady = step ? canUseStation(s, step.station) : false
-  const canMake = step && !s.combat && !s.submerged && stationReady &&
+  const canMake = step && !s.combat && !s.submerged && stationReady && (step.station !== 'brewing' || brewingCapacity(s) >= batches) &&
     canAfford(s, cost, step.alternatives) && outputRoom(s, step.out) >= step.amount
   const sources = [
     ['库存', source.stored],
@@ -186,6 +208,7 @@ function RecipeDetails({ item, needed, ancestors, onMake }: {
             <span className="recipe-station-info">
               <span className={stationReady ? undefined : 'bad'}>{STATION_NAMES[step.station]}</span>
               <span className="dim">产出 ×{batches * step.amount}</span>
+              {step.station === 'brewing' && <span className="dim">燃料：烈焰粉（每份 20 批）</span>}
               {!stationReady && <span className="bad">（缺少工作站）</span>}
             </span>
             {canMake && onMake && <Btn className="mini primary" onClick={() => onMake(step)}>前往制造</Btn>}
@@ -202,7 +225,7 @@ function RecipeDetails({ item, needed, ancestors, onMake }: {
       {sources.some(([, list]) => list.length > 0) && (
         <dl className="recipe-sources">
           {sources.filter(([, list]) => list.length > 0).map(([label, list]) => (
-            <div key={label} className="recipe-source-row"><dt>{label}</dt><dd>{list.join('、')}</dd></div>
+            <div key={label} className="recipe-source-row"><dt>{label}</dt><dd>{list.map((name, index) => <span key={name}>{index > 0 && '、'}<LocationName name={name} /></span>)}</dd></div>
           ))}
         </dl>
       )}

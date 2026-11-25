@@ -1,12 +1,16 @@
 import { useRef, useState, type ChangeEvent } from 'react'
 import { ActionGrid } from './ActionGrid'
 import { Card } from '../components/minecraft/card'
+import { Button } from '../components/minecraft/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/minecraft/select'
 import { Switch } from '../components/minecraft/switch'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/minecraft/tabs'
 import { GameDialog } from './GameDialog'
 import { useScrollReset } from './ScrollArea'
 import { EXPEDITIONS } from '../game/progression'
+import { BIOMES, ITEM_LIST } from '../game/data'
+import { LEADS, SITES } from '../game/exploration'
+import { companionIds } from '../game/wildlife'
 import { EXPLORATION, PROJECTS, STORY, TUTORIAL, achievementVisible, getAchievement, getCompletedAchievements, type GoalHint, type GoalTerm } from '../game/advancements'
 import { dayOf, useGame } from '../game/store'
 import type { RecipeTarget } from '../game/recipes'
@@ -15,7 +19,7 @@ import { Texture } from './Texture'
 import { Bar, Btn, EntryHeader } from './kit'
 import { UI_SCALES, useInterfaceSettings } from './interfaceSettings'
 
-const JOURNAL_TITLES = { catalog: '配方书', achievements: '成就', stats: '统计', settings: '设置' } as const
+const JOURNAL_TITLES = { catalog: '配方书', achievements: '成就', stats: '统计', settings: '设置', about: '关于' } as const
 export type GameMenu = keyof typeof JOURNAL_TITLES
 
 const ACHIEVEMENT_TABS = [
@@ -69,28 +73,61 @@ export function JournalModal({ menu, onClose, onDebug, bookItem, onRecipe }: {
   bookItem?: string
   onRecipe?: (target: RecipeTarget) => void
 }) {
-  const s = useGame()
   const title = JOURNAL_TITLES[menu]
   return (
-    <GameDialog label={title} onClose={onClose} className={`journal-dialog ${menu}-dialog`} showHeader>
+    <GameDialog label={title} onClose={onClose} className={menu === 'about' ? 'about-dialog' : `journal-dialog ${menu}-dialog`} showHeader>
+      {menu === 'about' && <>
+        <img className="about-logo" src="/logo/minecraft-text-mode.png" width="2006" height="397" alt="我的世界：文字模式" />
+        <p>从初生森林出发，采集、合成，建起自己的村庄。在这款文字放置游戏里，你还可以穿过下界，前往末地挑战末影龙。</p>
+        <Button className="btn about-source" nativeButton={false} role="link"
+          render={<a href="https://github.com/luluxia/minecraft-textmode" target="_blank" rel="noopener noreferrer" />}>
+          GitHub 源码 · luluxia/minecraft-textmode
+        </Button>
+      </>}
       {menu === 'catalog' && <RecipeBook key={bookItem} initialItem={bookItem} onMake={onRecipe} />}
       {menu === 'settings' && <SaveSettings onClose={onClose} onDebug={onDebug} />}
       {menu === 'achievements' && <Achievements />}
-      {menu === 'stats' && <dl className="village-stats">
-        <dt>世界天数</dt><dd>{dayOf(s.minute)}</dd>
-        <dt>采集与狩猎行动</dt><dd>{s.stats.actions}</dd>
-        <dt>探索地点次数</dt><dd>{s.stats.explored}</dd>
-        <dt>击败生物</dt><dd>{s.stats.kills}</dd>
-        <dt>死亡次数</dt><dd>{s.stats.deaths}</dd>
-        <dt>击退袭击</dt><dd>{s.expeditions.raid ?? 0}</dd>
-        {([['ocean', '海洋远征'], ['end', '末地远征']] as const).map(([region, label]) => (
-          <div key={region} className="stat-row">
-            <dt>{label}</dt><dd>{EXPEDITIONS.reduce((n, entry) => n + (entry.region === region ? s.expeditions[entry.id] ?? 0 : 0), 0)}</dd>
-          </div>
-        ))}
-      </dl>}
+      {menu === 'stats' && <Statistics />}
     </GameDialog>
   )
+}
+
+function Statistics() {
+  const s = useGame()
+  const resetScroll = useScrollReset()
+  const progress = (ids: string[], seen: Record<string, boolean>, prefix = '') =>
+    `${ids.filter((id) => seen[prefix + id]).length} / ${ids.length}`
+  const groups: Record<string, [string, string | number][]> = {
+    生存: [
+      ['世界天数', dayOf(s.minute)], ['采集与狩猎行动', s.stats.actions], ['击败生物', s.stats.kills],
+      ['死亡次数', s.stats.deaths], ['击退袭击', s.expeditions.raid ?? 0], ['开启试炼宝库', s.stats.vaults],
+      ['收录物资', progress(ITEM_LIST.map((item) => item.id), s.seen)],
+    ],
+    探索: [
+      ['远行次数', s.stats.explored], ['到访地形', progress(Object.keys(BIOMES), s.seenPlaces)],
+      ['发现附近景点', progress(Object.keys(SITES), s.flags, 'site_')], ['获得线索', progress(Object.keys(LEADS), s.leads)],
+      ['潜水次数', s.stats.dives], ['野生生物互动', s.stats.interactions], ['结识伙伴', progress(companionIds, s.flags, 'wildlife_')],
+    ],
+    生产: [
+      ['合成物品数', s.stats.crafted], ['酿造药水数', s.stats.brewed], ['熔炉产出数', s.stats.smelted],
+      ['营火烹饪份数', s.stats.cooked], ['产线完成批次', s.stats.productionCycles], ['完成交易笔数', s.stats.trades],
+    ],
+    远征: [],
+  }
+  for (const [region, name] of [['ocean', '海洋'], ['camp', '营地'], ['end', '末地']]) {
+    const trips = EXPEDITIONS.filter((trip) => trip.region === region)
+    groups.远征.push([name + '合计', trips.reduce((sum, trip) => sum + (s.expeditions[trip.id] ?? 0), 0)])
+    for (const trip of trips) groups.远征.push([trip.name, s.expeditions[trip.id] ?? 0])
+  }
+  return <Tabs defaultValue="生存" onValueChange={() => resetScroll()}>
+    <TabsList className="subtabs" aria-label="统计分类">
+      {Object.keys(groups).map((name) => <TabsTrigger key={name} value={name}>{name}</TabsTrigger>)}
+    </TabsList>
+    {Object.entries(groups).map(([name, rows]) => <TabsContent key={name} value={name}>
+      <dl className="village-stats">{rows.map(([label, value]) =>
+        <div key={label} className="stat-row"><dt>{label}</dt><dd>{value}</dd></div>)}</dl>
+    </TabsContent>)}
+  </Tabs>
 }
 
 function Achievements() {

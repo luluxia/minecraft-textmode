@@ -4,22 +4,25 @@ export const NEARBY_COST = 1.5
 export const JOURNEY_COST = 3
 export const RETURN_COST = 1
 
-export const LEADS: Record<string, { name: string; description: string; destinations: string[] }> = {
-  tracks: { name: '车辙与炊烟', description: '旧车辙朝远处延伸，地平线上隐约有炊烟。', destinations: ['plains', 'village', 'savanna'] },
-  river: { name: '下游的水迹', description: '顺着水迹往下游走，可能到达更开阔的水域。', destinations: ['coast', 'swamp', 'mangrove', 'warm_ocean'] },
-  rocks: { name: '裸露的岩层', description: '裸露的岩层延伸向远处，沿途可能有洞口。', destinations: ['mountain', 'cave', 'dripstone_caves', 'geode', 'mineshaft'] },
-  copper: { name: '凝灰岩和铜片', description: '散落的铜片和凝灰岩碎块指向地下遗迹。', destinations: ['cave', 'mineshaft', 'trial_chamber'] },
-  sculk: { name: '岩壁上的幽匿', description: '岩壁上的幽匿一路蔓延至更深处。', destinations: ['cave', 'deep_dark', 'ancient_city'] },
-  pottery: { name: '沙地里的陶片', description: '沙地里散落着陶片，附近可能埋有遗迹。', destinations: ['desert', 'badlands', 'desert_ruin', 'desert_pyramid'] },
-  canopy: { name: '幽暗的树冠', description: '幽暗的树冠连成一片，林径还在继续向前。', destinations: ['dark_forest', 'pale_garden', 'mansion'] },
-  wreck: { name: '海上的漂流木', description: '漂流木顺水而来，附近的海域可能有沉船。', destinations: ['coast', 'warm_ocean', 'deep_ocean', 'monument'] },
-  snow: { name: '雪中的足迹', description: '积雪上的足迹朝更冷的地带延伸。', destinations: ['snow', 'cold_ocean', 'dappled_forest'] },
-  raid: { name: '遭遗弃的旗帜', description: '废弃旗帜立在旧路旁，附近可能有前哨站。', destinations: ['plains', 'savanna', 'outpost'] },
-  sulfur: { name: '冒泡的硫磺泉', description: '冒泡的硫磺泉下方可能有一片洞穴。', destinations: ['cave', 'sulfur_caves'] },
-  nether: { name: '黑石残垣', description: '黑石残垣朝远处延伸，可能通往堡垒遗迹。', destinations: ['nether_wastes', 'crimson_forest', 'bastion'] },
+export const LEADS: Record<string, { name: string; action: string; hunger: number; description: string; destinations: string[] }> = {
+  tracks: { action: '沿车辙前行', hunger: 2, name: '车辙与炊烟', description: '旧车辙朝远处延伸，地平线上隐约有炊烟。', destinations: ['plains', 'village', 'savanna'] },
+  river: { action: '顺流而下', hunger: 2, name: '下游的水迹', description: '顺着水迹往下游走，可能到达更开阔的水域。', destinations: ['coast', 'swamp', 'mangrove', 'warm_ocean'] },
+  deep_ore: { action: '追踪钻石矿脉', hunger: 5, name: '追踪钻石矿脉', description: '深层矿轨通往留有钻石的废弃矿井。', destinations: ['mineshaft'] },
+  lava: { action: '追踪熔岩水迹', hunger: 5, name: '追踪熔岩水迹', description: '温热的地下水通向硫磺洞穴的黑曜石。', destinations: ['sulfur_caves'] },
+  rocks: { action: '探索裸露的岩层', hunger: 3, name: '裸露的岩层', description: '裸露的岩层延伸向远处，沿途可能有洞口。', destinations: ['mountain', 'cave', 'dripstone_caves', 'geode', 'mineshaft'] },
+  copper: { action: '寻找铜片的来处', hunger: 4, name: '凝灰岩和铜片', description: '散落的铜片和凝灰岩碎块指向地下遗迹。', destinations: ['cave', 'mineshaft', 'trial_chamber'] },
+  sculk: { action: '深入幽匿裂隙', hunger: 5, name: '岩壁上的幽匿', description: '岩壁上的幽匿一路蔓延至更深处。', destinations: ['cave', 'deep_dark', 'ancient_city'] },
+  pottery: { action: '寻访陶片遗址', hunger: 3, name: '沙地里的陶片', description: '沙地里散落着陶片，附近可能埋有遗迹。', destinations: ['desert', 'badlands', 'desert_ruin', 'desert_pyramid'] },
+  canopy: { action: '穿过幽暗树冠', hunger: 4, name: '幽暗的树冠', description: '幽暗的树冠连成一片，林径还在继续向前。', destinations: ['dark_forest', 'pale_garden', 'mansion'] },
+  wreck: { action: '追寻漂流木', hunger: 4, name: '海上的漂流木', description: '漂流木顺水而来，附近的海域可能有沉船。', destinations: ['coast', 'warm_ocean', 'deep_ocean', 'monument'] },
+  snow: { action: '沿雪中足迹前行', hunger: 3, name: '雪中的足迹', description: '积雪上的足迹朝更冷的地带延伸。', destinations: ['snow', 'cold_ocean', 'dappled_forest'] },
+  raid: { action: '追踪遗落的旗帜', hunger: 4, name: '遭遗弃的旗帜', description: '废弃旗帜立在旧路旁，附近可能有前哨站。', destinations: ['plains', 'savanna', 'outpost'] },
+  sulfur: { action: '探访硫磺泉', hunger: 4, name: '冒泡的硫磺泉', description: '冒泡的硫磺泉下方可能有一片洞穴。', destinations: ['cave', 'sulfur_caves'] },
+  nether: { action: '探索黑石残垣', hunger: 5, name: '黑石残垣', description: '黑石残垣朝远处延伸，可能通往堡垒遗迹。', destinations: ['nether_wastes', 'crimson_forest', 'bastion'] },
 }
 
 interface Site {
+  prefix: string
   name: string
   hint: string
   actions?: string[]
@@ -27,30 +30,35 @@ interface Site {
 }
 
 export const SITES: Record<string, Site> = {
-  thicket: { name: '野果灌木', hint: '灌木间有鸟啄过的痕迹', actions: ['gather_wild_berries'], resource: { id: 'wild_berries', range: [2, 4] } },
-  outcrop: { name: '石料露头', hint: '地面散着碎石', actions: ['mine_stone'] },
-  road: { name: '旧车辙', hint: '草地上有两道凹痕' },
-  bank: { name: '隐蔽河岸', hint: '能听见水声', actions: ['gather_cane', 'fish'] },
-  campsite: { name: '废弃营地', hint: '倒木后露出一角旧草床', actions: ['search_campsite'], resource: { id: 'camp_supplies', range: [1, 1] } },
-  traveler: { name: '落脚的旅人', hint: '附近传来整理行装的声音', actions: ['meet_traveler'] },
-  ore: { name: '浅层矿脉', hint: '岩石间泛着锈迹', actions: ['mine_iron'], resource: { id: 'iron', range: [4, 7] } },
-  masonry: { name: '铜制残件', hint: '碎石下露出一截金属' },
-  echo: { name: '幽匿裂隙', hint: '深处传来回声' },
-  sand: { name: '可疑沙层', hint: '沙丘下露出几块碎砖', actions: ['brush_ruin'], resource: { id: 'suspicious', range: [3, 5] } },
-  dark: { name: '深色林径', hint: '树干上有斧痕' },
-  drift: { name: '沉船残骸', hint: '浪里漂着几块木板', actions: ['search_wreck'], resource: { id: 'wreck', range: [1, 1] } },
-  seabed: { name: '海底遗迹', hint: '水下石块排成一列', actions: ['dive_ruin'], resource: { id: 'sunken_sand', range: [3, 5] } },
-  trail_ruins: { name: '古迹废墟', hint: '泥土间露出几块陶瓦', actions: ['brush_trail_ruins'], resource: { id: 'trail', range: [2, 4] } },
-  warm_ruins: { name: '暖水海底废墟', hint: '鱼群下方有碎石拱门', actions: ['dive_warm_ruins'], resource: { id: 'warm_ruins', range: [2, 4] } },
-  igloo: { name: '雪屋', hint: '雪中露出一道矮门', actions: ['search_igloo'], resource: { id: 'igloo', range: [1, 1] } },
-  snow_cellar: { name: '雪屋地下室', hint: '雪屋地毯下有一扇活板门', actions: ['rescue_igloo_villager'] },
-  hut: { name: '女巫小屋', hint: '雾里有灯火', actions: ['hunt_witch'] },
-  jungle_pyramid: { name: '丛林神庙', hint: '藤蔓后露出石墙', actions: ['search_jungle_pyramid'], resource: { id: 'jungle_temple', range: [1, 1] } },
-  ruined_portal: { name: '废弃传送门', hint: '裸露的黑曜石上有紫纹', actions: ['search_ruined_portal'], resource: { id: 'ruined_portal', range: [1, 1] } },
-  cage: { name: '笼中的悦灵', hint: '木笼边闪过蓝光', actions: ['free_allay'] },
-  dungeon: { name: '刷怪笼房间', hint: '墙后传来骨骼碰撞声', actions: ['search_dungeon'], resource: { id: 'dungeon', range: [1, 1] } },
-  spring: { name: '硫磺泉', hint: '低处有一片冒泡的水面' },
-  ashes: { name: '黑石碎片', hint: '岩浆边有砌过的石块' },
+  thicket: { prefix: '莓丛', name: '野果灌木', hint: '灌木间有鸟啄过的痕迹', actions: ['gather_wild_berries'], resource: { id: 'wild_berries', range: [2, 4] } },
+  outcrop: { prefix: '裸岩', name: '石料露头', hint: '地面散着碎石', actions: ['mine_stone'] },
+  road: { prefix: '车辙', name: '旧车辙', hint: '草地上有两道凹痕' },
+  bank: { prefix: '河湾', name: '隐蔽河岸', hint: '能听见水声', actions: ['gather_cane', 'fish', 'search_gravel'] },
+  campsite: { prefix: '营火', name: '废弃营地', hint: '倒木后露出一角旧草床', actions: ['search_campsite'], resource: { id: 'camp_supplies', range: [1, 1] } },
+  traveler: { prefix: '驿路', name: '落脚的旅人', hint: '附近传来整理行装的声音', actions: ['meet_traveler'] },
+  ore: { prefix: '铁脉', name: '浅层矿脉', hint: '岩石间泛着锈迹', actions: ['mine_iron'], resource: { id: 'iron', range: [4, 7] } },
+  masonry: { prefix: '铜纹', name: '铜制残件', hint: '碎石下露出一截金属' },
+  echo: { prefix: '幽痕', name: '幽匿裂隙', hint: '深处传来回声' },
+  sand: { prefix: '碎陶', name: '可疑沙层', hint: '沙丘下露出几块碎砖', actions: ['brush_ruin'], resource: { id: 'suspicious', range: [3, 5] } },
+  dark: { prefix: '斧痕', name: '深色林径', hint: '树干上有斧痕' },
+  drift: { prefix: '漂木', name: '沉船残骸', hint: '浪里漂着几块木板', actions: ['search_wreck'], resource: { id: 'wreck', range: [1, 1] } },
+  seabed: { prefix: '沉石', name: '海底遗迹', hint: '水下石块排成一列', actions: ['dive_ruin'], resource: { id: 'sunken_sand', range: [3, 5] } },
+  trail_ruins: { prefix: '陶瓦', name: '古迹废墟', hint: '泥土间露出几块陶瓦', actions: ['brush_trail_ruins'], resource: { id: 'trail', range: [2, 4] } },
+  warm_ruins: { prefix: '珊瑚拱', name: '暖水海底废墟', hint: '鱼群下方有碎石拱门', actions: ['dive_warm_ruins'], resource: { id: 'warm_ruins', range: [2, 4] } },
+  igloo: { prefix: '雪屋', name: '雪屋', hint: '雪中露出一道矮门', actions: ['search_igloo'], resource: { id: 'igloo', range: [1, 1] } },
+  snow_cellar: { prefix: '地窖', name: '雪屋地下室', hint: '雪屋地毯下有一扇活板门', actions: ['rescue_igloo_villager'] },
+  hut: { prefix: '灯影', name: '女巫小屋', hint: '雾里有灯火', actions: ['hunt_witch'] },
+  jungle_pyramid: { prefix: '藤墙', name: '丛林神庙', hint: '藤蔓后露出石墙', actions: ['search_jungle_pyramid'], resource: { id: 'jungle_temple', range: [1, 1] } },
+  ruined_portal: { prefix: '紫痕', name: '废弃传送门', hint: '裸露的黑曜石上有紫纹', actions: ['search_ruined_portal'], resource: { id: 'ruined_portal', range: [1, 1] } },
+  cage: { prefix: '囚笼', name: '笼中的悦灵', hint: '木笼边闪过蓝光', actions: ['free_allay'] },
+  dungeon: { prefix: '骨响', name: '刷怪笼房间', hint: '墙后传来骨骼碰撞声', actions: ['search_dungeon'], resource: { id: 'dungeon', range: [1, 1] } },
+  spring: { prefix: '热泉', name: '硫磺泉', hint: '低处有一片冒泡的水面' },
+  deep_seam: { prefix: '蓝纹', name: '深层矿脉', hint: '岩层间露出蓝色晶面' },
+  siding: { prefix: '岔轨', name: '矿车支线', hint: '脚下的轨道在木梁处分岔' },
+  quartz: { prefix: '白脉', name: '石英脉', hint: '岩面透出细白的纹路', actions: ['mine_quartz'], resource: { id: 'quartz', range: [2, 4] } },
+  soul_bank: { prefix: '魂沙', name: '灵魂沙滩', hint: '脚下的沙地传来低语', actions: ['dig_soul_sand'] },
+  wart_bed: { prefix: '疣田', name: '下界疣田', hint: '暗红的菌芽在沙层间冒头', actions: ['gather_wart'], resource: { id: 'nether_wart', range: [2, 3] } },
+  ashes: { prefix: '黑砖', name: '黑石碎片', hint: '岩浆边有砌过的石块' },
 }
 
 const sitePools: Record<string, string[]> = {
@@ -79,12 +87,24 @@ const sitePools: Record<string, string[]> = {
   dripstone_caves: ['masonry', 'ore'],
   lush_caves: ['thicket', 'ore'],
   deep_dark: ['echo', 'masonry'],
-  mineshaft: ['ore', 'masonry', 'dungeon'],
+  mineshaft: ['deep_seam', 'siding', 'ore', 'dungeon'],
   desert: ['sand', 'road', 'outcrop', 'ruined_portal'],
   badlands: ['sand', 'ore', 'masonry'],
-  nether_wastes: ['ashes'],
-  crimson_forest: ['ashes'],
-  basalt_deltas: ['ashes'],
+  mushroom_fields: ['bank', 'outcrop'],
+  geode: ['ore', 'echo', 'masonry'],
+  sulfur_caves: ['spring', 'ore', 'masonry'],
+  desert_ruin: ['sand', 'road', 'outcrop'],
+  desert_pyramid: ['sand', 'outcrop'],
+  trial_chamber: ['masonry', 'echo'],
+  ancient_city: ['echo', 'masonry'],
+  monument: ['seabed', 'drift'],
+  nether_wastes: ['ashes', 'soul_bank', 'wart_bed'],
+  crimson_forest: ['ashes', 'quartz'],
+  warped: ['quartz', 'wart_bed'],
+  soul_sand_valley: ['ashes', 'quartz', 'wart_bed'],
+  basalt_deltas: ['ashes', 'quartz', 'soul_bank'],
+  bastion: ['ashes', 'soul_bank'],
+  rift: ['ashes', 'quartz'],
 }
 
 const regions: Record<string, string[]> = {
@@ -112,7 +132,17 @@ export function nearbySites(biome: string) {
   return chosen
 }
 
-export function journeyDestination(origin: string, leads: readonly string[]) {
+export function distinctLocationName(base: string, used: ReadonlySet<string>) {
+  let name = base
+  for (let n = 2; used.has(name); n++) name = base + ' ' + n
+  return name
+}
+
+export function journeyDestination(origin: string, leads: readonly string[], selected?: string) {
+  if (selected && leads.includes(selected)) {
+    const choices = LEADS[selected].destinations.filter((id) => !!BIOMES[id].nether === !!BIOMES[origin].nether)
+    if (choices.length) return choices[Math.floor(Math.random() * choices.length)]
+  }
   const nether = !!BIOMES[origin].nether
   const nearby = regions[origin] ?? []
   const hinted = new Set(leads.flatMap((id) => LEADS[id].destinations))

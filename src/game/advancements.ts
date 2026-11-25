@@ -49,7 +49,6 @@ const woodPick = item('pick_wood', 'equipment')
 const stonePick = item('pick_stone', 'equipment')
 const ironPick = item('pick_iron', 'equipment')
 const diamondPick = item('pick_diamond', 'equipment')
-const torch = item('torch', 'equipment')
 const shield = item('shield', 'equipment')
 const armor = item('armor_iron', 'equipment', '护甲')
 const food = item('steak', 'material', '熟食')
@@ -96,7 +95,7 @@ export const STORY: Milestone[] = [
   },
   {
     id: 'home', requires: ['table'], title: '安家', icon: shelter,
-    hint: ['建立', shelter, '，或完成', village, '的委托后定居。'],
+    hint: ['建立', shelter, '，或找到', village, '安顿下来。'],
     complete: (s) => s.homeId !== null,
   },
   {
@@ -111,33 +110,33 @@ export const STORY: Milestone[] = [
   },
   {
     id: 'diamond-pick', requires: ['iron-pick'], title: '钻石！', icon: diamond,
-    hint: ['在', cave, '等地点寻找矿脉，用', ironPick, '开采', diamond, '，再做一把', diamondPick, '。', torch, '可以降低遇敌概率并补充矿脉。'],
+    hint: ['探索', cave, '附近的浅层矿脉，循线索前往废弃矿井。用', ironPick, '开采', diamond, '，再做一把', diamondPick, '。'],
     complete: (s) => PICKS.slice(3).some((id) => s.seen[id]),
   },
   {
-    id: 'nether', requires: ['home', 'diamond-pick'], title: '勇往直下', icon: netherPortal,
-    hint: ['用', diamondPick, '开采', obsidian, '，回家在维度页用 10 块黑曜石和 1 块', iron, '搭建', netherPortal, '并进入下界。'],
+    id: 'nether', requires: ['iron-pick'], title: '勇往直下', icon: netherPortal,
+    hint: ['在主世界用水和岩浆逐块浇筑门框。也可用', diamondPick, '采走', obsidian, '，从背包补齐余下部分。新门框共需 10 块，废弃门框补 4 块。用', item('flint_and_steel', 'equipment'), '点燃', netherPortal, '并进入下界。'],
     complete: (s) => !!s.flags.enteredNether || !!s.flags.altar,
   },
   {
     id: 'stronghold', requires: ['nether'], title: '跟随末影之眼', icon: eye,
-    hint: ['前往', fortress, '和', warpedForest, '，收集', blazeRod, '和', pearl, '。合成 3 只', eye, '后，回到', overworld, '从维度页投掷。'],
+    hint: ['前往', fortress, '和', warpedForest, '，收集', blazeRod, '和', pearl, '。合成 3 只', eye, '后，回到', overworld, '从采集页投掷。'],
     complete: (s) => !!s.flags.altar,
   },
   {
     id: 'end-portal', requires: ['stronghold'], title: '末地传送门', icon: endPortal,
-    hint: ['从地图页前往', stronghold, '，在维度页嵌入 12 只', eye, '。'],
+    hint: ['从地图页前往', stronghold, '，在采集页嵌入 12 只', eye, '。'],
     complete: (s) => !!s.flags.portal,
   },
   {
     id: 'dragon', requires: ['end-portal'], title: '解放末地', icon: dragon,
-    hint: ['带上', armor, '、', shield, '与', food, '。进入', end, '后先击碎 3 座', crystal, '，再攻击', dragon, '。'],
+    hint: ['带上', armor, '、', shield, '与', food, '。若要备药，可在酿造台用闪烁的西瓜片把粗制的药水酿成', item('potion', 'special'), '。进入', end, '后先击碎 3 座', crystal, '，再攻击', dragon, '。'],
     complete: (s) => !!s.flags.won,
   },
 ]
 
 export const PROJECTS: Milestone[] = [
-  { id: 'joined-village', title: '村里的新邻居', icon: village, hint: ['完成现成村庄的委托并定居。'], available: (s) => !s.village?.founded, complete: (s) => !!s.flags.joinedVillage },
+  { id: 'joined-village', title: '村里的新邻居', icon: village, hint: ['到访村庄，在村庄页选择「在此定居」。'], available: (s) => !s.village?.founded, complete: (s) => !!s.flags.joinedVillage },
   { id: 'invited-resident', title: '第一位住民', icon: villager, hint: ['安顿好后，为结识的旅人准备住房和口粮。'], available: (s) => !s.village || s.village.founded, complete: (s) => !!s.flags.invitedVillager },
   {
     id: 'first-job', requires: ['home'], title: '村庄的第一班岗', icon: villager, hint: ['安排一位', villager, '工作，并等到首次产出。'],
@@ -163,15 +162,15 @@ export const PROJECTS: Milestone[] = [
   },
   {
     id: 'beacon', requires: ['nether'], title: '信标工程', icon: beacon,
-    hint: ['击败', wither, '取得', netherStar, '，再收集', glass, '、', obsidian, '和', iron, '点亮', beacon, '。'],
+    hint: ['击败', wither, '取得', netherStar, '，再收集', glass, '、', obsidian, '搭建信标本体，用 9 个铁块铺设基座，点亮', beacon, '。'],
     complete: (s) => !!s.village?.buildings.beacon,
   },
   {
-    id: 'end-city', requires: ['dragon'], title: '在游戏尽头的城市', icon: endShip, hint: ['战胜', dragon, '后，在村庄组织一次', endShip, '。'],
+    id: 'end-city', requires: ['dragon'], title: '在游戏尽头的城市', icon: endShip, hint: ['战胜', dragon, '后，在村庄的远征页选择「搜寻末地船」。首次完成可带回', elytra, '。'],
     complete: (s) => !!s.expeditions.city,
   },
   {
-    id: 'end-flight', requires: ['dragon'], title: '越过虚空', icon: elytra, hint: ['用', shell, '制作', elytra, '，并完成一次', outerIslands, '。'],
+    id: 'end-flight', requires: ['dragon'], title: '越过虚空', icon: elytra, hint: ['携带首次搜寻末地船所得的', elytra, '，回到村庄组织「飞往远端群岛」远征。'],
     complete: (s) => !!s.expeditions.flight,
   },
   {
@@ -206,7 +205,7 @@ const heart = item('heart_of_sea', 'special')
 const shellNautilus = item('nautilus', 'special')
 const conduit = item('conduit', 'equipment')
 const snifferEgg = item('sniffer_egg', 'special')
-const torchflower = item('torchflower', 'material')
+const torchflower = item('torchflower_seed', 'material')
 const wasteland = place('nether_wastes')
 const bastion = place('bastion')
 const debris = item('ancient_debris', 'special')
@@ -217,7 +216,7 @@ const enderChest = item('ender_chest', 'equipment')
 const endStore = building('end_store')
 
 export const EXPLORATION: Milestone[] = [
-  { id: 'followed-lead', title: '循着线索', icon: forest, hint: ['从已发现线索的地点出发远行。'], complete: (s) => !!s.flags.followedLead },
+  { id: 'followed-lead', title: '循着线索', icon: forest, hint: ['在地图选择一条当地线索并远行。'], complete: (s) => !!s.flags.followedLead },
   { id: 'return-to-mark', title: '重返旧地', icon: item('map', 'equipment'), hint: ['用地图标记地点，离开后再回来。'], complete: (s) => !!s.flags.returnedToMark },
   { id: 'local-supplies', title: '就地取材', icon: item('chest', 'material'), hint: ['使用箱子或仓库材料完成一次制作或建造。'], complete: (s) => !!s.flags.usedLocalStock },
   { id: 'creeper', title: '嘶声过后', icon: mob('creeper'), hint: ['应对一次苦力怕的遭遇。'], complete: (s) => !!s.flags.defeatedCreeper },

@@ -64,6 +64,19 @@ for (const trip of EXPEDITIONS) {
    requirement = predecessor.after
  }
 }
+const recipeFor = (id) => RECIPES.find(recipe => recipe.id === id)
+assert.deepEqual(recipeFor('awkward_potion').cost, { water_bottle: 3, nether_wart: 1 })
+for (const [potion, ingredient] of [['potion', 'glistering_melon_slice'], ['water_breathing', 'pufferfish'], ['fire_resistance', 'magma_cream']]) {
+ assert.deepEqual(recipeFor(potion).cost, { awkward_potion: 3, [ingredient]: 1 })
+}
+assert.deepEqual(recipeFor('plank').alternatives.wood, ['wood'])
+assert.deepEqual(recipeFor('shulker_box').cost, { chest: 1, shulker_shell: 2 })
+assert.equal(recipeFor('elytra'), undefined)
+assert.equal(EXPEDITIONS.find(trip => trip.id === 'city').first.elytra, 1)
+assert.equal(BUILDING_MAP.beacon.cost.iron_block, 9)
+assert.equal(BUILDING_MAP.cobblegen.cost.lava_bucket, 1)
+assert.equal(BUILDING_MAP.cobblegen.cost.water_bucket, 1)
+assert.deepEqual(LINES.find(line => line.id === 'honey_bottler').input, { bottle: 1 })
 assert.equal(RECIPES.find((recipe) => recipe.id === 'conduit').cost.nautilus, 8)
 assert.equal(RECIPES.find((recipe) => recipe.id === 'pick_netherite').station, 'smithing')
 assert.equal(TRIAL_VAULTS.find((vault) => vault.id === 'ominous').reward.heavy_core, 1)
@@ -71,8 +84,10 @@ assert.equal(EXPEDITIONS.find((trip) => trip.id === 'warm_ruins').first.sniffer_
 assert.equal(EXPEDITIONS.find((trip) => trip.id === 'buried_treasure').first.heart_of_sea, 1)
 assert.equal(new Set(RECIPES.map(r => r.id)).size, RECIPES.length)
 assert.ok(BIOMES.forest.actions.includes('mine_stone'))
-assert.ok(BIOMES.cave.res.obsidian[0] * ACTIONS.mine_obsidian.drops[0].min >= NETHER_COST.obsidian)
-assert.ok(BIOMES.cave.res.diamond[0] * ACTIONS.mine_diamond.drops[0].min >= RECIPES.find(r => r.out === 'pick_diamond').cost.diamond)
+assert.equal(BIOMES.cave.res.obsidian, undefined)
+assert.equal(BIOMES.cave.res.diamond, undefined)
+assert.ok(BIOMES.sulfur_caves.res.obsidian[1] * ACTIONS.mine_obsidian.drops[0].max < NETHER_COST.obsidian)
+assert.ok(BIOMES.mineshaft.res.diamond[0] * ACTIONS.mine_diamond.drops[0].min >= RECIPES.find(r => r.out === 'pick_diamond').cost.diamond)
 assert.equal(SMELTS.find(s=>s.from==='wood').out, 'charcoal')
 assert.equal(FUELS.charcoal, FUELS.coal)
 assert.equal(MOBS.pig.drops[0].item, 'porkchop')
